@@ -18,25 +18,30 @@ done
 
 preserve_existing_config() {
     local module_name=$(basename "$MODPATH")
-    local old_file="$1"
-    local new_file="${2:-$1}"  # 第二个参数默认等于第一个
+    local source="/data/adb/modules/${module_name}/$1"
+    local target="$MODPATH/${2:-$1}"
     
-    local old_config_path="/data/adb/modules/${module_name}/${old_file}"
-    local new_config_path="$MODPATH/${new_file}"
-    
-    if [ -f "$old_config_path" ]; then
-        # 如果新配置文件存在，则备份
-        if [ -f "$new_config_path" ]; then
-            mv "$new_config_path" "${new_config_path}.bak"
-        fi
-        cp "$old_config_path" "$new_config_path"
-        ui_print "✓ 已保留现有配置文件: ${old_file}"
+    if [ -e "$source" ]; then
+        # 确保目标父目录存在
+        mkdir -p "$(dirname "$target")"
+        
+        # 删除已存在的目标（避免 cp 到目录内的问题）
+        [ -e "$target" ] && rm -rf "$target"
+        
+        # 复制文件/文件夹
+        cp -r "$source" "$target"
+        ui_print "✓ 已保留: $1"
         return 0
     else
-        ui_print "! 未找到现有配置: ${old_file}，使用默认配置"
+        ui_print "! 未找到: $1，使用默认配置"
         return 1
     fi
 }
+
+
+ui_print "********************************************"
+ui_print "- 保留配置"
+ui_print "********************************************"
 
 preserve_existing_config "config.conf"
 preserve_existing_config "conf/AdGuardHome.yaml"
@@ -44,6 +49,10 @@ preserve_existing_config "conf/applist.prop"
 preserve_existing_config "conf/mihomo.yaml"
 preserve_existing_config "conf/oxidns.yaml"
 preserve_existing_config "conf/smartdns.conf"
+preserve_existing_config "mihomoData/proxies"
+preserve_existing_config "mihomoData/cache.db"
+preserve_existing_config "mihomoData/packages.list"
+
 
 
 
@@ -70,4 +79,3 @@ set_perm $MODPATH/scripts/oiface.sh 0 0 0755
 ui_print "********************************************"
 ui_print "安装完成！"
 ui_print "********************************************"
-
