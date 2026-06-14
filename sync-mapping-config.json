@@ -1,0 +1,115 @@
+{
+    "upstreams": [
+        {
+            "name": "mihomo",
+            "repo": "MetaCubeX/mihomo",
+            "use_latest": true,
+            "specific_tag": "",
+            "asset_patterns": [
+                "mihomo-android-*.gz"
+            ],
+            "asset_priority": [
+                "android",
+                "arm64"
+            ],
+            "mappings": [
+                {
+                    "comment": "替换 mihomo 二进制文件",
+                    "source": "mihomo*",
+                    "target": "bin/mihomo",
+                    "type": "pattern",
+                    "flatten": true,
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        },
+        {
+            "name": "AdGuardHome",
+            "repo": "AdguardTeam/AdGuardHome",
+            "use_latest": true,
+            "specific_tag": "",
+            "asset_patterns": [
+                "AdGuardHome_linux*.tar.gz"
+            ],
+            "asset_priority": [
+                "linux",
+                "arm64"
+            ],
+            "mappings": [
+                {
+                    "comment": "替换 AdGuardHome 二进制文件",
+                    "source": "*/AdGuardHome",
+                    "target": "bin/AdGuardHome",
+                    "type": "pattern",
+                    "flatten": true,
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        },
+        {
+            "name": "oxidns",
+            "repo": "svenshi/oxidns",
+            "use_latest": true,
+            "specific_tag": "",
+            "asset_patterns": [
+                "oxidns-aarch64*.tar.gz"
+            ],
+            "asset_priority": [
+                "aarch64",
+                "linux",
+                "musl"
+            ],
+            "mappings": [
+                {
+                    "comment": "替换 oxidns 二进制文件",
+                    "source": "*/oxidns",
+                    "target": "bin/oxidns",
+                    "type": "pattern",
+                    "flatten": true,
+                    "overwrite": true,
+                    "make_executable": true
+                },
+                {
+                    "comment": "替换 webui 文件夹",
+                    "source": "*/webui",
+                    "target": "webui",
+                    "type": "pattern",
+                    "flatten": false,
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        },
+        {
+            "name": "smartdns",
+            "repo": "pymumu/smartdns",
+            "use_latest": true,
+            "specific_tag": "",
+            "asset_patterns": [
+                "smartdns-aarch64"
+            ],
+            "asset_priority": [
+                "aarch64"
+            ],
+            "mappings": [
+                {
+                    "comment": "替换 smartdns 二进制文件",
+                    "source": "smartdns",
+                    "target": "bin/smartdns",
+                    "type": "file",
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        }
+    ],
+    "global": {
+        "backup_before_sync": true,
+        "auto_commit": true,
+        "clean_temp": true,
+        "retry_count": 3,
+        "max_backups": 5
+    }
+}

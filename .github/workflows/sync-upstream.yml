@@ -1,0 +1,460 @@
+name: 同步上游 Releases
+
+on:
+  schedule:
+    - cron: '0 */24 * * *'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: '强制更新所有仓库'
+        required: false
+        type: boolean
+        default: false
+      upstream_name:
+        description: '指定上游名称（留空则全部）'
+        required: false
+        type: string
+        default: ''
+      skip_backup:
+        description: '跳过备份'
+        required: false
+        type: boolean
+        default: false
+      select_asset:
+        description: '手动指定资产文件名（留空自动选择）'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq unzip wget rsync tree gzip tar
+      
+      - name: 读取配置
+        id: config
+        run: |
+          if [ ! -f "sync-mapping-config.json" ]; then
+            echo "❌ 配置文件 sync-mapping-config.json 不存在"
+            exit 1
+          fi
+          
+          UPSTREAMS_COUNT=$(jq '.upstreams | length' sync-mapping-config.json)
+          echo "✅ 配置文件加载成功，共 $UPSTREAMS_COUNT 个上游仓库"
+          echo "count=$UPSTREAMS_COUNT" >> $GITHUB_OUTPUT
+      
+      - name: 备份现有文件
+        if: github.event.inputs.skip_backup != 'true' && github.event.inputs.force_update != 'true'
+        run: |
+          BACKUP_DIR=".backup_$(date +'%Y%m%d_%H%M%S')"
+          mkdir -p "$BACKUP_DIR"
+          
+          jq -r '.upstreams[].mappings[].target' sync-mapping-config.json 2>/dev/null | while read target; do
+            if [ -e "$target" ]; then
+              mkdir -p "$BACKUP_DIR/$(dirname "$target")"
+              cp -r "$target" "$BACKUP_DIR/$target"
+              echo "📦 已备份: $target"
+            fi
+          done
+          
+          echo "$BACKUP_DIR" > .last_backup
+          echo "✅ 备份完成: $BACKUP_DIR"
+          
+          ls -dt .backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
+      
+      - name: 同步上游
+        id: sync
+        run: |
+          FORCE_UPDATE="${{ github.event.inputs.force_update }}"
+          SPECIFIC_UPSTREAM="${{ github.event.inputs.upstream_name }}"
+          MANUAL_ASSET="${{ github.event.inputs.select_asset }}"
+          
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            FORCE_UPDATE="false"
+          fi
+          
+          # 定义资产选择函数
+          select_asset() {
+            local assets_json="$1"
+            local patterns="$2"
+            local priority="$3"
+            
+            if [ -n "$MANUAL_ASSET" ]; then
+              echo "$assets_json" | jq -r ".[] | select(.name == \"$MANUAL_ASSET\") | .browser_download_url" 2>/dev/null
+              return
+            fi
+            
+            for keyword in $priority; do
+              url=$(echo "$assets_json" | jq -r ".[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                echo "$url"
+                return
+              fi
+            done
+            
+            for pattern in $patterns; do
+              if [[ "$pattern" == !* ]]; then
+                exclude_pattern="${pattern#!}"
+                assets_json=$(echo "$assets_json" | jq -c "[.[] | select(.name | test(\"$exclude_pattern\"; \"i\") | not)]" 2>/dev/null)
+                continue
+              fi
+              
+              regex=$(echo "$pattern" | sed 's/\./\\./g' | sed 's/\*/.*/g' | sed 's/\?/./g')
+              url=$(echo "$assets_json" | jq -r ".[] | select(.name | test(\"^$regex$\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                echo "$url"
+                return
+              fi
+            done
+            
+            echo "$assets_json" | jq -r '.[0].browser_download_url' 2>/dev/null
+          }
+          
+          # 定义解压函数
+          extract_file() {
+            local file="$1"
+            local dest="$2"
+            local filename=$(basename "$file")
+            
+            if [[ "$filename" == *.tar.gz ]] || [[ "$filename" == *.tgz ]]; then
+              echo "📦 解压 tar.gz: $filename"
+              tar -xzf "$file" -C "$dest"
+              return 0
+            elif [[ "$filename" == *.gz ]]; then
+              echo "📦 解压 gz: $filename"
+              local base_name="${filename%.gz}"
+              gunzip -c "$file" > "$dest/$base_name"
+              return 0
+            elif [[ "$filename" == *.zip ]]; then
+              echo "📦 解压 zip: $filename"
+              unzip -q "$file" -d "$dest"
+              return 0
+            else
+              echo "⚠️ 未知格式，直接复制"
+              cp "$file" "$dest/"
+              return 0
+            fi
+          }
+          
+          mkdir -p temp_downloads
+          
+          UPDATED_LIST=""
+          UPDATED_COUNT=0
+          TOTAL_COUNT=0
+          SKIP_COUNT=0
+          FAIL_COUNT=0
+          
+          for row in $(jq -c '.upstreams[]' sync-mapping-config.json); do
+            NAME=$(echo "$row" | jq -r '.name')
+            REPO=$(echo "$row" | jq -r '.repo')
+            
+            if [ -n "$SPECIFIC_UPSTREAM" ] && [ "$SPECIFIC_UPSTREAM" != "$NAME" ]; then
+              echo "⏭️ 跳过: $NAME"
+              SKIP_COUNT=$((SKIP_COUNT + 1))
+              continue
+            fi
+            
+            TOTAL_COUNT=$((TOTAL_COUNT + 1))
+            
+            echo ""
+            echo "=========================================="
+            echo "📦 处理: $NAME"
+            echo "   仓库: $REPO"
+            echo "=========================================="
+            
+            USE_LATEST=$(echo "$row" | jq -r '.use_latest')
+            SPECIFIC_TAG=$(echo "$row" | jq -r '.specific_tag // ""')
+            
+            if [ "$USE_LATEST" = "true" ]; then
+              RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
+            else
+              RELEASE_URL="https://api.github.com/repos/$REPO/releases/tags/$SPECIFIC_TAG"
+            fi
+            
+            RELEASE_DATA=$(curl -s "$RELEASE_URL")
+            
+            if echo "$RELEASE_DATA" | jq -e '.message' > /dev/null 2>&1; then
+              ERROR_MSG=$(echo "$RELEASE_DATA" | jq -r '.message')
+              echo "❌ 获取 Release 失败: $ERROR_MSG"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              continue
+            fi
+            
+            LATEST_TAG=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
+            RELEASE_NAME=$(echo "$RELEASE_DATA" | jq -r '.name // .tag_name')
+            PUBLISHED_AT=$(echo "$RELEASE_DATA" | jq -r '.published_at')
+            
+            echo "   版本: $LATEST_TAG"
+            echo "   发布时间: $PUBLISHED_AT"
+            
+            # 版本检查
+            VERSION_FILE=".version_$(echo "$NAME" | sed 's/[^a-zA-Z0-9]/_/g')"
+            if [ -f "$VERSION_FILE" ] && [ "$FORCE_UPDATE" != "true" ]; then
+              CURRENT_VERSION=$(cat "$VERSION_FILE")
+              if [ "$CURRENT_VERSION" = "$LATEST_TAG" ]; then
+                echo "✅ 已是最新版本: $LATEST_TAG，无需更新"
+                SKIP_COUNT=$((SKIP_COUNT + 1))
+                continue
+              fi
+              echo "🔄 版本更新: $CURRENT_VERSION → $LATEST_TAG"
+            fi
+            
+            # 列出所有资产
+            echo ""
+            echo "📋 可用的资产文件:"
+            ASSET_COUNT=$(echo "$RELEASE_DATA" | jq '.assets | length')
+            if [ "$ASSET_COUNT" -eq 0 ]; then
+              echo "   ⚠️ 没有找到资产文件，将使用源码包"
+              ZIP_URL=$(echo "$RELEASE_DATA" | jq -r '.zipball_url')
+              SELECTED_NAME="source-code.zip"
+            else
+              echo "$RELEASE_DATA" | jq -r '.assets[] | "   - \(.name) (\(.size) bytes, 下载: \(.download_count) 次)"'
+              
+              PATTERNS=$(echo "$row" | jq -r '.asset_patterns // ["*.zip"] | join(" ")' 2>/dev/null)
+              PRIORITY=$(echo "$row" | jq -r '.asset_priority // ["module", "magisk", "release", "v", "zip"] | join(" ")' 2>/dev/null)
+              
+              ASSETS_JSON=$(echo "$RELEASE_DATA" | jq -c '.assets')
+              SELECTED_URL=$(select_asset "$ASSETS_JSON" "$PATTERNS" "$PRIORITY")
+              SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
+              
+              if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
+                echo "⚠️ 无法匹配资产，使用第一个"
+                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
+                SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
+              fi
+            fi
+            
+            echo ""
+            echo "🎯 选择的文件: $SELECTED_NAME"
+            echo "📥 下载中..."
+            
+            wget -q --show-progress -O "temp_downloads/${NAME}.download" "$SELECTED_URL"
+            
+            if [ ! -f "temp_downloads/${NAME}.download" ]; then
+              echo "❌ 下载失败"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              continue
+            fi
+            
+            # 解压
+            EXTRACT_DIR="temp_downloads/${NAME}_extract"
+            mkdir -p "$EXTRACT_DIR"
+            
+            # 根据文件类型解压
+            extract_file "temp_downloads/${NAME}.download" "$EXTRACT_DIR"
+            
+            # 查找实际目录（处理多一层目录的情况）
+            if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
+              SOURCE_BASE="$EXTRACT_DIR"/*/
+            else
+              SOURCE_BASE="$EXTRACT_DIR"
+            fi
+            
+            echo "📋 开始文件映射..."
+            MAPPING_SUCCESS=true
+            
+            for mapping in $(echo "$row" | jq -c '.mappings[]'); do
+              SOURCE=$(echo "$mapping" | jq -r '.source')
+              TARGET=$(echo "$mapping" | jq -r '.target')
+              TYPE=$(echo "$mapping" | jq -r '.type')
+              OVERWRITE=$(echo "$mapping" | jq -r '.overwrite // true')
+              MAKE_EXEC=$(echo "$mapping" | jq -r '.make_executable // false')
+              
+              echo ""
+              echo "  🔄 映射: $SOURCE → $TARGET"
+              
+              if [ "$OVERWRITE" = "false" ] && [ -e "$TARGET" ]; then
+                echo "     ⏭️ 目标已存在，跳过"
+                continue
+              fi
+              
+              mkdir -p "$(dirname "$TARGET")"
+              
+              case "$TYPE" in
+                "file")
+                  if [ -f "$SOURCE_BASE/$SOURCE" ]; then
+                    cp "$SOURCE_BASE/$SOURCE" "$TARGET"
+                    echo "     ✅ 文件已复制"
+                  else
+                    echo "     ⚠️ 源文件不存在: $SOURCE"
+                    MAPPING_SUCCESS=false
+                  fi
+                  ;;
+                
+                "folder")
+                  if [ -d "$SOURCE_BASE/$SOURCE" ]; then
+                    if [ "$OVERWRITE" = "true" ]; then
+                      rm -rf "$TARGET"
+                    fi
+                    mkdir -p "$TARGET"
+                    cp -r "$SOURCE_BASE/$SOURCE"/* "$TARGET/" 2>/dev/null
+                    echo "     ✅ 文件夹已同步"
+                    
+                    EXCLUDE=$(echo "$mapping" | jq -r '.exclude[]?' 2>/dev/null)
+                    for pattern in $EXCLUDE; do
+                      rm -rf "$TARGET/$pattern"
+                      echo "     🚫 已排除: $pattern"
+                    done
+                  else
+                    echo "     ⚠️ 源文件夹不存在: $SOURCE"
+                    MAPPING_SUCCESS=false
+                  fi
+                  ;;
+                
+                "pattern")
+                  cd "$SOURCE_BASE" 2>/dev/null
+                  for file in $SOURCE; do
+                    if [ -e "$file" ]; then
+                      cd - > /dev/null
+                      FLATTEN=$(echo "$mapping" | jq -r '.flatten // false')
+                      
+                      if [ "$FLATTEN" = "true" ]; then
+                        if [ -f "$SOURCE_BASE/$file" ]; then
+                          cp "$SOURCE_BASE/$file" "$TARGET"
+                          echo "     ✅ 已复制: $file → $TARGET"
+                        elif [ -d "$SOURCE_BASE/$file" ]; then
+                          cp -r "$SOURCE_BASE/$file"/* "$TARGET/" 2>/dev/null
+                          echo "     ✅ 已复制文件夹内容: $file"
+                        fi
+                      else
+                        cp -r "$SOURCE_BASE/$file" "$TARGET/"
+                        echo "     ✅ 已复制（保持结构）: $file"
+                      fi
+                      
+                      cd "$SOURCE_BASE"
+                    fi
+                  done
+                  cd - > /dev/null
+                  ;;
+              esac
+              
+              # 设置可执行权限
+              if [ "$MAKE_EXEC" = "true" ] && [ -f "$TARGET" ]; then
+                chmod +x "$TARGET"
+                echo "     🔧 已设置可执行权限"
+              fi
+            done
+            
+            # 后处理：更新版本号
+            UPDATE_VERSION=$(echo "$row" | jq -r '.post_process.update_version // false')
+            if [ "$UPDATE_VERSION" = "true" ]; then
+              VERSION_FILE=$(echo "$row" | jq -r '.post_process.version_file')
+              if [ -f "$VERSION_FILE" ]; then
+                sed -i "s/^version=.*/version=$LATEST_TAG/" "$VERSION_FILE"
+                sed -i "s/^versionCode=.*/versionCode=$(date +'%Y%m%d%H%M%S')/" "$VERSION_FILE"
+                echo "📝 已更新版本号: $VERSION_FILE → $LATEST_TAG"
+              fi
+            fi
+            
+            if [ "$MAPPING_SUCCESS" = true ]; then
+              echo "$LATEST_TAG" > "$VERSION_FILE"
+              UPDATED_COUNT=$((UPDATED_COUNT + 1))
+              UPDATED_LIST="${UPDATED_LIST}\n  ✅ $NAME: $LATEST_TAG"
+              echo "✅ $NAME 处理完成"
+            else
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              UPDATED_LIST="${UPDATED_LIST}\n  ⚠️ $NAME: 部分文件缺失"
+            fi
+          done
+          
+          echo "updated_count=$UPDATED_COUNT" >> $GITHUB_OUTPUT
+          echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
+          echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
+          echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
+          echo "updated_list=$UPDATED_LIST" >> $GITHUB_OUTPUT
+          
+          rm -rf temp_downloads
+          
+          echo ""
+          echo "=========================================="
+          echo "📊 同步统计"
+          echo "   总仓库数: $TOTAL_COUNT"
+          echo "   已更新: $UPDATED_COUNT"
+          echo "   已跳过: $SKIP_COUNT"
+          echo "   失败: $FAIL_COUNT"
+          echo -e "$UPDATED_LIST"
+          echo "=========================================="
+      
+      - name: 显示目录结构
+        if: steps.sync.outputs.updated_count > 0
+        run: |
+          echo "📁 当前目录结构:"
+          tree -L 3 -a --dirsfirst 2>/dev/null || ls -laR | head -50
+      
+      - name: 生成更新日志
+        if: steps.sync.outputs.updated_count > 0
+        run: |
+          cat > sync-log.txt << EOF
+          # 同步更新日志
+          
+          **更新时间**: $(date +'%Y-%m-%d %H:%M:%S')
+          **触发方式**: ${{ github.event_name }}
+          
+          ## 同步统计
+          - 总仓库数: ${{ steps.sync.outputs.total_count }}
+          - 成功更新: ${{ steps.sync.outputs.updated_count }}
+          - 跳过更新: ${{ steps.sync.outputs.skip_count }}
+          - 失败: ${{ steps.sync.outputs.fail_count }}
+          
+          ## 更新详情
+          ${{ steps.sync.outputs.updated_list }}
+          
+          ## 运行信息
+          - 运行ID: ${{ github.run_id }}
+          - 查看详情: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+          
+          echo "✅ 更新日志已生成"
+      
+      - name: 提交并推送
+        if: steps.sync.outputs.updated_count > 0
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add .
+          
+          if git diff --staged --quiet; then
+            echo "📝 没有文件变化"
+          else
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              COMMIT_MSG="🔄 [定时同步] 自动更新上游模块 ($(date +'%Y-%m-%d %H:%M:%S'))
+              
+更新: ${{ steps.sync.outputs.updated_count }}/${{ steps.sync.outputs.total_count }} 个仓库
+${{ steps.sync.outputs.updated_list }}
+"
+            else
+              COMMIT_MSG="🔄 [手动触发] 同步上游模块 ($(date +'%Y-%m-%d %H:%M:%S'))
+              
+更新: ${{ steps.sync.outputs.updated_count }}/${{ steps.sync.outputs.total_count }} 个仓库
+强制更新: ${{ github.event.inputs.force_update || '否' }}
+指定上游: ${{ github.event.inputs.upstream_name || '全部' }}
+${{ steps.sync.outputs.updated_list }}
+"
+            fi
+            
+            git commit -m "$COMMIT_MSG"
+            git push
+            echo "✅ 已提交并推送"
+          fi
+      
+      - name: 创建版本标签
+        if: steps.sync.outputs.updated_count > 0 && github.event_name == 'workflow_dispatch'
+        run: |
+          NEW_TAG="manual_sync_$(date +'%Y%m%d_%H%M%S')"
+          git tag "$NEW_TAG"
+          git push origin "$NEW_TAG"
+          echo "✅ 已创建标签: $NEW_TAG"
