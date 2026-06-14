@@ -92,6 +92,26 @@
           "make_executable": true
         }
       ]
+    },
+    {
+      "name": "AppOpt",
+      "repo": "LINJIANPEI/AppOpt",
+      "use_latest": true,
+      "asset_patterns": [
+        "*"
+      ],
+      "asset_priority": [
+        "AppOpt"
+      ],
+      "mappings": [
+        {
+          "source": "AppOpt",
+          "target": "bin/AppOpt",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        }
+      ]
     }
   ],
   "global": {
