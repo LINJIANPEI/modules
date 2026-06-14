@@ -1,0 +1,111 @@
+name: Package and Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      timezone:
+        description: '时区 (默认: Asia/Shanghai)'
+        required: false
+        type: string
+        default: 'Asia/Shanghai'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set timezone
+      run: |
+        sudo timedatectl set-timezone ${{ github.event.inputs.timezone }}
+        date
+    
+    - name: Generate version from datetime
+      id: version
+      run: |
+        # 完整日期: 2026.01.15
+        DATE_VERSION=$(date +'%Y.%m.%d')
+        
+        # 带时间的版本: 2026.01.15-143052
+        DATETIME_VERSION=$(date +'%Y.%m.%d-%H%M%S')
+        
+        # 版本代码: 20260115143052
+        DATETIME_VERSION_CODE=$(date +'%Y%m%d%H%M%S')
+        
+        # 简单的日期版本代码: 20260115
+        DATE_VERSION_CODE=$(date +'%Y%m%d')
+        
+        echo "date_version=$DATE_VERSION" >> $GITHUB_OUTPUT
+        echo "datetime_version=$DATETIME_VERSION" >> $GITHUB_OUTPUT
+        echo "version_code=$DATETIME_VERSION_CODE" >> $GITHUB_OUTPUT
+        echo "date_version_code=$DATE_VERSION_CODE" >> $GITHUB_OUTPUT
+        
+        echo "Date Version: $DATE_VERSION"
+        echo "Datetime Version: $DATETIME_VERSION"
+        echo "Version Code: $DATETIME_VERSION_CODE"
+    
+    - name: Choose version format
+      id: choose
+      run: |
+        # 可以选择使用哪种格式，这里使用带时间的版本
+        VERSION="${{ steps.version.outputs.datetime_version }}"
+        VERSION_CODE="${{ steps.version.outputs.version_code }}"
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Create ZIP package
+      run: |
+        sudo apt-get update && sudo apt-get install -y rsync
+        mkdir temp_package
+        rsync -av --exclude-from='exclude.txt' ./ temp_package/
+        cd temp_package && zip -r ../${{ steps.choose.outputs.version }}.zip . && cd ..
+        rm -rf temp_package
+        echo "✅ ZIP created: ${{ steps.choose.outputs.version }}.zip"
+    
+    - name: Update update.json
+      run: |
+        cd update
+        cat > update.json << EOF
+        {
+            "version": "${{ steps.choose.outputs.version }}",
+            "versionCode": ${{ steps.choose.outputs.versionCode }},
+            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip",
+            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/changelog.md",
+            "releaseDate": "$(date -Iseconds)"
+        }
+        EOF
+        echo "✅ update.json updated"
+        cat update.json
+    
+    - name: Commit and push
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add update/update.json
+        git commit -m "release: v${{ steps.choose.outputs.version }} (${{ steps.choose.outputs.versionCode }})" || echo "No changes"
+        git push
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.choose.outputs.version }}.zip
+        name: ${{ steps.choose.outputs.tag }}
+        tag_name: ${{ steps.choose.outputs.tag }}
+        body: |
+          ## 自动发布
+          
+          - **版本**: ${{ steps.choose.outputs.version }}
+          - **版本代码**: ${{ steps.choose.outputs.versionCode }}
+          - **发布时间**: $(date '+%Y-%m-%d %H:%M:%S')
+          
+          ### 下载
+          ```bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip
