@@ -221,7 +221,7 @@ jobs:
             EXTRACT_DIR="temp_downloads/${NAME}_extract"
             mkdir -p "$EXTRACT_DIR"
             
-            # 解压
+            # ========== 解压逻辑 ==========
             if [[ "$SELECTED_NAME" == *.tar.gz ]] || [[ "$SELECTED_NAME" == *.tgz ]]; then
               echo "Extracting tar.gz..."
               tar -xzf "$DOWNLOAD_FILE" -C "$EXTRACT_DIR"
@@ -234,8 +234,10 @@ jobs:
               echo "Extracting zip..."
               unzip -q "$DOWNLOAD_FILE" -d "$EXTRACT_DIR"
             else
-              echo "Copying directly..."
-              cp "$DOWNLOAD_FILE" "$EXTRACT_DIR/"
+              # 直接下载的二进制文件（如 smartdns）
+              echo "Binary file detected, copying directly..."
+              cp "$DOWNLOAD_FILE" "$EXTRACT_DIR/$SELECTED_NAME"
+              chmod +x "$EXTRACT_DIR/$SELECTED_NAME"
             fi
             
             # 查找源目录
