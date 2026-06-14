@@ -3,5 +3,5 @@ name=Linlin
 version=1.0
 versionCode=20260323
 author=Linlin
-updateJson=
-description=重启设备。
+updateJson=https://raw.githubusercontent.com/LINJIANPEI/modules/refs/heads/main/update/update.json
+description=重启设备
