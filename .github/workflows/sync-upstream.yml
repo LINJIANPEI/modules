@@ -52,6 +52,12 @@ jobs:
             exit 1
           fi
 
+          # 验证 JSON 格式
+          if ! jq empty sync-mapping-config.json 2>/dev/null; then
+            echo "ERROR: Invalid JSON in sync-mapping-config.json"
+            exit 1
+          fi
+
           UPSTREAMS_COUNT=$(jq '.upstreams | length' sync-mapping-config.json)
           echo "Config loaded, upstreams count: $UPSTREAMS_COUNT"
           echo "count=$UPSTREAMS_COUNT" >> $GITHUB_OUTPUT
@@ -149,15 +155,27 @@ jobs:
 
           mkdir -p temp_downloads
 
-          UPDATED_LIST=""
           UPDATED_COUNT=0
           TOTAL_COUNT=0
           SKIP_COUNT=0
           FAIL_COUNT=0
 
-          for row in $(jq -c '.upstreams[]' sync-mapping-config.json); do
-            NAME=$(echo "$row" | jq -r '.name')
-            REPO=$(echo "$row" | jq -r '.repo')
+          # 使用数组存储更新的列表
+          UPDATED_NAMES=()
+          UPDATED_VERSIONS=()
+
+          # 验证配置文件
+          if ! jq empty sync-mapping-config.json 2>/dev/null; then
+            echo "ERROR: Invalid sync-mapping-config.json"
+            exit 1
+          fi
+
+          # 获取 upstreams 数量
+          UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
+
+          for ((i=0; i<UPSTREAMS_LEN; i++)); do
+            NAME=$(jq -r ".upstreams[$i].name" sync-mapping-config.json)
+            REPO=$(jq -r ".upstreams[$i].repo" sync-mapping-config.json)
             
             if [ -n "$SPECIFIC_UPSTREAM" ] && [ "$SPECIFIC_UPSTREAM" != "$NAME" ]; then
               echo "Skip: $NAME"
@@ -173,8 +191,8 @@ jobs:
             echo "Repo: $REPO"
             echo "=========================================="
             
-            USE_LATEST=$(echo "$row" | jq -r '.use_latest')
-            SPECIFIC_TAG=$(echo "$row" | jq -r '.specific_tag // ""')
+            USE_LATEST=$(jq -r ".upstreams[$i].use_latest" sync-mapping-config.json)
+            SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
             
             if [ "$USE_LATEST" = "true" ]; then
               RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
@@ -192,11 +210,7 @@ jobs:
             fi
             
             LATEST_TAG=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
-            RELEASE_NAME=$(echo "$RELEASE_DATA" | jq -r '.name // .tag_name')
-            PUBLISHED_AT=$(echo "$RELEASE_DATA" | jq -r '.published_at')
-            
             echo "Version: $LATEST_TAG"
-            echo "Published: $PUBLISHED_AT"
             
             VERSION_FILE=".version_$(echo "$NAME" | sed 's/[^a-zA-Z0-9]/_/g')"
             if [ -f "$VERSION_FILE" ] && [ "$FORCE_UPDATE" != "true" ]; then
@@ -209,35 +223,39 @@ jobs:
               echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
             fi
             
-            echo ""
-            echo "Available assets:"
+            # 获取 asset_patterns 和 asset_priority
+            ASSET_PATTERNS=$(jq -r ".upstreams[$i].asset_patterns // [\"*.zip\"] | join(\" \")" sync-mapping-config.json)
+            ASSET_PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [\"module\", \"magisk\", \"release\", \"v\", \"zip\"] | join(\" \")" sync-mapping-config.json)
+            
+            # 选择资产
+            SELECTED_URL=""
+            SELECTED_NAME=""
             ASSET_COUNT=$(echo "$RELEASE_DATA" | jq '.assets | length')
+            
             if [ "$ASSET_COUNT" -eq 0 ]; then
-              echo "No assets found, using source code"
-              ZIP_URL=$(echo "$RELEASE_DATA" | jq -r '.zipball_url')
+              SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.zipball_url')
               SELECTED_NAME="source-code.zip"
             else
-              echo "$RELEASE_DATA" | jq -r '.assets[] | "   - \(.name) (\(.size) bytes)"'
+              # 尝试匹配
+              for keyword in $ASSET_PRIORITY; do
+                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
+                if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
+                  SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
+                  break
+                fi
+              done
               
-              PATTERNS=$(echo "$row" | jq -r '.asset_patterns // ["*.zip"] | join(" ")' 2>/dev/null)
-              PRIORITY=$(echo "$row" | jq -r '.asset_priority // ["module", "magisk", "release", "v", "zip"] | join(" ")' 2>/dev/null)
-              
-              ASSETS_JSON=$(echo "$RELEASE_DATA" | jq -c '.assets')
-              SELECTED_URL=$(select_asset "$ASSETS_JSON" "$PATTERNS" "$PRIORITY")
-              SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
-              
+              # 如果没有匹配，使用第一个
               if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
-                echo "No match, using first asset"
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
                 SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
               fi
             fi
             
-            echo ""
             echo "Selected: $SELECTED_NAME"
             echo "Downloading..."
             
-            wget -q --show-progress -O "temp_downloads/${NAME}.download" "$SELECTED_URL"
+            wget -q -O "temp_downloads/${NAME}.download" "$SELECTED_URL"
             
             if [ ! -f "temp_downloads/${NAME}.download" ]; then
               echo "Download failed"
@@ -250,8 +268,9 @@ jobs:
             
             extract_file "temp_downloads/${NAME}.download" "$EXTRACT_DIR"
             
+            # 查找源目录
             if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
-              SOURCE_BASE="$EXTRACT_DIR"/*/
+              SOURCE_BASE=$(ls -d "$EXTRACT_DIR"/*/)
             else
               SOURCE_BASE="$EXTRACT_DIR"
             fi
@@ -259,12 +278,16 @@ jobs:
             echo "Starting file mapping..."
             MAPPING_SUCCESS=true
             
-            for mapping in $(echo "$row" | jq -c '.mappings[]'); do
-              SOURCE=$(echo "$mapping" | jq -r '.source')
-              TARGET=$(echo "$mapping" | jq -r '.target')
-              TYPE=$(echo "$mapping" | jq -r '.type')
-              OVERWRITE=$(echo "$mapping" | jq -r '.overwrite // true')
-              MAKE_EXEC=$(echo "$mapping" | jq -r '.make_executable // false')
+            # 获取 mappings 数量
+            MAPPINGS_LEN=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
+            
+            for ((m=0; m<MAPPINGS_LEN; m++)); do
+              SOURCE=$(jq -r ".upstreams[$i].mappings[$m].source" sync-mapping-config.json)
+              TARGET=$(jq -r ".upstreams[$i].mappings[$m].target" sync-mapping-config.json)
+              TYPE=$(jq -r ".upstreams[$i].mappings[$m].type" sync-mapping-config.json)
+              OVERWRITE=$(jq -r ".upstreams[$i].mappings[$m].overwrite // true" sync-mapping-config.json)
+              MAKE_EXEC=$(jq -r ".upstreams[$i].mappings[$m].make_executable // false" sync-mapping-config.json)
+              FLATTEN=$(jq -r ".upstreams[$i].mappings[$m].flatten // false" sync-mapping-config.json)
               
               echo ""
               echo "Mapping: $SOURCE -> $TARGET"
@@ -276,66 +299,45 @@ jobs:
               
               mkdir -p "$(dirname "$TARGET")"
               
-              case "$TYPE" in
-                "file")
-                  if [ -f "$SOURCE_BASE/$SOURCE" ]; then
-                    cp "$SOURCE_BASE/$SOURCE" "$TARGET"
-                    echo "File copied"
-                  elif [ -f "$EXTRACT_DIR/$SOURCE" ]; then
-                    cp "$EXTRACT_DIR/$SOURCE" "$TARGET"
-                    echo "File copied (from root)"
-                  else
-                    echo "Source not found: $SOURCE"
-                    MAPPING_SUCCESS=false
-                  fi
-                  ;;
-                
-                "folder")
-                  if [ -d "$SOURCE_BASE/$SOURCE" ]; then
-                    if [ "$OVERWRITE" = "true" ]; then
-                      rm -rf "$TARGET"
-                    fi
-                    mkdir -p "$TARGET"
-                    cp -r "$SOURCE_BASE/$SOURCE"/* "$TARGET/" 2>/dev/null
-                    echo "Folder synced"
-                    
-                    EXCLUDE=$(echo "$mapping" | jq -r '.exclude[]?' 2>/dev/null)
-                    for pattern in $EXCLUDE; do
-                      rm -rf "$TARGET/$pattern"
-                      echo "Excluded: $pattern"
-                    done
-                  else
-                    echo "Source folder not found: $SOURCE"
-                    MAPPING_SUCCESS=false
-                  fi
-                  ;;
-                
-                "pattern")
-                  cd "$SOURCE_BASE" 2>/dev/null
-                  for file in $SOURCE; do
-                    if [ -e "$file" ]; then
-                      cd - > /dev/null
-                      FLATTEN=$(echo "$mapping" | jq -r '.flatten // false')
-                      
-                      if [ "$FLATTEN" = "true" ]; then
-                        if [ -f "$SOURCE_BASE/$file" ]; then
-                          cp "$SOURCE_BASE/$file" "$TARGET"
-                          echo "Copied: $file -> $TARGET"
-                        elif [ -d "$SOURCE_BASE/$file" ]; then
-                          cp -r "$SOURCE_BASE/$file"/* "$TARGET/" 2>/dev/null
-                          echo "Copied folder content: $file"
-                        fi
-                      else
-                        cp -r "$SOURCE_BASE/$file" "$TARGET/"
-                        echo "Copied (preserve structure): $file"
-                      fi
-                      
-                      cd "$SOURCE_BASE"
-                    fi
-                  done
+              if [ "$TYPE" = "pattern" ]; then
+                # 使用 find 查找匹配的文件
+                cd "$SOURCE_BASE"
+                find . -name "$SOURCE" -type f 2>/dev/null | while read -r file; do
                   cd - > /dev/null
-                  ;;
-              esac
+                  if [ "$FLATTEN" = "true" ]; then
+                    cp "$SOURCE_BASE/$file" "$TARGET"
+                  else
+                    mkdir -p "$(dirname "$TARGET/$file")"
+                    cp "$SOURCE_BASE/$file" "$TARGET/$file"
+                  fi
+                  echo "Copied: $file"
+                  cd "$SOURCE_BASE"
+                done
+                cd - > /dev/null
+              elif [ "$TYPE" = "file" ]; then
+                if [ -f "$SOURCE_BASE/$SOURCE" ]; then
+                  cp "$SOURCE_BASE/$SOURCE" "$TARGET"
+                  echo "File copied"
+                elif [ -f "$EXTRACT_DIR/$SOURCE" ]; then
+                  cp "$EXTRACT_DIR/$SOURCE" "$TARGET"
+                  echo "File copied (from root)"
+                else
+                  echo "Source not found: $SOURCE"
+                  MAPPING_SUCCESS=false
+                fi
+              elif [ "$TYPE" = "folder" ]; then
+                if [ -d "$SOURCE_BASE/$SOURCE" ]; then
+                  if [ "$OVERWRITE" = "true" ]; then
+                    rm -rf "$TARGET"
+                  fi
+                  mkdir -p "$TARGET"
+                  cp -r "$SOURCE_BASE/$SOURCE"/* "$TARGET/" 2>/dev/null
+                  echo "Folder synced"
+                else
+                  echo "Source folder not found: $SOURCE"
+                  MAPPING_SUCCESS=false
+                fi
+              fi
               
               if [ "$MAKE_EXEC" = "true" ] && [ -f "$TARGET" ]; then
                 chmod +x "$TARGET"
@@ -343,24 +345,25 @@ jobs:
               fi
             done
             
-            UPDATE_VERSION=$(echo "$row" | jq -r '.post_process.update_version // false')
+            # 更新版本号
+            UPDATE_VERSION=$(jq -r ".upstreams[$i].post_process.update_version // false" sync-mapping-config.json)
             if [ "$UPDATE_VERSION" = "true" ]; then
-              VERSION_FILE=$(echo "$row" | jq -r '.post_process.version_file')
+              VERSION_FILE=$(jq -r ".upstreams[$i].post_process.version_file" sync-mapping-config.json)
               if [ -f "$VERSION_FILE" ]; then
                 sed -i "s/^version=.*/version=$LATEST_TAG/" "$VERSION_FILE"
                 sed -i "s/^versionCode=.*/versionCode=$(date +'%Y%m%d%H%M%S')/" "$VERSION_FILE"
-                echo "Updated version: $VERSION_FILE -> $LATEST_TAG"
+                echo "Updated version"
               fi
             fi
             
             if [ "$MAPPING_SUCCESS" = true ]; then
               echo "$LATEST_TAG" > "$VERSION_FILE"
               UPDATED_COUNT=$((UPDATED_COUNT + 1))
-              UPDATED_LIST="${UPDATED_LIST}\n  OK $NAME: $LATEST_TAG"
+              UPDATED_NAMES+=("$NAME")
+              UPDATED_VERSIONS+=("$LATEST_TAG")
               echo "$NAME completed"
             else
               FAIL_COUNT=$((FAIL_COUNT + 1))
-              UPDATED_LIST="${UPDATED_LIST}\n  WARN $NAME: partial files missing"
             fi
           done
 
@@ -368,7 +371,13 @@ jobs:
           echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
           echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
-          echo "updated_list=$UPDATED_LIST" >> $GITHUB_OUTPUT
+
+          # 生成更新列表字符串
+          UPDATED_LIST_STR=""
+          for ((i=0; i<${#UPDATED_NAMES[@]}; i++)); do
+            UPDATED_LIST_STR="${UPDATED_LIST_STR}  OK ${UPDATED_NAMES[$i]}: ${UPDATED_VERSIONS[$i]}"$'\n'
+          done
+          echo "updated_list=$UPDATED_LIST_STR" >> $GITHUB_OUTPUT
 
           rm -rf temp_downloads
 
@@ -379,7 +388,7 @@ jobs:
           echo "Updated: $UPDATED_COUNT"
           echo "Skipped: $SKIP_COUNT"
           echo "Failed: $FAIL_COUNT"
-          echo -e "$UPDATED_LIST"
+          printf "%s" "$UPDATED_LIST_STR"
           echo "=========================================="
 
       - name: 显示目录结构
