@@ -33,16 +33,32 @@ jobs:
       contents: write
 
     steps:
-      - name: 检出仓库
+      - name: 检出仓库代码
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+          fetch-depth: 0 # 拉取完整历史，包括所有分支和文件
+
+      - name: 查看当前仓库状态
+        run: |
+          echo "当前目录内容:"
+          ls -la
+          echo ""
+          echo "bin目录是否存在:"
+          ls -la bin/ 2>/dev/null || echo "bin目录不存在，将在后续创建"
 
       - name: 安装依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y jq unzip wget rsync gzip tar
+
+      - name: 确保必要目录存在
+        run: |
+          # 创建必要的目录（如果不存在）
+          mkdir -p bin
+          mkdir -p temp_downloads
+          mkdir -p webui
+          echo "目录已创建: bin, temp_downloads, webui"
 
       - name: 读取配置
         id: config
@@ -78,6 +94,7 @@ jobs:
           echo "$BACKUP_DIR" > .last_backup
           echo "Backup completed: $BACKUP_DIR"
 
+          # 保留最近5个备份
           ls -dt .backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
 
       - name: 同步上游
@@ -91,7 +108,8 @@ jobs:
             FORCE_UPDATE="false"
           fi
 
-          mkdir -p temp_downloads bin
+          # 确保目录存在
+          mkdir -p bin temp_downloads webui
 
           UPDATED_COUNT=0
           TOTAL_COUNT=0
@@ -150,11 +168,11 @@ jobs:
               echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
             fi
             
-            # 选择正确的资产文件 - 优先 arm64
+            # 选择资产
             SELECTED_URL=""
             SELECTED_NAME=""
             
-            # 优先匹配 arm64 或 aarch64
+            # 优先匹配 arm64/aarch64
             for keyword in arm64 aarch64 android; do
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
               if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
@@ -163,19 +181,6 @@ jobs:
               fi
             done
             
-            # 如果没有找到 arm64，使用配置文件中的优先级
-            if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
-              ASSET_PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [\"arm64\", \"aarch64\"] | join(\" \")" sync-mapping-config.json)
-              for keyword in $ASSET_PRIORITY; do
-                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
-                if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
-                  SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
-                  break
-                fi
-              done
-            fi
-            
-            # 最后使用第一个
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
               SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
@@ -184,8 +189,7 @@ jobs:
             echo "Selected: $SELECTED_NAME"
             echo "Downloading..."
             
-            # 使用原始文件名保存
-            wget -q --show-progress -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
+            wget -q -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
             
             DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
             if [ ! -f "$DOWNLOAD_FILE" ]; then
@@ -197,7 +201,7 @@ jobs:
             EXTRACT_DIR="temp_downloads/${NAME}_extract"
             mkdir -p "$EXTRACT_DIR"
             
-            # 根据文件扩展名处理
+            # 解压
             if [[ "$SELECTED_NAME" == *.tar.gz ]] || [[ "$SELECTED_NAME" == *.tgz ]]; then
               echo "Extracting tar.gz..."
               tar -xzf "$DOWNLOAD_FILE" -C "$EXTRACT_DIR"
@@ -205,7 +209,6 @@ jobs:
               echo "Extracting gz..."
               BASE_NAME=$(basename "$SELECTED_NAME" .gz)
               gunzip -c "$DOWNLOAD_FILE" > "$EXTRACT_DIR/$BASE_NAME"
-              echo "Extracted to: $EXTRACT_DIR/$BASE_NAME"
             elif [[ "$SELECTED_NAME" == *.zip ]]; then
               echo "Extracting zip..."
               unzip -q "$DOWNLOAD_FILE" -d "$EXTRACT_DIR"
@@ -214,11 +217,7 @@ jobs:
               cp "$DOWNLOAD_FILE" "$EXTRACT_DIR/"
             fi
             
-            # 显示解压后的内容
-            echo "Extracted contents:"
-            ls -la "$EXTRACT_DIR"
-            
-            # 查找源目录（处理多一层目录的情况）
+            # 查找源目录
             if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
               SOURCE_BASE=$(ls -d "$EXTRACT_DIR"/*/)
             else
@@ -226,12 +225,8 @@ jobs:
             fi
             
             echo "Source base: $SOURCE_BASE"
-            echo "Source base contents:"
-            ls -la "$SOURCE_BASE"
             
-            echo "Starting file mapping..."
             MAPPING_SUCCESS=true
-            
             MAPPINGS_LEN=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
             
             for ((m=0; m<MAPPINGS_LEN; m++)); do
@@ -249,27 +244,31 @@ jobs:
                 continue
               fi
               
-              mkdir -p "$(dirname "$TARGET")"
+              # 确保目标目录存在
+              TARGET_DIR=$(dirname "$TARGET")
+              if [ ! -d "$TARGET_DIR" ]; then
+                mkdir -p "$TARGET_DIR"
+                echo "Created directory: $TARGET_DIR"
+              fi
               
               if [ "$TYPE" = "pattern" ]; then
-                # 使用通配符查找文件
                 cd "$SOURCE_BASE"
                 for file in $SOURCE; do
                   if [ -f "$file" ]; then
-                    echo "Found file: $file"
                     cp "$file" "$TARGET"
                     echo "Copied: $file -> $TARGET"
+                    break
+                  elif [ -d "$file" ]; then
+                    cp -r "$file" "$TARGET"
+                    echo "Copied directory: $file -> $TARGET"
                     break
                   fi
                 done
                 cd - > /dev/null
               elif [ "$TYPE" = "file" ]; then
-                # 查找文件
                 FOUND_FILE=""
                 if [ -f "$SOURCE_BASE/$SOURCE" ]; then
                   FOUND_FILE="$SOURCE_BASE/$SOURCE"
-                elif [ -f "$EXTRACT_DIR/$SOURCE" ]; then
-                  FOUND_FILE="$EXTRACT_DIR/$SOURCE"
                 else
                   FOUND_FILE=$(find "$SOURCE_BASE" -name "$SOURCE" -type f 2>/dev/null | head -1)
                 fi
@@ -315,20 +314,14 @@ jobs:
           echo "Failed: $FAIL_COUNT"
           echo "=========================================="
 
-      - name: 显示目录结构
-        if: steps.sync.outputs.updated_count > 0
-        run: |
-          echo "bin directory:"
-          ls -la bin/
-          echo ""
-          echo "Repository root:"
-          ls -la | head -20
-
-      - name: 提交并推送
+      - name: 提交更改（包括新创建的目录）
         if: steps.sync.outputs.updated_count > 0
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 确保空目录也能被提交
+          find . -type d -empty -exec touch {}/.gitkeep \;
 
           git add .
 
