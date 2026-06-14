@@ -49,43 +49,46 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: 安装依赖
+      - name: 安装依赖工具
         run: |
           sudo apt-get update
           sudo apt-get install -y jq unzip wget rsync gzip tar
+          echo "✅ 依赖工具安装完成"
 
       - name: 设置时区
         run: |
           sudo timedatectl set-timezone ${{ github.event.inputs.timezone || 'Asia/Shanghai' }}
-          date
+          echo "当前时间: $(date)"
+          echo "✅ 时区设置完成"
 
       - name: 创建必要目录
         run: |
           mkdir -pv bin
           mkdir -pv temp_downloads
           mkdir -pv update
-          echo "目录创建完成"
+          echo "✅ 目录创建完成"
 
-      - name: 读取配置
+      - name: 读取同步配置
         id: config
         run: |
           if [ ! -f "sync-mapping-config.json" ]; then
-            echo "ERROR: sync-mapping-config.json not found"
+            echo "❌ 错误: sync-mapping-config.json 配置文件不存在"
             exit 1
           fi
 
           if ! jq empty sync-mapping-config.json 2>/dev/null; then
-            echo "ERROR: Invalid JSON in sync-mapping-config.json"
+            echo "❌ 错误: sync-mapping-config.json 配置文件格式无效"
             exit 1
           fi
 
           UPSTREAMS_COUNT=$(jq '.upstreams | length' sync-mapping-config.json)
-          echo "Config loaded, upstreams count: $UPSTREAMS_COUNT"
+          echo "✅ 配置文件加载成功，上游数量: $UPSTREAMS_COUNT"
           echo "count=$UPSTREAMS_COUNT" >> $GITHUB_OUTPUT
 
       - name: 备份现有文件
         if: github.event.inputs.skip_backup != 'true' && github.event.inputs.force_update != 'true' && github.event_name != 'schedule'
         run: |
+          echo "📦 开始备份现有文件..."
           BACKUP_DIR=".backup_$(date +'%Y%m%d_%H%M%S')"
           mkdir -p "$BACKUP_DIR"
 
@@ -93,16 +96,18 @@ jobs:
             if [ -e "$target" ]; then
               mkdir -p "$BACKUP_DIR/$(dirname "$target")"
               cp -r "$target" "$BACKUP_DIR/$target"
-              echo "Backed up: $target"
+              echo "  ✓ 已备份: $target"
             fi
           done
 
           echo "$BACKUP_DIR" > .last_backup
-          echo "Backup completed: $BACKUP_DIR"
+          echo "✅ 备份完成: $BACKUP_DIR"
 
+          # 清理旧备份，只保留最近5个
           ls -dt .backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
+          echo "🗑️ 已清理旧备份（保留最近5个）"
 
-      - name: 同步上游
+      - name: 同步上游 Releases
         id: sync
         run: |
           FORCE_UPDATE="${{ github.event.inputs.force_update }}"
@@ -115,25 +120,29 @@ jobs:
 
           # 保存原始目录
           ORIGINAL_DIR=$(pwd)
-          echo "Original directory: $ORIGINAL_DIR"
+          echo "工作目录: $ORIGINAL_DIR"
 
           # 确保 bin 目录存在
           mkdir -pv bin
 
-          UPDATED_COUNT=0
-          TOTAL_COUNT=0
-          SKIP_COUNT=0
-          FAIL_COUNT=0
-          ACTUAL_UPDATES=0  # 实际有文件变化的更新数
+          UPDATED_COUNT=0      # 版本号更新的数量
+          TOTAL_COUNT=0        # 处理的总数量
+          SKIP_COUNT=0         # 跳过的数量
+          FAIL_COUNT=0         # 失败的数量
+          ACTUAL_UPDATES=0     # 实际有文件变化的更新数
 
           UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
+          echo ""
+          echo "=========================================="
+          echo "📡 开始同步上游 Releases"
+          echo "=========================================="
 
           for ((i=0; i<UPSTREAMS_LEN; i++)); do
             NAME=$(jq -r ".upstreams[$i].name" sync-mapping-config.json)
             REPO=$(jq -r ".upstreams[$i].repo" sync-mapping-config.json)
             
             if [ -n "$SPECIFIC_UPSTREAM" ] && [ "$SPECIFIC_UPSTREAM" != "$NAME" ]; then
-              echo "Skip: $NAME"
+              echo "⏭️ 跳过: $NAME (未指定)"
               SKIP_COUNT=$((SKIP_COUNT + 1))
               continue
             fi
@@ -142,8 +151,8 @@ jobs:
             
             echo ""
             echo "=========================================="
-            echo "Processing: $NAME"
-            echo "Repo: $REPO"
+            echo "📥 正在处理: $NAME"
+            echo "仓库地址: $REPO"
             echo "=========================================="
             
             USE_LATEST=$(jq -r ".upstreams[$i].use_latest" sync-mapping-config.json)
@@ -151,21 +160,23 @@ jobs:
             
             if [ "$USE_LATEST" = "true" ]; then
               RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
+              echo "获取最新版本..."
             else
               RELEASE_URL="https://api.github.com/repos/$REPO/releases/tags/$SPECIFIC_TAG"
+              echo "获取指定版本: $SPECIFIC_TAG"
             fi
             
             RELEASE_DATA=$(curl -s "$RELEASE_URL")
             
             if echo "$RELEASE_DATA" | jq -e '.message' > /dev/null 2>&1; then
               ERROR_MSG=$(echo "$RELEASE_DATA" | jq -r '.message')
-              echo "Failed to get release: $ERROR_MSG"
+              echo "❌ 获取版本信息失败: $ERROR_MSG"
               FAIL_COUNT=$((FAIL_COUNT + 1))
               continue
             fi
             
             LATEST_TAG=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
-            echo "Version: $LATEST_TAG"
+            echo "✓ 当前版本: $LATEST_TAG"
             
             VERSION_FILE=".version_$(echo "$NAME" | sed 's/[^a-zA-Z0-9]/_/g')"
             HAS_UPDATE=false
@@ -173,13 +184,14 @@ jobs:
             if [ -f "$VERSION_FILE" ] && [ "$FORCE_UPDATE" != "true" ]; then
               CURRENT_VERSION=$(cat "$VERSION_FILE")
               if [ "$CURRENT_VERSION" = "$LATEST_TAG" ]; then
-                echo "Already latest: $LATEST_TAG, skip"
+                echo "ℹ️ 已是最新版本: $LATEST_TAG，跳过处理"
                 SKIP_COUNT=$((SKIP_COUNT + 1))
                 continue
               fi
-              echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
+              echo "🔄 发现新版本: $CURRENT_VERSION -> $LATEST_TAG"
               HAS_UPDATE=true
             else
+              echo "🔄 首次同步或强制更新: $LATEST_TAG"
               HAS_UPDATE=true
             fi
             
@@ -187,11 +199,13 @@ jobs:
             SELECTED_URL=""
             SELECTED_NAME=""
             
+            echo "📦 查找匹配的资产文件..."
+            
             # 1. 手动指定资产
             if [ -n "$MANUAL_ASSET" ]; then
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name == \"$MANUAL_ASSET\") | .browser_download_url" 2>/dev/null)
               SELECTED_NAME="$MANUAL_ASSET"
-              echo "Using manually specified asset: $SELECTED_NAME"
+              echo "  📌 使用手动指定: $SELECTED_NAME"
             fi
             
             # 2. 使用 asset_patterns 匹配
@@ -202,7 +216,7 @@ jobs:
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"^$regex$\")) | .browser_download_url" 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
                   SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
-                  echo "Matched pattern: $pattern -> $SELECTED_NAME"
+                  echo "  🎯 匹配模式 '$pattern': $SELECTED_NAME"
                   break
                 fi
               done
@@ -215,7 +229,7 @@ jobs:
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
                   SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
-                  echo "Matched priority: $keyword -> $SELECTED_NAME"
+                  echo "  🔑 匹配关键词 '$keyword': $SELECTED_NAME"
                   break
                 fi
               done
@@ -225,41 +239,41 @@ jobs:
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
               SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
-              echo "Using first asset: $SELECTED_NAME"
+              echo "  📄 使用默认第一个资产: $SELECTED_NAME"
             fi
             
-            echo "Selected: $SELECTED_NAME"
-            echo "Downloading..."
+            echo "⬇️ 开始下载: $SELECTED_NAME"
             
             wget -q -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
             
             DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
             if [ ! -f "$DOWNLOAD_FILE" ]; then
-              echo "Download failed"
+              echo "❌ 下载失败"
               FAIL_COUNT=$((FAIL_COUNT + 1))
               continue
             fi
+            echo "✓ 下载完成"
             
             EXTRACT_DIR="temp_downloads/${NAME}_extract"
             mkdir -p "$EXTRACT_DIR"
             
             # ========== 解压逻辑 ==========
+            echo "📂 解压文件中..."
             if [[ "$SELECTED_NAME" == *.tar.gz ]] || [[ "$SELECTED_NAME" == *.tgz ]]; then
-              echo "Extracting tar.gz..."
               tar -xzf "$DOWNLOAD_FILE" -C "$EXTRACT_DIR"
+              echo "  ✓ 解压 tar.gz 完成"
             elif [[ "$SELECTED_NAME" == *.gz ]]; then
-              echo "Extracting gz..."
               BASE_NAME=$(basename "$SELECTED_NAME" .gz)
               gunzip -c "$DOWNLOAD_FILE" > "$EXTRACT_DIR/$BASE_NAME"
-              echo "Extracted to: $EXTRACT_DIR/$BASE_NAME"
+              echo "  ✓ 解压 gz 完成: $EXTRACT_DIR/$BASE_NAME"
             elif [[ "$SELECTED_NAME" == *.zip ]]; then
-              echo "Extracting zip..."
               unzip -q "$DOWNLOAD_FILE" -d "$EXTRACT_DIR"
+              echo "  ✓ 解压 zip 完成"
             else
               # 直接下载的二进制文件
-              echo "Binary file detected, copying directly..."
               cp "$DOWNLOAD_FILE" "$EXTRACT_DIR/$SELECTED_NAME"
               chmod +x "$EXTRACT_DIR/$SELECTED_NAME"
+              echo "  ✓ 二进制文件直接复制"
             fi
             
             # 查找源目录
@@ -269,14 +283,13 @@ jobs:
               SOURCE_BASE="$EXTRACT_DIR"
             fi
             
-            echo "Source base: $SOURCE_BASE"
-            echo "Source contents:"
-            ls -la "$SOURCE_BASE"
+            echo "📁 源目录: $SOURCE_BASE"
             
             MAPPING_SUCCESS=true
             MAPPINGS_LEN=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
             FILES_COPIED=0
             
+            echo "📋 开始文件映射..."
             for ((m=0; m<MAPPINGS_LEN; m++)); do
               SOURCE=$(jq -r ".upstreams[$i].mappings[$m].source" sync-mapping-config.json)
               TARGET=$(jq -r ".upstreams[$i].mappings[$m].target" sync-mapping-config.json)
@@ -285,16 +298,16 @@ jobs:
               MAKE_EXEC=$(jq -r ".upstreams[$i].mappings[$m].make_executable // false" sync-mapping-config.json)
               
               echo ""
-              echo "Mapping: $SOURCE -> $TARGET"
+              echo "  📍 映射: $SOURCE -> $TARGET"
               
               if [ "$OVERWRITE" = "false" ] && [ -e "$TARGET" ]; then
-                echo "Target exists, skip"
+                echo "  ⏭️ 目标已存在且禁止覆盖，跳过"
                 continue
               fi
               
               # 确保目标目录存在
               TARGET_DIR=$(dirname "$TARGET")
-              mkdir -pv "$TARGET_DIR"
+              mkdir -pv "$TARGET_DIR" > /dev/null 2>&1
               
               if [ "$TYPE" = "pattern" ]; then
                 cd "$SOURCE_BASE"
@@ -304,12 +317,12 @@ jobs:
                     # 检查文件是否真的不同
                     if [ -f "$ORIGINAL_DIR/$TARGET" ]; then
                       if cmp -s "$file" "$ORIGINAL_DIR/$TARGET"; then
-                        echo "File identical, skip: $file"
+                        echo "  ℹ️ 文件内容相同，跳过: $file"
                         break
                       fi
                     fi
-                    cp -v "$file" "$ORIGINAL_DIR/$TARGET"
-                    echo "Copied: $file -> $ORIGINAL_DIR/$TARGET"
+                    cp -v "$file" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
+                    echo "  ✅ 已复制: $file -> $ORIGINAL_DIR/$TARGET"
                     FILES_COPIED=$((FILES_COPIED + 1))
                     break
                   fi
@@ -329,41 +342,41 @@ jobs:
                   # 检查文件是否真的不同
                   if [ -f "$TARGET" ]; then
                     if cmp -s "$FOUND_FILE" "$TARGET"; then
-                      echo "File identical, skip: $FOUND_FILE"
+                      echo "  ℹ️ 文件内容相同，跳过: $FOUND_FILE"
                     else
-                      cp -v "$FOUND_FILE" "$TARGET"
-                      echo "File copied from $FOUND_FILE"
+                      cp -v "$FOUND_FILE" "$TARGET" 2>&1 | sed 's/^/    /'
+                      echo "  ✅ 已复制: $FOUND_FILE -> $TARGET"
                       FILES_COPIED=$((FILES_COPIED + 1))
                     fi
                   else
-                    cp -v "$FOUND_FILE" "$TARGET"
-                    echo "File copied from $FOUND_FILE"
+                    cp -v "$FOUND_FILE" "$TARGET" 2>&1 | sed 's/^/    /'
+                    echo "  ✅ 已复制: $FOUND_FILE -> $TARGET"
                     FILES_COPIED=$((FILES_COPIED + 1))
                   fi
                 else
-                  echo "Source not found: $SOURCE"
+                  echo "  ❌ 源文件不存在: $SOURCE"
                   MAPPING_SUCCESS=false
                 fi
               fi
               
               if [ "$MAKE_EXEC" = "true" ] && [ -f "$TARGET" ]; then
                 chmod +x "$TARGET"
-                echo "Set executable permission"
+                echo "  🔧 已设置可执行权限"
               fi
             done
             
             if [ "$MAPPING_SUCCESS" = true ]; then
               echo "$LATEST_TAG" > "$VERSION_FILE"
               UPDATED_COUNT=$((UPDATED_COUNT + 1))
-              if [ $FILES_COPIED -gt 0 ] || [ ! -f "$VERSION_FILE" ]; then
+              if [ $FILES_COPIED -gt 0 ]; then
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
-                echo "✅ $NAME updated (files changed: $FILES_COPIED)"
+                echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
               else
-                echo "⚠️ $NAME version updated but no files changed"
+                echo "⚠️ $NAME 版本已更新但无文件变化 (可能是元数据更新)"
               fi
             else
               FAIL_COUNT=$((FAIL_COUNT + 1))
-              echo "❌ $NAME failed"
+              echo "❌ $NAME 更新失败"
             fi
           done
 
@@ -377,19 +390,22 @@ jobs:
 
           echo ""
           echo "=========================================="
-          echo "Sync Summary"
-          echo "Total: $TOTAL_COUNT"
-          echo "Updated: $UPDATED_COUNT"
-          echo "Actual file changes: $ACTUAL_UPDATES"
-          echo "Skipped: $SKIP_COUNT"
-          echo "Failed: $FAIL_COUNT"
+          echo "📊 同步统计汇总"
+          echo "=========================================="
+          echo "  总计处理: $TOTAL_COUNT 个上游"
+          echo "  版本更新: $UPDATED_COUNT 个"
+          echo "  实际文件变化: $ACTUAL_UPDATES 个"
+          echo "  跳过处理: $SKIP_COUNT 个"
+          echo "  失败: $FAIL_COUNT 个"
           echo "=========================================="
 
       - name: 验证 bin 目录内容
         if: steps.sync.outputs.actual_updates > 0
         run: |
-          echo "bin 目录内容:"
+          echo ""
+          echo "📁 bin 目录内容:"
           ls -la bin/
+          echo ""
 
       - name: 提交并推送同步更新
         if: steps.sync.outputs.actual_updates > 0
@@ -400,16 +416,16 @@ jobs:
           git add .
 
           if git diff --staged --quiet; then
-            echo "No changes to commit"
+            echo "📝 没有需要提交的更改"
           else
-            COMMIT_MSG="Sync upstream updates - $(date +'%Y-%m-%d %H:%M:%S')"
+            COMMIT_MSG="同步上游更新 - $(date +'%Y-%m-%d %H:%M:%S')"
             git commit -m "$COMMIT_MSG"
             git push
-            echo "Committed and pushed sync updates"
+            echo "✅ 已提交并推送同步更新"
           fi
 
       # ========== 打包模块部分 - 仅在有实际更新时执行 ==========
-      - name: 生成日期版本号
+      - name: 生成版本号
         if: steps.sync.outputs.actual_updates > 0
         id: version
         run: |
@@ -423,6 +439,7 @@ jobs:
           echo "date_version_code=$DATE_VERSION_CODE" >> $GITHUB_OUTPUT
           echo "release_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           echo "release_datetime=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+          echo "✅ 版本号生成完成"
 
       - name: 选择版本格式
         if: steps.sync.outputs.actual_updates > 0
@@ -433,12 +450,14 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "📌 版本: $VERSION"
+          echo "📌 版本代码: $VERSION_CODE"
 
       - name: 验证必要文件
         if: steps.sync.outputs.actual_updates > 0
         run: |
           if [ ! -f "module.prop" ]; then
-            echo "❌ module.prop 文件不存在！"
+            echo "❌ 错误: module.prop 文件不存在！"
             exit 1
           fi
           if [ ! -f "exclude.txt" ]; then
@@ -446,16 +465,18 @@ jobs:
           fi
           echo "✅ 文件验证通过"
 
-      - name: 更新 module.prop
+      - name: 更新模块配置文件
         if: steps.sync.outputs.actual_updates > 0
         run: |
           sed -i "s/^version=.*/version=${{ steps.choose.outputs.version }}/" module.prop
           sed -i "s/^versionCode=.*/versionCode=${{ steps.choose.outputs.versionCode }}/" module.prop
           sed -i "s|^updateJson=.*|updateJson=https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/update.json|" module.prop
           echo "✅ module.prop 已更新"
+          echo ""
+          echo "📄 module.prop 内容:"
           cat module.prop
 
-      - name: 更新 changelog.md
+      - name: 更新更新日志
         if: steps.sync.outputs.actual_updates > 0
         run: |
           mkdir -p update
@@ -489,10 +510,12 @@ jobs:
             rm update/changelog.new
           fi
 
-          echo "✅ changelog.md 已更新"
+          echo "✅ 更新日志已更新"
+          echo ""
+          echo "📝 更新日志预览 (前30行):"
           head -30 update/changelog.md
 
-      - name: 更新 update.json
+      - name: 更新更新信息 JSON
         if: steps.sync.outputs.actual_updates > 0
         run: |
           mkdir -p update
@@ -506,28 +529,33 @@ jobs:
           }
           EOF
           echo "✅ update.json 已更新"
+          echo ""
+          echo "📄 update.json 内容:"
           cat update/update.json
 
       - name: 创建 ZIP 压缩包
         if: steps.sync.outputs.actual_updates > 0
         run: |
-          sudo apt-get update && sudo apt-get install -y rsync
+          echo "📦 开始打包..."
+          sudo apt-get update && sudo apt-get install -y rsync > /dev/null 2>&1
           mkdir temp_package
 
           if [ -f "exclude.txt" ]; then
-            rsync -av --exclude-from='exclude.txt' ./ temp_package/
+            rsync -av --exclude-from='exclude.txt' ./ temp_package/ 2>&1 | grep -v "^sent\|^total size" || true
           else
-            rsync -av --exclude='.git' --exclude='.github' --exclude='temp_package' --exclude='temp_downloads' --exclude='*.zip' --exclude='.backup_*' --exclude='.version_*' ./ temp_package/
+            rsync -av --exclude='.git' --exclude='.github' --exclude='temp_package' --exclude='temp_downloads' --exclude='*.zip' --exclude='.backup_*' --exclude='.version_*' ./ temp_package/ 2>&1 | grep -v "^sent\|^total size" || true
           fi
 
-          cd temp_package && zip -r ../${{ steps.choose.outputs.version }}.zip . && cd ..
+          cd temp_package && zip -r ../${{ steps.choose.outputs.version }}.zip . > /dev/null && cd ..
           rm -rf temp_package
 
           if [ -f "${{ steps.choose.outputs.version }}.zip" ]; then
             ZIP_SIZE=$(stat -c%s "${{ steps.choose.outputs.version }}.zip")
-            echo "✅ ZIP 压缩包已创建: ${{ steps.choose.outputs.version }}.zip (大小: $ZIP_SIZE bytes)"
+            ZIP_SIZE_MB=$((ZIP_SIZE / 1024 / 1024))
+            echo "✅ ZIP 压缩包已创建: ${{ steps.choose.outputs.version }}.zip"
+            echo "📦 文件大小: $ZIP_SIZE_MB MB ($ZIP_SIZE bytes)"
           else
-            echo "❌ ZIP 包创建失败"
+            echo "❌ 错误: ZIP 包创建失败"
             exit 1
           fi
 
@@ -539,14 +567,14 @@ jobs:
           git add module.prop update/update.json update/changelog.md
 
           if git diff --staged --quiet; then
-            echo "没有需要提交的更改"
+            echo "📝 没有需要提交的更改"
           else
             git commit -m "发布: v${{ steps.choose.outputs.version }} (版本代码: ${{ steps.choose.outputs.versionCode }})"
             git push
             echo "✅ 已推送到远程仓库"
           fi
 
-      - name: 创建 Release
+      - name: 创建 GitHub Release
         if: steps.sync.outputs.actual_updates > 0
         uses: softprops/action-gh-release@v1
         with:
@@ -556,16 +584,17 @@ jobs:
           body: |
             ## 自动发布
 
-            - **版本**: ${{ steps.choose.outputs.version }}
+            ### 版本信息
+            - **版本号**: ${{ steps.choose.outputs.version }}
             - **版本代码**: ${{ steps.choose.outputs.versionCode }}
             - **发布时间**: ${{ steps.version.outputs.release_datetime }}
 
             ### 更新内容
             ${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}
 
-            ### 本次更新组件
+            ### 本次更新统计
             - 共更新了 ${{ steps.sync.outputs.actual_updates }} 个组件
 
-            ### 下载
+            ### 下载地址
             ```bash
             wget https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip
