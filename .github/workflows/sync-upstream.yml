@@ -48,11 +48,7 @@ jobs:
         run: |
           mkdir -pv bin
           mkdir -pv temp_downloads
-          mkdir -pv webui
-          mkdir -pv zygisk-detach
-          mkdir -pv pif
           echo "目录创建完成"
-          ls -la
       
       - name: 读取配置
         id: config
@@ -100,6 +96,10 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             FORCE_UPDATE="false"
           fi
+          
+          # 保存原始目录
+          ORIGINAL_DIR=$(pwd)
+          echo "Original directory: $ORIGINAL_DIR"
           
           # 确保 bin 目录存在
           mkdir -pv bin
@@ -161,7 +161,7 @@ jobs:
               echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
             fi
             
-            # 选择资产 - 优先 arm64/aarch64
+            # 选择资产
             SELECTED_URL=""
             SELECTED_NAME=""
             
@@ -181,7 +181,7 @@ jobs:
             echo "Selected: $SELECTED_NAME"
             echo "Downloading..."
             
-            wget -q --show-progress -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
+            wget -q -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
             
             DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
             if [ ! -f "$DOWNLOAD_FILE" ]; then
@@ -243,32 +243,26 @@ jobs:
               TARGET_DIR=$(dirname "$TARGET")
               mkdir -pv "$TARGET_DIR"
               
-              if [ ! -d "$TARGET_DIR" ]; then
-                echo "ERROR: Failed to create directory $TARGET_DIR"
-                MAPPING_SUCCESS=false
-                continue
-              fi
-              
               if [ "$TYPE" = "pattern" ]; then
-                # 修复：切换到源目录，直接使用文件名
+                # 切换到源目录
                 cd "$SOURCE_BASE"
                 
-                # 列出当前目录文件用于调试
                 echo "Current directory: $(pwd)"
-                echo "Files in current directory:"
+                echo "Files:"
                 ls -la
                 
-                # 使用通配符查找并复制
+                # 使用通配符查找并复制（使用原始目录的路径）
                 for file in $SOURCE; do
                   if [ -f "$file" ]; then
                     echo "Found file: $file"
-                    cp -v "$file" "$TARGET"
-                    echo "Copied: $file -> $TARGET"
+                    cp -v "$file" "$ORIGINAL_DIR/$TARGET"
+                    echo "Copied: $file -> $ORIGINAL_DIR/$TARGET"
                     break
                   fi
                 done
                 
-                cd - > /dev/null
+                # 返回原始目录
+                cd "$ORIGINAL_DIR"
                 
               elif [ "$TYPE" = "file" ]; then
                 # 查找文件
@@ -292,14 +286,6 @@ jobs:
                 chmod +x "$TARGET"
                 echo "Set executable permission"
               fi
-              
-              # 验证文件是否复制成功
-              if [ -f "$TARGET" ]; then
-                echo "SUCCESS: $TARGET created"
-              else
-                echo "FAILED: $TARGET not created"
-                MAPPING_SUCCESS=false
-              fi
             done
             
             if [ "$MAPPING_SUCCESS" = true ]; then
@@ -317,7 +303,6 @@ jobs:
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
           echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
           
-          # 清理临时文件
           rm -rf temp_downloads
           
           echo ""
@@ -332,20 +317,14 @@ jobs:
       - name: 验证 bin 目录内容
         if: steps.sync.outputs.updated_count > 0
         run: |
-          echo "验证 bin 目录内容:"
-          ls -la bin/ || echo "bin 目录为空"
-          echo ""
-          echo "文件类型检查:"
-          file bin/* 2>/dev/null || echo "没有文件"
+          echo "bin 目录内容:"
+          ls -la bin/
       
       - name: 提交并推送
         if: steps.sync.outputs.updated_count > 0
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # 确保空目录能被提交
-          find . -type d -empty -not -path "./.git/*" -exec touch {}/.gitkeep \;
           
           git add .
           
