@@ -1,1 +1,0 @@
-*/5 * * * * /system/bin/sh /data/adb/modules/Linlin/scripts/clearLog.sh

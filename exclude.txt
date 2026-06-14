@@ -1,0 +1,5 @@
+exclude.txt
+temp_package
+.git
+.github
+update
