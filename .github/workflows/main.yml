@@ -54,12 +54,19 @@ jobs:
           echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
       
-      - name: 更新 module.prop
+      - name: 验证必要文件
         run: |
           if [ ! -f "module.prop" ]; then
             echo "❌ module.prop 文件不存在！"
             exit 1
           fi
+          if [ ! -f "exclude.txt" ]; then
+            echo "⚠️ 警告: exclude.txt 文件不存在，将打包所有文件"
+          fi
+          echo "✅ 文件验证通过"
+      
+      - name: 更新 module.prop
+        run: |
           sed -i "s/^version=.*/version=${{ steps.choose.outputs.version }}/" module.prop
           sed -i "s/^versionCode=.*/versionCode=${{ steps.choose.outputs.versionCode }}/" module.prop
           sed -i "s|^updateJson=.*|updateJson=https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/update.json|" module.prop
@@ -74,12 +81,19 @@ jobs:
             CHANGELOG_MSG="- 版本 ${{ steps.choose.outputs.version }} 发布"
           fi
           
-          # 使用 printf 代替直接嵌入变量
-          printf '## [%s] - %s\n\n' "${{ steps.choose.outputs.version }}" "${{ steps.version.outputs.release_date }}" >> update/changelog.new
-          printf '%s\n\n' "$CHANGELOG_MSG" >> update/changelog.new
-          printf '### 下载\n\n' >> update/changelog.new
-          printf -- '- [ZIP 下载链接](https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip)\n\n' >> update/changelog.new
-          printf '---\n\n' >> update/changelog.new
+          # 使用 echo 构建更新日志（修复 printf 错误）
+          {
+            echo "## [${{ steps.choose.outputs.version }}] - ${{ steps.version.outputs.release_date }}"
+            echo ""
+            echo "$CHANGELOG_MSG"
+            echo ""
+            echo "### 下载"
+            echo ""
+            echo "- [ZIP 下载链接](https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip)"
+            echo ""
+            echo "---"
+            echo ""
+          } >> update/changelog.new
           
           if [ -f "update/changelog.md" ]; then
             cat update/changelog.md >> update/changelog.new
@@ -113,19 +127,40 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y rsync
           mkdir temp_package
-          rsync -av --exclude-from='exclude.txt' ./ temp_package/
+          
+          # 如果 exclude.txt 存在则使用，否则只复制必要文件
+          if [ -f "exclude.txt" ]; then
+            rsync -av --exclude-from='exclude.txt' ./ temp_package/
+          else
+            rsync -av --exclude='.git' --exclude='.github' --exclude='temp_package' --exclude='*.zip' ./ temp_package/
+          fi
+          
           cd temp_package && zip -r ../${{ steps.choose.outputs.version }}.zip . && cd ..
           rm -rf temp_package
-          echo "✅ ZIP 压缩包已创建: ${{ steps.choose.outputs.version }}.zip"
+          
+          # 验证 ZIP 包
+          if [ -f "${{ steps.choose.outputs.version }}.zip" ]; then
+            ZIP_SIZE=$(stat -c%s "${{ steps.choose.outputs.version }}.zip")
+            echo "✅ ZIP 压缩包已创建: ${{ steps.choose.outputs.version }}.zip (大小: $ZIP_SIZE bytes)"
+          else
+            echo "❌ ZIP 包创建失败"
+            exit 1
+          fi
       
       - name: 提交并推送到仓库
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add module.prop update/update.json update/changelog.md
-          git commit -m "发布: v${{ steps.choose.outputs.version }} (版本代码: ${{ steps.choose.outputs.versionCode }})" || echo "没有需要提交的更改"
-          git push
-          echo "✅ 已推送到远程仓库"
+          
+          # 检查是否有更改需要提交
+          if git diff --staged --quiet; then
+            echo "没有需要提交的更改"
+          else
+            git commit -m "发布: v${{ steps.choose.outputs.version }} (版本代码: ${{ steps.choose.outputs.versionCode }})"
+            git push
+            echo "✅ 已推送到远程仓库"
+          fi
       
       - name: 创建 Release
         uses: softprops/action-gh-release@v1
