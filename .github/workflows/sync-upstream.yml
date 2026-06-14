@@ -42,7 +42,7 @@ jobs:
       - name: 安装依赖
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq unzip wget rsync tree gzip tar
+          sudo apt-get install -y jq unzip wget rsync gzip tar
 
       - name: 读取配置
         id: config
@@ -52,7 +52,6 @@ jobs:
             exit 1
           fi
 
-          # 验证 JSON 格式
           if ! jq empty sync-mapping-config.json 2>/dev/null; then
             echo "ERROR: Invalid JSON in sync-mapping-config.json"
             exit 1
@@ -92,42 +91,6 @@ jobs:
             FORCE_UPDATE="false"
           fi
 
-          select_asset() {
-            local assets_json="$1"
-            local patterns="$2"
-            local priority="$3"
-            
-            if [ -n "$MANUAL_ASSET" ]; then
-              echo "$assets_json" | jq -r ".[] | select(.name == \"$MANUAL_ASSET\") | .browser_download_url" 2>/dev/null
-              return
-            fi
-            
-            for keyword in $priority; do
-              url=$(echo "$assets_json" | jq -r ".[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                echo "$url"
-                return
-              fi
-            done
-            
-            for pattern in $patterns; do
-              if [[ "$pattern" == !* ]]; then
-                exclude_pattern="${pattern#!}"
-                assets_json=$(echo "$assets_json" | jq -c "[.[] | select(.name | test(\"$exclude_pattern\"; \"i\") | not)]" 2>/dev/null)
-                continue
-              fi
-              
-              regex=$(echo "$pattern" | sed 's/\./\\./g' | sed 's/\*/.*/g' | sed 's/\?/./g')
-              url=$(echo "$assets_json" | jq -r ".[] | select(.name | test(\"^$regex$\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                echo "$url"
-                return
-              fi
-            done
-            
-            echo "$assets_json" | jq -r '.[0].browser_download_url' 2>/dev/null
-          }
-
           extract_file() {
             local file="$1"
             local dest="$2"
@@ -147,7 +110,7 @@ jobs:
               unzip -q "$file" -d "$dest"
               return 0
             else
-              echo "Unknown format, copying directly"
+              echo "Copying directly: $filename"
               cp "$file" "$dest/"
               return 0
             fi
@@ -160,17 +123,6 @@ jobs:
           SKIP_COUNT=0
           FAIL_COUNT=0
 
-          # 使用数组存储更新的列表
-          UPDATED_NAMES=()
-          UPDATED_VERSIONS=()
-
-          # 验证配置文件
-          if ! jq empty sync-mapping-config.json 2>/dev/null; then
-            echo "ERROR: Invalid sync-mapping-config.json"
-            exit 1
-          fi
-
-          # 获取 upstreams 数量
           UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
 
           for ((i=0; i<UPSTREAMS_LEN; i++)); do
@@ -223,11 +175,9 @@ jobs:
               echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
             fi
             
-            # 获取 asset_patterns 和 asset_priority
-            ASSET_PATTERNS=$(jq -r ".upstreams[$i].asset_patterns // [\"*.zip\"] | join(\" \")" sync-mapping-config.json)
+            # 获取 asset_patterns
             ASSET_PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [\"module\", \"magisk\", \"release\", \"v\", \"zip\"] | join(\" \")" sync-mapping-config.json)
             
-            # 选择资产
             SELECTED_URL=""
             SELECTED_NAME=""
             ASSET_COUNT=$(echo "$RELEASE_DATA" | jq '.assets | length')
@@ -236,7 +186,6 @@ jobs:
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.zipball_url')
               SELECTED_NAME="source-code.zip"
             else
-              # 尝试匹配
               for keyword in $ASSET_PRIORITY; do
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
@@ -245,7 +194,6 @@ jobs:
                 fi
               done
               
-              # 如果没有匹配，使用第一个
               if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
                 SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
@@ -268,7 +216,6 @@ jobs:
             
             extract_file "temp_downloads/${NAME}.download" "$EXTRACT_DIR"
             
-            # 查找源目录
             if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
               SOURCE_BASE=$(ls -d "$EXTRACT_DIR"/*/)
             else
@@ -278,7 +225,6 @@ jobs:
             echo "Starting file mapping..."
             MAPPING_SUCCESS=true
             
-            # 获取 mappings 数量
             MAPPINGS_LEN=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
             
             for ((m=0; m<MAPPINGS_LEN; m++)); do
@@ -300,28 +246,49 @@ jobs:
               mkdir -p "$(dirname "$TARGET")"
               
               if [ "$TYPE" = "pattern" ]; then
-                # 使用 find 查找匹配的文件
+                # 使用通配符查找
                 cd "$SOURCE_BASE"
-                find . -name "$SOURCE" -type f 2>/dev/null | while read -r file; do
-                  cd - > /dev/null
-                  if [ "$FLATTEN" = "true" ]; then
-                    cp "$SOURCE_BASE/$file" "$TARGET"
-                  else
-                    mkdir -p "$(dirname "$TARGET/$file")"
-                    cp "$SOURCE_BASE/$file" "$TARGET/$file"
+                shopt -s nullglob
+                matched_files=($SOURCE)
+                shopt -u nullglob
+                for file in "${matched_files[@]}"; do
+                  if [ -e "$file" ]; then
+                    if [ "$FLATTEN" = "true" ]; then
+                      cp "$file" "$TARGET"
+                      echo "Copied: $file -> $TARGET"
+                    else
+                      cp -r "$file" "$TARGET/"
+                      echo "Copied: $file -> $TARGET/"
+                    fi
                   fi
-                  echo "Copied: $file"
-                  cd "$SOURCE_BASE"
                 done
                 cd - > /dev/null
               elif [ "$TYPE" = "file" ]; then
+                # 尝试多个可能的路径
+                FOUND=false
                 if [ -f "$SOURCE_BASE/$SOURCE" ]; then
                   cp "$SOURCE_BASE/$SOURCE" "$TARGET"
-                  echo "File copied"
+                  echo "File copied from $SOURCE_BASE/$SOURCE"
+                  FOUND=true
                 elif [ -f "$EXTRACT_DIR/$SOURCE" ]; then
                   cp "$EXTRACT_DIR/$SOURCE" "$TARGET"
-                  echo "File copied (from root)"
+                  echo "File copied from $EXTRACT_DIR/$SOURCE"
+                  FOUND=true
+                elif [ -f "$SOURCE_BASE/$(basename "$SOURCE")" ]; then
+                  cp "$SOURCE_BASE/$(basename "$SOURCE")" "$TARGET"
+                  echo "File copied from $(basename "$SOURCE")"
+                  FOUND=true
                 else
+                  # 尝试查找同名文件
+                  FOUND_FILE=$(find "$SOURCE_BASE" -name "$(basename "$SOURCE")" -type f 2>/dev/null | head -1)
+                  if [ -n "$FOUND_FILE" ]; then
+                    cp "$FOUND_FILE" "$TARGET"
+                    echo "File copied from $FOUND_FILE"
+                    FOUND=true
+                  fi
+                fi
+                
+                if [ "$FOUND" = false ]; then
                   echo "Source not found: $SOURCE"
                   MAPPING_SUCCESS=false
                 fi
@@ -359,25 +326,18 @@ jobs:
             if [ "$MAPPING_SUCCESS" = true ]; then
               echo "$LATEST_TAG" > "$VERSION_FILE"
               UPDATED_COUNT=$((UPDATED_COUNT + 1))
-              UPDATED_NAMES+=("$NAME")
-              UPDATED_VERSIONS+=("$LATEST_TAG")
               echo "$NAME completed"
             else
               FAIL_COUNT=$((FAIL_COUNT + 1))
+              echo "$NAME failed"
             fi
           done
 
+          # 只输出数字，不输出多行字符串
           echo "updated_count=$UPDATED_COUNT" >> $GITHUB_OUTPUT
           echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
           echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
-
-          # 生成更新列表字符串
-          UPDATED_LIST_STR=""
-          for ((i=0; i<${#UPDATED_NAMES[@]}; i++)); do
-            UPDATED_LIST_STR="${UPDATED_LIST_STR}  OK ${UPDATED_NAMES[$i]}: ${UPDATED_VERSIONS[$i]}"$'\n'
-          done
-          echo "updated_list=$UPDATED_LIST_STR" >> $GITHUB_OUTPUT
 
           rm -rf temp_downloads
 
@@ -388,14 +348,15 @@ jobs:
           echo "Updated: $UPDATED_COUNT"
           echo "Skipped: $SKIP_COUNT"
           echo "Failed: $FAIL_COUNT"
-          printf "%s" "$UPDATED_LIST_STR"
           echo "=========================================="
 
       - name: 显示目录结构
         if: steps.sync.outputs.updated_count > 0
         run: |
           echo "Directory structure:"
-          ls -laR | head -50
+          ls -la bin/ 2>/dev/null || echo "bin directory not found"
+          echo ""
+          ls -la | head -20
 
       - name: 提交并推送
         if: steps.sync.outputs.updated_count > 0
