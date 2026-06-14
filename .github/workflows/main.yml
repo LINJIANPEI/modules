@@ -1,4 +1,4 @@
-name: Package and Update
+name: 打包并更新
 
 on:
   workflow_dispatch:
@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: 'Asia/Shanghai'
+      changelog:
+        description: '更新日志内容 (可选)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -21,12 +26,12 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Set timezone
+    - name: 设置时区
       run: |
         sudo timedatectl set-timezone ${{ github.event.inputs.timezone }}
         date
     
-    - name: Generate version from datetime
+    - name: 生成日期版本号
       id: version
       run: |
         # 完整日期: 2026.01.15
@@ -45,12 +50,14 @@ jobs:
         echo "datetime_version=$DATETIME_VERSION" >> $GITHUB_OUTPUT
         echo "version_code=$DATETIME_VERSION_CODE" >> $GITHUB_OUTPUT
         echo "date_version_code=$DATE_VERSION_CODE" >> $GITHUB_OUTPUT
+        echo "release_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+        echo "release_datetime=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
         
-        echo "Date Version: $DATE_VERSION"
-        echo "Datetime Version: $DATETIME_VERSION"
-        echo "Version Code: $DATETIME_VERSION_CODE"
+        echo "日期版本: $DATE_VERSION"
+        echo "时间版本: $DATETIME_VERSION"
+        echo "版本代码: $DATETIME_VERSION_CODE"
     
-    - name: Choose version format
+    - name: 选择版本格式
       id: choose
       run: |
         # 可以选择使用哪种格式，这里使用带时间的版本
@@ -61,39 +68,94 @@ jobs:
         echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
         echo "tag=v$VERSION" >> $GITHUB_OUTPUT
     
-    - name: Create ZIP package
+    - name: 更新 module.prop
+      run: |
+        # 检查 module.prop 是否存在
+        if [ ! -f "module.prop" ]; then
+          echo "❌ module.prop 文件不存在！"
+          exit 1
+        fi
+        
+        # 更新版本信息
+        sed -i "s/^version=.*/version=${{ steps.choose.outputs.version }}/" module.prop
+        sed -i "s/^versionCode=.*/versionCode=${{ steps.choose.outputs.versionCode }}/" module.prop
+        
+        # 更新 updateJson 链接（确保正确）
+        sed -i "s|^updateJson=.*|updateJson=https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/update.json|" module.prop
+        
+        echo "✅ module.prop 已更新"
+        cat module.prop
+    
+    - name: 更新 changelog.md
+      run: |
+        mkdir -p update
+        
+        # 获取更新日志内容
+        CHANGELOG_MSG="${{ github.event.inputs.changelog }}"
+        if [ -z "$CHANGELOG_MSG" ]; then
+          CHANGELOG_MSG="- 版本 ${{ steps.choose.outputs.version }} 发布"
+        fi
+        
+        # 创建新的 changelog 条目
+        NEW_ENTRY="## [${{ steps.choose.outputs.version }}] - ${{ steps.version.outputs.release_date }}
+        
+$CHANGELOG_MSG
+
+### 下载
+- [ZIP 下载链接](https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip)
+
+---
+"
+        
+        # 如果 changelog.md 存在，在开头插入新内容
+        if [ -f "update/changelog.md" ]; then
+          echo "$NEW_ENTRY" > update/changelog.tmp
+          cat update/changelog.md >> update/changelog.tmp
+          mv update/changelog.tmp update/changelog.md
+        else
+          # 如果不存在，创建新文件
+          echo "# 更新日志" > update/changelog.md
+          echo "" >> update/changelog.md
+          echo "$NEW_ENTRY" >> update/changelog.md
+        fi
+        
+        echo "✅ changelog.md 已更新"
+        head -30 update/changelog.md
+    
+    - name: 更新 update.json
+      run: |
+        mkdir -p update
+        cat > update/update.json << EOF
+        {
+            "version": "${{ steps.choose.outputs.version }}",
+            "versionCode": ${{ steps.choose.outputs.versionCode }},
+            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip",
+            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/changelog.md",
+            "releaseDate": "${{ steps.version.outputs.release_datetime }}"
+        }
+        EOF
+        echo "✅ update.json 已更新"
+        cat update/update.json
+    
+    - name: 创建 ZIP 压缩包
       run: |
         sudo apt-get update && sudo apt-get install -y rsync
         mkdir temp_package
         rsync -av --exclude-from='exclude.txt' ./ temp_package/
         cd temp_package && zip -r ../${{ steps.choose.outputs.version }}.zip . && cd ..
         rm -rf temp_package
-        echo "✅ ZIP created: ${{ steps.choose.outputs.version }}.zip"
+        echo "✅ ZIP 压缩包已创建: ${{ steps.choose.outputs.version }}.zip"
     
-    - name: Update update.json
-      run: |
-        cd update
-        cat > update.json << EOF
-        {
-            "version": "${{ steps.choose.outputs.version }}",
-            "versionCode": ${{ steps.choose.outputs.versionCode }},
-            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip",
-            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/changelog.md",
-            "releaseDate": "$(date -Iseconds)"
-        }
-        EOF
-        echo "✅ update.json updated"
-        cat update.json
-    
-    - name: Commit and push
+    - name: 提交并推送到仓库
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add update/update.json
-        git commit -m "release: v${{ steps.choose.outputs.version }} (${{ steps.choose.outputs.versionCode }})" || echo "No changes"
+        git add module.prop update/update.json update/changelog.md
+        git commit -m "发布: v${{ steps.choose.outputs.version }} (版本代码: ${{ steps.choose.outputs.versionCode }})" || echo "没有需要提交的更改"
         git push
+        echo "✅ 已推送到远程仓库"
     
-    - name: Create Release
+    - name: 创建 Release
       uses: softprops/action-gh-release@v1
       with:
         files: ${{ steps.choose.outputs.version }}.zip
@@ -104,7 +166,10 @@ jobs:
           
           - **版本**: ${{ steps.choose.outputs.version }}
           - **版本代码**: ${{ steps.choose.outputs.versionCode }}
-          - **发布时间**: $(date '+%Y-%m-%d %H:%M:%S')
+          - **发布时间**: ${{ steps.version.outputs.release_datetime }}
+          
+          ### 更新内容
+          ${{ github.event.inputs.changelog || '版本发布' }}
           
           ### 下载
           ```bash
