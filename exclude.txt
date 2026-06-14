@@ -8,3 +8,7 @@ sync-mapping-config.json
 .version_mihomo
 .version_oxidns
 .version_smartdns
+.version_AppOpt
+mihomoData\proxies\.gitkeep
+log\.gitkeep
+cache\.gitkeep
