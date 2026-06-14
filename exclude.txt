@@ -7,3 +7,4 @@ sync-mapping-config.json
 .version_AdGuardHome
 .version_mihomo
 .version_oxidns
+.version_smartdns
