@@ -1,0 +1,296 @@
+# mihomo文档 h(tps://wiki.metacubex.one/config/dns/hosts/#hosts
+
+mode: rule # 规则模式
+mixed-port: 7890 # socks/http代理端口
+redir-port: 7892 # redirect透明代理端口
+tproxy-port: 7893 # tproxy透明代理端口
+allow-lan: true # 允许局域网访问
+ipv6: true # 开启ipv6
+#ipv6: false
+unified-delay: true #统一延迟
+log-level: info # 日志等级
+tcp-concurrent: true # 启用 TCP 并发连接
+# TCP Keep Alive 设置，减少设备耗电问题
+keep-alive-interval: 30
+keep-alive-idle: 15
+find-process-mode: strict # 进程查找模式
+global-client-fingerprint: chrome # 全局客户端指纹模拟为 Chrome 浏览器
+# 域名嗅探 https://wiki.metacubex.one/config/sniff/#_1
+sniffer:
+    enable: true
+    sniff:
+        HTTP:
+            ports: [80, 8080-8880]
+            override-destination: true
+        TLS:
+            ports: [443, 8443]
+        QUIC:
+            ports: [443, 8443]
+    skip-domain:
+        - Mijia Cloud
+        - "+.push.apple.com"
+# 缓存
+profile:
+    store-selected: true
+    # 储存 API 对策略组的选择，以供下次启动时使用
+    store-fake-ip: false
+    # 储存 fakeip 映射表，域名再次发生连接时，使用原有映射地址
+# 自动同步时间以防止时间不准导致无法正常联网
+ntp:
+    enable: true
+    # 是否同步至系统时间，需要 root/管理员权限
+    write-to-system: false
+    server: time.apple.com
+    port: 123
+    interval: 30
+# 管理页面 https://wiki.metacubex.one/config/general/#_7
+external-controller: 127.0.0.1:9090
+secret: "201314"
+# external-ui: yacd
+external-ui: zashboard #使用zashboard为本地管理ui
+external-ui-url: "https://ghfast.top/https://github.com/Zephyruso/zashboard/releases/latest/download/dist-no-fonts.zip"
+bind-address: "*"
+# tun虚拟网卡设置 不懂默认就好 默认开启tun
+tun:
+    enable: true
+    device: mihomo
+    stack: mixed
+    auto-route: true # 自动添加路由
+    strict-route: true # 严格路由模式
+    endpoint-independent-nat: true # 启用端点独立 NAT
+    auto-redirect: true # 自动重定向流量到 TUN 设备
+    auto-detect-interface: true # 自动检测网络接口
+    exclude-package:
+        - bf.sgs.hdexp
+dns:
+    enable: true
+    listen: 0.0.0.0:1053
+    cache-algorithm: none
+    ipv6: true
+    respect-rules: false
+    enhanced-mode: redir-host
+    nameserver:
+        - "tcp://127.0.0.1:5591"
+        - "udp://127.0.0.1:5591"
+    default_nameserver:
+        - "tcp://127.0.0.1:5591"
+        - "udp://127.0.0.1:5591"
+    fallback:
+        - "tcp://127.0.0.1:5591"
+        - "udp://127.0.0.1:5591"
+proxies:
+    - name: "➡️ 直连"
+      type: "direct"
+      udp: true
+      ip-version: "ipv4-prefer"
+      client-fingerprint: "chrome"
+# mihomo配置参考可以看看这个wiki
+# https://wiki.metacubex.one
+
+#预设
+pr: &pr
+    type: select
+    interval: 3600
+    health-check:
+        enable: true
+        url: https://www.gstatic.com/generate_204
+        interval: 300
+        timeout: 3000
+    include-all: true
+autotest: &autotest
+    type: url-test
+    interval: 300
+    tolerance: 100
+    health-check:
+        enable: true
+        url: https://www.gstatic.com/generate_204
+        interval: 120
+        timeout: 3000
+    include-all: true
+p: &p
+    type: http
+    interval: 3600
+    health-check:
+        enable: true
+        url: https://www.gstatic.com/generate_204
+        timeout: 1500
+        interval: 300
+        lazy: true
+# 代理提供(订阅)组
+# url 里填写自己的订阅,名称不能重复
+proxy-providers:
+    机场1: #机场名
+        !!merge <<: *p
+        url: ""
+        # path: ./proxy_providers/jichang1.yaml #指定保存路径 非必填
+    机场2: #机场名
+        !!merge <<: *p
+        url: ""
+        # path: ./proxy_providers/jichang2.yaml #保存路径
+proxy-groups:
+    - name: "\U0001F680 国外代理"
+      type: "select"
+      proxies:
+        - "♻️ 自动选择"
+        - "\U0001F310 手动选择"
+        - "➡️ 直连"
+      disable-udp: false
+    - name: "\U0001F3AF 国内代理"
+      type: "select"
+      proxies:
+        - "➡️ 直连"
+        - "♻️ 自动选择"
+        - "\U0001F310 手动选择"
+      disable-udp: false
+    - name: "\U0001F41F 漏网之鱼"
+      type: "select"
+      proxies:
+        - "♻️ 自动选择"
+        - "\U0001F310 手动选择"
+        - "➡️ 直连"
+      disable-udp: false
+    - name: "♻️ 自动选择"
+      type: url-test
+      proxies:
+      disable-udp: false
+      url: http://cp.cloudflare.com/generate_204
+      interval: '300'
+      tolerance: '150'
+      include-all: true
+      filter: "^((?!(直连)).)*$"
+    - name: "\U0001F310 手动选择"
+      type: "select"
+      proxies:
+      disable-udp: false
+      include-all: true
+rule-providers:
+    private_ip:
+        type: http
+        behavior: ipcidr
+        path: "./rule_provider/private_ip.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.yaml
+        interval: 86400
+    private_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/private_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.yaml
+        interval: 86400
+    bilibili_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/bilibili_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/bilibili.yaml
+        interval: 86400
+    cn_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/cn_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.yaml
+        interval: 86400
+    github_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/github_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.yaml
+        interval: 86400
+    google_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/google_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.yaml
+        interval: 86400
+    youtube_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/youtube_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.yaml
+        interval: 86400
+    tiktok_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/tiktok_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.yaml
+        interval: 86400
+    netflix_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/netflix_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/netflix.yaml
+        interval: 86400
+    telegram_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/telegram_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.yaml
+        interval: 86400
+    nocn_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/nocn_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.yaml
+        interval: 86400
+    gfw_domain:
+        type: http
+        behavior: domain
+        path: "./rule_provider/gfw_domain.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/gfw.yaml
+        interval: 86400
+    cn_ip:
+        type: http
+        behavior: ipcidr
+        path: "./rule_provider/cn_ip.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.yaml
+        interval: 86400
+    google_ip:
+        type: http
+        behavior: ipcidr
+        path: "./rule_provider/google_ip.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.yaml
+        interval: 86400
+    netflix_ip:
+        type: http
+        behavior: ipcidr
+        path: "./rule_provider/netflix_ip.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/netflix.yaml
+        interval: 86400
+    telegram_ip:
+        type: http
+        behavior: ipcidr
+        path: "./rule_provider/telegram_ip.yaml"
+        format: yaml
+        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.yaml
+        interval: 86400
+rules:
+    - "RULE-SET,private_ip,\U0001F3AF 国内代理"
+    - "RULE-SET,private_domain,\U0001F3AF 国内代理"
+    - "RULE-SET,bilibili_domain,\U0001F3AF 国内代理"
+    - "RULE-SET,cn_domain,\U0001F3AF 国内代理"
+    - "RULE-SET,cn_ip,\U0001F3AF 国内代理"
+    - "RULE-SET,github_domain,\U0001F680 国外代理"
+    - "RULE-SET,google_domain,\U0001F680 国外代理"
+    - "RULE-SET,youtube_domain,\U0001F680 国外代理"
+    - "RULE-SET,tiktok_domain,\U0001F680 国外代理"
+    - "RULE-SET,netflix_domain,\U0001F680 国外代理"
+    - "RULE-SET,telegram_domain,\U0001F680 国外代理"
+    - "RULE-SET,gfw_domain,\U0001F680 国外代理"
+    - "RULE-SET,nocn_domain,\U0001F680 国外代理"
+    - "RULE-SET,google_ip,\U0001F680 国外代理"
+    - "RULE-SET,netflix_ip,\U0001F680 国外代理"
+    - "RULE-SET,telegram_ip,\U0001F680 国外代理"
+    - "MATCH,\U0001F41F 漏网之鱼"

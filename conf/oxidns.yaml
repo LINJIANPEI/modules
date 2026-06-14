@@ -1,0 +1,176 @@
+log:
+  level: info
+  file: "../log/oxidns.log"
+
+api:
+  http:
+    listen: :9199
+    webui:
+      root: ../webui
+
+plugins:
+  - tag: cn_domains
+    type: domain_set
+    args:
+      files:
+        - "./custom_cn_domain.txt"
+        - "./rules/cn_domain.txt"
+
+  - tag: nocn_domains
+    type: domain_set
+    args:
+      files:
+        - "./custom_nocn_domain.txt"
+        - "./rules/nocn_domain.txt"
+
+  - tag: cdn_domains
+    type: domain_set
+    args:
+      files:
+        - "./rules/cdn_domain.txt"
+
+#  - tag: cn_ips
+#    type: ip_set
+#    args:
+#      files:
+#        - "./rules/cn_ip.txt"
+
+#  - tag: nocn_ips
+#    type: ip_set
+#    args:
+#      files:
+#        - "./rules/nocn_ip.txt"
+
+
+  - tag: forward_local
+    type: forward
+    args:
+      concurrent: 2
+      upstreams:
+        - addr: "tcp://127.0.0.1:5445"
+        - addr: "udp://127.0.0.1:5445"
+
+  - tag: forward_remote
+    type: forward
+    args:
+      concurrent: 2
+      upstreams:
+        - addr: "tcp://127.0.0.1:5555"
+        - addr: "udp://127.0.0.1:5555"
+
+  - tag: fallback_main
+    type: fallback
+    args:
+      primary: forward_remote
+      secondary: forward_local
+      threshold: 50
+      always_standby: true
+   
+  - tag: cache_main
+    type: cache
+    args:
+      size: 512
+      lazy_cache_ttl: 30
+      dump_file: "/data/adb/modules/Linlin/cache/oxidns.cache"
+      dump_interval: 3600
+
+
+  - tag: main_sequence
+    type: sequence
+    args:
+    
+      - exec: $cache_main
+      
+      - matches: has_resp
+        exec: accept
+
+      # ---------- 中国域名 ----------
+      - matches: "qname $cn_domains"
+        exec: $forward_local
+        
+#      - matches: "resp_ip $cn_ips"
+#        exec: drop_resp
+
+      - matches: has_resp
+        exec: accept
+
+      # ---------- CDN ----------
+      - matches: "qname $cdn_domains"
+        exec: $forward_local
+        
+#      - matches: "resp_ip $cn_ips"
+#        exec: drop_resp
+
+      - matches: has_resp
+        exec: accept
+
+      # ---------- 国外域名 ----------
+      - matches: "qname $nocn_domains"
+        exec: $forward_remote
+        
+#      - matches: "resp_ip $nocn_ips"
+#        exec: drop_resp
+
+      - matches: has_resp
+        exec: accept
+
+      # ---------- fallback ----------
+      - exec: $fallback_main
+
+      - matches: has_resp
+        exec: accept
+
+  - tag: tcp_in
+    type: tcp_server
+    args:
+      entry: main_sequence
+      listen: "127.0.0.1:5335"
+  
+  - tag: udp_in
+    type: udp_server
+    args:
+      entry: main_sequence
+      listen: "127.0.0.1:5335"
+
+
+
+  - tag: subscription_download
+    type: download
+    args:
+      timeout: 60s
+      startup_if_missing: true
+      downloads:
+        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_domain.txt"
+          dir: "./rules"
+          filename: "cn_domain.txt"
+        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cdn_domain.txt"
+          dir: "./rules"
+          filename: "cdn_domain.txt"
+        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/nocn_domain.txt"
+          dir: "./rules"
+          filename: "nocn_domain.txt"
+#        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_ip.txt"
+#          dir: "./rules"
+#          filename: "cn_ip.txt"
+#        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/nocn_ip.txt"
+#          dir: "./rules"
+#          filename: "nocn_ip.txt"
+
+
+  - tag: reload_rules
+    type: reload_provider
+    args:
+      - $cn_domains
+      - $cdn_domains
+      - $nocn_domains
+#      - $cn_ips
+#      - $nocn_ips
+  - tag: subscription_cron
+    type: cron
+    args:
+      jobs:
+        - name: refresh_rules
+          interval: 12h
+          executors:
+            - $subscription_download
+            - $reload_rules

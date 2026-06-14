@@ -1,0 +1,602 @@
+#---------Linlin---------
+# 林林的一加13专属线程优化
+
+#-----系统组件-----
+# Android图形显示组件
+surfaceflinger=0-5
+surfaceflinger{RenderEngine}=6-7
+surfaceflinger{surfaceflinger}=6-7
+# 系统界面
+com.android.systemui=0-5
+# 移动服务
+com.heytap.htms:kit_hlog=0-5
+com.heytap.htms:sysintegrity=0-5
+com.heytap.htms=0-5
+# 全局搜索
+com.heytap.quicksearchbox=0-5
+# 电池进程
+com.oplus.battery=0-5
+# NFC服务
+com.android.nfc=0-5
+# 云服务
+com.heytap.cloud=0-5
+# 打印处理服务
+com.android.printspooler=0-5
+# Android 电话系统服务
+com.android.server.telecom=0-5
+# Android 日历数据提供程序
+com.android.providers.calendar=0-5
+# 下载管理服务
+com.android.providers.downloads=0-5
+# 系统桌面
+com.android.launcher=0-5
+# 媒体选择工具2
+com.android.providers.media.module=0-5
+# 设备直连
+com.heytap.accessory=0-5
+# shell
+com.android.shell=0-5
+#欧真加屏幕共享
+com.coloros.sharescreen=0-5
+# 内存管理优化
+lmkd=0-5
+lmkd{MemPressure}=6-7
+# 系统服务
+system_server{InputReader}=6-7
+system_server{InputDispatcher}=6-7
+system_server=0-5
+system_server{system_server}=6-7
+system_server{android.bg}=6-7
+system_server{HeapTaskDaemon}=6-7
+# android.hardware.camera.provider@2.4-service_64
+android.hardware.camera.provider@2.4-service_64=0-5
+# 补充系统关键后台进程
+android.hardware.graphics.composer@2.4-service=0-5
+android.hardware.graphics.composer@2.4-service{VSYNC}=6-7
+# webview
+com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0=0-5
+# 电话服务
+com.android.phone=0-5
+# 蓝牙服务
+com.android.bluetooth=0-5
+#谷歌服务
+com.google.android.googlequicksearchbox:interactor=0-5
+com.google.android.googlequicksearchbox:search=0-5
+# com.google.android.gms.unstable
+com.google.android.gms.unstable=0-5
+# com.google.android.gms.persistent
+com.google.android.gms.persistent=0-5
+# 连接至 Windows
+com.microsoft.appmanager:pnsvc=0-5
+# 无线耳机
+com.oplus.melody=0-5
+com.oplus.melody:fg=0-5
+com.oplus.melody:fg{RenderThread}=0-5
+com.oplus.melody:fg{*.melody:fg}=0-5
+# qti(高通渲染服务)
+vendor.qti.hardware.display.composer-service{RenderEngine}=6-7
+vendor.qti.hardware.display.composer-service{ReceiveThread}=6-7
+vendor.qti.hardware.display.composer-service=0-5
+# 系统消息
+com.heytap.mcs=0-5
+# 触摸守护进程
+touchDaemon=0-5
+# 官方调度
+vendor.oplus.hardware.gameopt-service=0-5
+# 官方线程
+oiface=0-5
+# 耗电监控模块
+com.oplus.powermonitor=0-5
+# 应用增强服务
+com.oplus.cosa=0-5
+# 系统诊断跟踪
+com.oplus.onetrace=0-5
+# 系统服务
+com.oplus.exsystemservice=6-7
+# 定位服务
+com.oplus.location=0-5
+# 智慧决策服务
+com.oplus.metis=0-5
+# 智慧能力服务
+com.oplus.deepthinker=0-5
+# 手势体感
+com.oplus.gesture=0-5
+# 网络服务
+com.oplus.nas=0-5
+# 网络健康服务
+com.oplus.nhs=0-5
+# 子系统服务框架
+com.oplus.subsys=0-5
+# 应用服务
+com.oplus.appplatform=0-5
+# mtio
+mtio=0-5
+# 百度输入法 OPPO 定制版
+com.baidu.input_oppo=0-5
+# 数据基础服务
+com.oplus.statistics.rom=0-5
+# 语音唤醒服务
+com.oplus.ovoicemanager.wakeup=0-5
+# 欧意
+com.okinc.okex.gp:remote=0-5
+com.okinc.okex.gp=0-5
+# 支付保护
+com.coloros.securepay=0-5
+# 密码本
+com.coloros.codebook=0-5
+# 电脑管家
+com.coloros.phonemanager=0-5
+# 加加电池
+com.example.plusplusbattery=0-5
+# 账号中心
+com.oplus.account=0-5
+# 智慧数据增强服务
+com.coloros.sceneservice=0-5
+# AI 服务引擎
+com.oplus.aiunit=0-5
+# 识屏服务
+com.coloros.colordirectservice=0-5
+# 服务治理框架
+com.oplus.pantanal.ums=0-5
+#Google 文件
+com.android.documentsui=0-5
+
+
+#-----系统应用-----
+# OPPO 文件管理器
+com.coloros.filemanager=0-5
+# OPPO 阅读
+com.heytap.reader=0-5
+# 我的一加
+com.oneplus.member=0-5
+# 手机搬家
+com.coloros.backuprestore=0-5
+# 主题商店
+com.heytap.themestore=0-5
+# 系统卡包
+com.heytap.tas:nfchost=0-5
+# 截图
+com.oplus.screenshot=6-7
+# 智能侧边栏
+com.coloros.smartsidebar:ui=0-5
+com.coloros.smartsidebar:ui{RenderThread}=0-5
+com.coloros.smartsidebar:ui{smartsidebar:ui}=0-5
+com.coloros.smartsidebar:edgepanel=0-5
+# 搜狗输入法定制版
+com.sohu.inputmethod.sogouoem=0-5
+# 软件商店
+com.heytap.market=0-5
+# 红外遥控
+com.oplus.consumerIRApp=0-5
+# 指南针
+com.coloros.compass2=0-5
+# 录音
+com.coloros.soundrecorder=0-5
+# 计算器
+com.coloros.calculator=0-5
+# 钱包
+com.finshell.wallet:nfchost=0-5
+com.finshell.wallet:plugin=0-5
+# 日历
+com.coloros.calendar=0-5
+# 官方浏览器
+com.heytap.browser=0-5
+# 信息
+com.android.mms=0-5
+# Google Play 服务
+com.google.android.gms=0-5
+# 游戏中心
+com.nearme.gamecenter=0-5
+# 天气
+com.coloros.weather2=0-5
+# 时钟
+com.coloros.alarmclock=0-5
+# 电话
+com.android.incallui=0-5
+# 一加社区
+com.oneplus.bbs=0-5
+# 游戏助手
+com.oplus.games=0-5
+# OPPO相机(一加相机)
+com.oplus.camera=0-5
+# 便签
+com.coloros.note=0-5
+# OPPO 文档阅读器
+andes.oplus.documentsreader=0-5
+# 相册
+com.coloros.gallery3d{RenderThread}=6-7
+com.coloros.gallery3d{loros.gallery3d}=6-7
+com.coloros.gallery3d=0-5
+# OPPO 天气服务
+com.coloros.weather.service=0-5
+# 设置
+com.android.settings=0-5
+com.android.settings{RenderThread}=6-7
+com.android.settings{*.settings}=6-7
+# 电话本
+com.android.contacts=0-5
+# Google Play 商店
+com.android.vending=0-5
+com.android.vending{RenderThread}=6-7
+com.android.vending{Thread-*}=6-7
+com.android.vending{.*}=6-7
+# 速览
+com.coloros.assistantscreen:watch=0-5
+com.coloros.assistantscreen=0-5
+# 智慧语音
+com.coloros.accessibilityassistant=0-5
+# 应用安装器
+com.oplus.appdetail=0-5
+
+
+#-----社交应用-----
+# 微信
+com.tencent.mm=0-5
+#附加进程
+com.tencent.mm:push=0-1
+#微信小程序
+com.tencent.mm:appbrand?{RenderThread}=0-5
+com.tencent.mm:appbrand?{*:appbrand*}=0-5
+com.tencent.mm:appbrand?{Chrome_InProcGp}=0-5
+com.tencent.mm:appbrand?{Chrome_InProcRe}=0-5
+com.tencent.mm:appbrand?{JSRuntimeLooper}=0-7
+com.tencent.mm:appbrand?{*[Pp]ool*}=0-5
+com.tencent.mm:appbrand?{*GLThread*}=0-5
+com.tencent.mm:appbrand?{VizWebView}=0-5
+com.tencent.mm:appbrand?{mars::*}=0-5
+com.tencent.mm:appbrand?{Chrome_IOThread}=0-5
+com.tencent.mm:appbrand?{Chrome_ChildIOT}=0-5
+com.tencent.mm:appbrand?{ThreadPoolForeg}=0-5
+com.tencent.mm:appbrand?{ThreadPoolServi}=0-5
+com.tencent.mm:appbrand?=0-5
+# QQ
+com.tencent.mobileqq=0-5
+#附加进程
+com.tencent.mobileqq:MSF=0-1
+com.tencent.mobileqq:peak=0-5
+com.tencent.mobileqq:picture=0-5
+com.tencent.mobileqq:TMAssistantDownloadSDKService=0-5
+#QQ频道
+com.tencent.mobileqq:tool{RenderThread}=0-5
+com.tencent.mobileqq:tool{t.mobileqq:tool}=0-5
+com.tencent.mobileqq:tool{Chrome_InProcGp}=0-5
+com.tencent.mobileqq:tool{Chrome_InProcRe}=0-5
+com.tencent.mobileqq:tool{HeapTaskDaemon}=0-5
+com.tencent.mobileqq:tool{VizWebView}=0-5
+com.tencent.mobileqq:tool{NetworkService}=0-5
+com.tencent.mobileqq:tool{CompositorTileW}=0-5
+com.tencent.mobileqq:tool{Compositor}=0-5
+com.tencent.mobileqq:tool{Chrome_IOThread}=0-5
+com.tencent.mobileqq:tool{Chrome_ChildIOT}=0-5
+com.tencent.mobileqq:tool{ThreadPoolForeg}=0-5
+com.tencent.mobileqq:tool{ThreadPoolServi}=0-5
+#QQ空间
+com.tencent.mobileqq:qzone{RenderThread}=0-5
+com.tencent.mobileqq:qzone{.mobileqq:qzone}=0-5
+com.tencent.mobileqq:qzone{TVKDL*}=0-5
+# 酷安
+com.coolapk.market=0-5
+com.coolapk.market:xg_vip_service=0-5
+# 微博
+com.sina.weibo=0-5
+# 小红书
+com.xingin.xhs=0-5
+#附加进程
+com.xingin.xhs:pushservice=0-5
+com.xingin.xhs:longlink=0-5
+com.xingin.xhs:simplePush=0-5
+com.xingin.xhs:widgetProvider=0-5
+# 钉钉
+com.alibaba.android.rimet=0-5
+#附加进程
+com.alibaba.android.rimet:sandboxed_privilege_process0=0-5
+com.alibaba.android.rimet:channel=0-5
+com.alibaba.android.rimet:push=0-5
+# soul
+cn.soulapp.android=0-5
+# QQ邮箱
+com.tencent.androidqqmail=0-5
+# Telegram
+org.telegram.messenger=0-5
+# 企业微信
+com.tencent.wework=0-5
+# Github
+com.github.android=0-5
+# DIscord
+com.discord=0-5
+
+#-----消费应用-----
+# 淘宝
+com.taobao.taobao=0-5
+#附加进程
+com.taobao.taobao:gpu_process=0-5
+com.taobao.taobao:sandboxed_privilege_process0=0-5
+# 支付宝
+com.eg.android.AlipayGphone{ScanRecognize}=6-7
+com.eg.android.AlipayGphone=0-5
+#附加进程
+com.eg.android.AlipayGphone:sandboxed_privilege_process0=0-5
+com.eg.android.AlipayGphone:sandboxed_privilege_process*=0-5
+com.eg.android.AlipayGphone:tools=0-5
+com.eg.android.AlipayGphone:gpu_process=0-5
+com.eg.android.AlipayGphone:lite1=0-5
+com.eg.android.AlipayGphone:lite*=0-5
+com.eg.android.AlipayGphone:widgetProvider=0-5
+com.eg.android.AlipayGphone:push=0-5
+# 京东
+com.jingdong.app.mall=0-5
+# 闲鱼
+com.taobao.idlefish=0-5
+#附加进程
+com.taobao.idlefish:channel=0-5
+# 得物
+com.shizhuang.duapp=0-5
+# 拼多多
+com.xunmeng.pinduoduo=0-5
+#附加进程
+com.xunmeng.pinduoduo:titan=0-5
+com.xunmeng.pinduoduo:support=0-5
+com.xunmeng.pinduoduo:lifecycle=0-5
+# 美团
+com.sankuai.meituan{OkHttp*}=0-5
+#附加进程
+com.sankuai.meituan:sandboxed_process0=0-5
+com.sankuai.meituan:sandboxed_process14=0-5
+com.sankuai.meituan:sandboxed_process23=0-5
+com.sankuai.meituan:sandboxed_process22=0-5
+com.sankuai.meituan:sandboxed_process21=0-5
+com.sankuai.meituan:PinProcess=0-5
+com.sankuai.meituan:dppushservice=0-5
+#美团小游戏
+com.sankuai.meituan:MgcProcess{RenderThread}=0-5
+com.sankuai.meituan:MgcProcess{tuan:MgcProcess}=0-5
+com.sankuai.meituan:MgcProcess{mgc_worker}=0-5
+com.sankuai.meituan:MgcProcess{mgc-run-node#*}=0-5
+com.sankuai.meituan:MgcProcess{MGCGLThread}=0-5
+com.sankuai.meituan:MgcProcess{HeapTaskDaemon}=0-5
+com.sankuai.meituan:MgcProcess=0-5
+# 数字人民币
+cn.gov.pbc.dcep=0-5
+# 中国工商银行
+com.icbc=0-5
+# 广州农商银行
+com.gzrcb.mobilebank=0-5
+# 铁路12306
+com.MobileTicket=0-5
+# 中国电信
+com.ct.client=0-5
+# 中国联通
+com.sinovatech.unicom.ui=0-5
+# 云闪付
+com.unionpay=0-5
+# 交管12123
+com.tmri.app.main=0-5
+# 阿里巴巴
+com.alibaba.wireless=0-5
+com.alibaba.wireless{RenderThread}=6-7
+com.alibaba.wireless{HeapTaskDaemon}=6-7
+# 中国移动
+com.greenpoint.android.mc10086.activity=0-5
+# 饿了么
+me.ele=0-5
+#附加进程
+me.ele:sandboxed_privilege_process0=0-5
+me.ele:sandboxed_privilege_process1=0-5
+me.ele:gpu_process=0-5
+me.ele:channel=0-5
+# 中国移动云服务
+com.chinamobile.mcloud=0-5
+com.chinamobile.mcloud{RenderThread}=6-7
+# 灰太狼霸王餐
+top.szhsbwc.app=0-5
+# 歪麦霸王餐
+com.waimaiii.waimaiii=0-5
+# 京东金融
+com.jd.jrapp=0-5
+# 京粉
+com.jd.jxj=0-5
+# 广东农信
+com.csii.gdnx.mobilebank=0-5
+# 中国农业银行
+com.android.bankabc=0-5
+# 一淘
+com.taobao.etao=0-5
+
+#-----ROOT应用-----
+# mt管理器
+bin.mt.plus=0-5
+# 爱玩机工具箱
+com.byyoung.setting=0-5
+# LuckyTool
+com.luckyzyx.luckytool=0-5
+# 降压
+xzr.konabess=0-5
+# Thanox
+github.tornaco.android.thanos=0-5
+# ColorOS 破解工具
+cc.csxcl.fkcoloros=0-5
+# scene
+com.omarea.vtools=0-5
+scene-daemon=0-5
+# 密钥认证
+io.github.vvb2060.keyattestation=0-5
+# hookvip
+top.hookvip.pro=0-5
+# 隐秘参数
+com.x1y9.probe=0-5
+# AppOpt(线程优化)
+AppOpt=0-7
+#busybox
+busybox=0-7
+# shortx
+tornaco.apps.shortx=0-5
+# 通知滤盒
+com.catchingnow.np:Service=0-5
+com.catchingnow.np=0-5
+# Gkd
+li.songe.gkd=0-5
+# 黑域
+me.piebridge.brevent=0-5
+# AdGuardHome
+AdGuardHome=0-7
+# oxidns
+oxidns=0-7
+# smartdns
+smartdns=0-7
+# mihomo
+mihomo=0-7
+# ruleconverter
+ruleconverter=0-7
+# memorydetector
+io.github.huskydg.memorydetector=0-5
+# Native Test
+com.android.nativetest=0-5
+# freezer
+nep.timeline.freezer=0-5
+
+
+#-----视频地图应用-----
+# 抖音
+com.ss.android.ugc.aweme=0-5
+# 抖音极速版
+com.ss.android.ugc.aweme.lite:push=0-1
+com.ss.android.ugc.aweme.lite=0-5
+# tiktok
+com.zhiliaoapp.musically=0-5
+# 高德地图
+com.autonavi.minimap=0-5
+# 快手
+com.smile.gifmaker=0-5
+# 快手极速版
+com.kuaishou.nebula=0-5
+# 百度地图
+com.baidu.BaiduMap=0-5
+# 哔哩哔哩
+tv.danmaku.bili=0-5
+tv.danmaku.bili{anmaku.bili:web}=0-5
+#弹幕
+tv.danmaku.bili:ijkservice=0-5
+tv.danmaku.bili:ijkservice{ijk_cts_main}=0-5
+tv.danmaku.bili:ijkservice{ijk_cts_udp}=0-5
+tv.danmaku.bill=0-5
+# 番茄小说
+com.dragon.read=0-5
+# 7猫小说
+com.kmxs.reader=0-5
+# 网易云音乐
+com.netease.cloudmusic=0-5
+#网易云后台播放的子进程绑定到CPU0-3
+com.netease.cloudmusic:play=0-5
+#歌单加载
+com.netease.cloudmusic{mqt_js}=0-5
+#评论区滑动
+com.netease.cloudmusic{exposure_thread}=0-5
+# Youtube
+com.google.android.youtube=0-5
+com.google.android.youtube{RenderThread}=6-7
+com.google.android.youtube{Thread-*}=6-7
+# 腾讯视频
+com.tencent.qqlive=0-5
+# 红果免费短剧
+com.phoenix.read=0-5
+# 阅读
+io.legado.app.release=0-5
+# 网飞猫
+com.catxk.n32=0-5
+com.catxk.n32{RenderThread}=6-7
+# 麦萌短剧
+com.maiyawx.playlet=0-5
+
+
+#-----其他应用-----
+# via浏览器
+mark.via=0-5
+# UC浏览器
+com.UCMobile=0-5
+#附加进程
+com.UCMobile:privileged_process0{CrRendererMain}=0-5
+com.UCMobile:privileged_process0=0-5
+com.UCMobile:privileged_process1{CrRendererMain}=0-5
+com.UCMobile:privileged_process1=0-5
+com.UCMobile:MediaPlayerService=0-5
+com.UCMobile:widgetProvider=0-5
+com.UCMobile:push=0-1
+com.UCMobile:DownloadService=0-5
+# Edge
+com.microsoft.emmx=0-5
+#附加进程
+com.microsoft.emmx:privileged_process0=0-5
+com.microsoft.emmx:sandboxed_process*=0-5
+# Google相机
+com.agc.gcam96=0-5
+# 豆包
+com.larus.nova=0-5
+# 123网盘
+com.mfcloudcalculate.networkdisk=0-5
+# 王者营地
+com.tencent.gamehelper.smoba=0-5
+# 醒图
+com.xt.retouch=0-5
+# Deepseek
+com.deepseek.chat=0-5
+com.deepseek.chat{m.deepseek.chat}=6-7
+com.deepseek.chat{RenderThread}=6-7
+# Boss直聘
+com.hpbr.bosszhipin=0-5
+# 迅雷
+com.xunlei.downloadprovider=0-5
+# 夸克
+com.quark.browser=0-5
+#附加进程
+com.quark.browser:MediaPlayerService=0-5
+# 百度网盘
+com.baidu.netdisk=0-5
+# 阿里云盘
+com.alicloud.databox=0-5
+# 通义千问
+com.aliyun.tongyi=0-5
+# 米家
+com.xiaomi.smarthome=0-5
+com.xiaomi.smarthome{RenderThread}=6-7
+com.xiaomi.smarthome{Measurement Wor}=7
+# 讯飞输入法
+com.iflytek.inputmethod=0-5
+# 一个木函
+com.One.WoodenLetter=0-5
+# Clash Meta
+com.github.metacubex.clash.meta:background=0-5
+com.github.metacubex.clash.meta=0-5
+
+#-----游戏应用-----
+# 王者荣耀
+com.tencent.tmgp.sgame{UnityMain}=6-7
+com.tencent.tmgp.sgame{UnityGfxDeviceW}=6-7
+com.tencent.tmgp.sgame=0-5
+# 和平精英
+com.tencent.tmgp.pubgmhd{Thread-[0-2][0-9]}=6-7
+com.tencent.tmgp.pubgmhd{RenderThread*}=6-7
+com.tencent.tmgp.pubgmhd=0-5
+# 三角洲行动
+com.tencent.tmgp.dfm{GameThread}=6-7
+com.tencent.tmgp.dfm{RenderThread}=6-7
+com.tencent.tmgp.dfm=0-5
+# 第五人格
+com.netease.dwrg{Thread-*}=6-7
+com.netease.dwrg=0-5
+# 部落冲突
+com.tencent.tmgp.supercell.clashofclans{Mainloop}=6-7
+com.tencent.tmgp.supercell.clashofclans=0-5
+# 乱斗西游
+com.netease.ldxy=0-5
+# 三国杀
+com.bf.sgs.hdexp{GLThread*}=6-7
+com.bf.sgs.hdexp=0-5
+# 雀魂麻将
+com.soulgamechst.majsoul{UnityMain}=6-7
+com.soulgamechst.majsoul{UnityGfx*}=6-7
+com.soulgamechst.majsoul=0-5
+
+
+
+
+*=0-5
