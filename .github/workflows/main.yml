@@ -104,13 +104,11 @@ $CHANGELOG_MSG
 ### 下载
 - [ZIP 下载链接](https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip)
 
----
-"
+---"
         
         # 如果 changelog.md 存在，在开头插入新内容
         if [ -f "update/changelog.md" ]; then
-          echo "$NEW_ENTRY" > update/changelog.tmp
-          cat update/changelog.md >> update/changelog.tmp
+          (echo "$NEW_ENTRY"; cat update/changelog.md) > update/changelog.tmp
           mv update/changelog.tmp update/changelog.md
         else
           # 如果不存在，创建新文件
@@ -125,15 +123,23 @@ $CHANGELOG_MSG
     - name: 更新 update.json
       run: |
         mkdir -p update
-        cat > update/update.json << EOF
+        cat > update/update.json << 'EOF'
         {
-            "version": "${{ steps.choose.outputs.version }}",
-            "versionCode": ${{ steps.choose.outputs.versionCode }},
-            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip",
-            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/changelog.md",
-            "releaseDate": "${{ steps.version.outputs.release_datetime }}"
+            "version": "${VERSION}",
+            "versionCode": ${VERSION_CODE},
+            "zipUrl": "https://github.com/${REPO}/releases/download/${TAG}/${VERSION}.zip",
+            "changelog": "https://raw.githubusercontent.com/${REPO}/refs/heads/main/update/changelog.md",
+            "releaseDate": "${RELEASE_DATE}"
         }
         EOF
+        
+        # 使用 sed 替换变量
+        sed -i "s/\${VERSION}/${{ steps.choose.outputs.version }}/g" update/update.json
+        sed -i "s/\${VERSION_CODE}/${{ steps.choose.outputs.versionCode }}/g" update/update.json
+        sed -i "s/\${REPO}/${{ github.repository }}/g" update/update.json
+        sed -i "s/\${TAG}/${{ steps.choose.outputs.tag }}/g" update/update.json
+        sed -i "s/\${RELEASE_DATE}/${{ steps.version.outputs.release_datetime }}/g" update/update.json
+        
         echo "✅ update.json 已更新"
         cat update/update.json
     
