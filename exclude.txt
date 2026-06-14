@@ -3,3 +3,4 @@ temp_package
 .git
 .github
 update
+sync-mapping-config.json
