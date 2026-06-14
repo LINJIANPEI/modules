@@ -91,32 +91,7 @@ jobs:
             FORCE_UPDATE="false"
           fi
 
-          extract_file() {
-            local file="$1"
-            local dest="$2"
-            local filename=$(basename "$file")
-            
-            if [[ "$filename" == *.tar.gz ]] || [[ "$filename" == *.tgz ]]; then
-              echo "Extracting tar.gz: $filename"
-              tar -xzf "$file" -C "$dest"
-              return 0
-            elif [[ "$filename" == *.gz ]]; then
-              echo "Extracting gz: $filename"
-              local base_name="${filename%.gz}"
-              gunzip -c "$file" > "$dest/$base_name"
-              return 0
-            elif [[ "$filename" == *.zip ]]; then
-              echo "Extracting zip: $filename"
-              unzip -q "$file" -d "$dest"
-              return 0
-            else
-              echo "Copying directly: $filename"
-              cp "$file" "$dest/"
-              return 0
-            fi
-          }
-
-          mkdir -p temp_downloads
+          mkdir -p temp_downloads bin
 
           UPDATED_COUNT=0
           TOTAL_COUNT=0
@@ -175,17 +150,22 @@ jobs:
               echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
             fi
             
-            # 获取 asset_patterns
-            ASSET_PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [\"module\", \"magisk\", \"release\", \"v\", \"zip\"] | join(\" \")" sync-mapping-config.json)
-            
+            # 选择正确的资产文件 - 优先 arm64
             SELECTED_URL=""
             SELECTED_NAME=""
-            ASSET_COUNT=$(echo "$RELEASE_DATA" | jq '.assets | length')
             
-            if [ "$ASSET_COUNT" -eq 0 ]; then
-              SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.zipball_url')
-              SELECTED_NAME="source-code.zip"
-            else
+            # 优先匹配 arm64 或 aarch64
+            for keyword in arm64 aarch64 android; do
+              SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
+              if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
+                SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
+                break
+              fi
+            done
+            
+            # 如果没有找到 arm64，使用配置文件中的优先级
+            if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
+              ASSET_PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [\"arm64\", \"aarch64\"] | join(\" \")" sync-mapping-config.json)
               for keyword in $ASSET_PRIORITY; do
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
@@ -193,19 +173,22 @@ jobs:
                   break
                 fi
               done
-              
-              if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
-                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
-                SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
-              fi
+            fi
+            
+            # 最后使用第一个
+            if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
+              SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
+              SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
             fi
             
             echo "Selected: $SELECTED_NAME"
             echo "Downloading..."
             
-            wget -q -O "temp_downloads/${NAME}.download" "$SELECTED_URL"
+            # 使用原始文件名保存
+            wget -q --show-progress -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
             
-            if [ ! -f "temp_downloads/${NAME}.download" ]; then
+            DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
+            if [ ! -f "$DOWNLOAD_FILE" ]; then
               echo "Download failed"
               FAIL_COUNT=$((FAIL_COUNT + 1))
               continue
@@ -214,13 +197,37 @@ jobs:
             EXTRACT_DIR="temp_downloads/${NAME}_extract"
             mkdir -p "$EXTRACT_DIR"
             
-            extract_file "temp_downloads/${NAME}.download" "$EXTRACT_DIR"
+            # 根据文件扩展名处理
+            if [[ "$SELECTED_NAME" == *.tar.gz ]] || [[ "$SELECTED_NAME" == *.tgz ]]; then
+              echo "Extracting tar.gz..."
+              tar -xzf "$DOWNLOAD_FILE" -C "$EXTRACT_DIR"
+            elif [[ "$SELECTED_NAME" == *.gz ]]; then
+              echo "Extracting gz..."
+              BASE_NAME=$(basename "$SELECTED_NAME" .gz)
+              gunzip -c "$DOWNLOAD_FILE" > "$EXTRACT_DIR/$BASE_NAME"
+              echo "Extracted to: $EXTRACT_DIR/$BASE_NAME"
+            elif [[ "$SELECTED_NAME" == *.zip ]]; then
+              echo "Extracting zip..."
+              unzip -q "$DOWNLOAD_FILE" -d "$EXTRACT_DIR"
+            else
+              echo "Copying directly..."
+              cp "$DOWNLOAD_FILE" "$EXTRACT_DIR/"
+            fi
             
+            # 显示解压后的内容
+            echo "Extracted contents:"
+            ls -la "$EXTRACT_DIR"
+            
+            # 查找源目录（处理多一层目录的情况）
             if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
               SOURCE_BASE=$(ls -d "$EXTRACT_DIR"/*/)
             else
               SOURCE_BASE="$EXTRACT_DIR"
             fi
+            
+            echo "Source base: $SOURCE_BASE"
+            echo "Source base contents:"
+            ls -la "$SOURCE_BASE"
             
             echo "Starting file mapping..."
             MAPPING_SUCCESS=true
@@ -233,7 +240,6 @@ jobs:
               TYPE=$(jq -r ".upstreams[$i].mappings[$m].type" sync-mapping-config.json)
               OVERWRITE=$(jq -r ".upstreams[$i].mappings[$m].overwrite // true" sync-mapping-config.json)
               MAKE_EXEC=$(jq -r ".upstreams[$i].mappings[$m].make_executable // false" sync-mapping-config.json)
-              FLATTEN=$(jq -r ".upstreams[$i].mappings[$m].flatten // false" sync-mapping-config.json)
               
               echo ""
               echo "Mapping: $SOURCE -> $TARGET"
@@ -246,62 +252,33 @@ jobs:
               mkdir -p "$(dirname "$TARGET")"
               
               if [ "$TYPE" = "pattern" ]; then
-                # 使用通配符查找
+                # 使用通配符查找文件
                 cd "$SOURCE_BASE"
-                shopt -s nullglob
-                matched_files=($SOURCE)
-                shopt -u nullglob
-                for file in "${matched_files[@]}"; do
-                  if [ -e "$file" ]; then
-                    if [ "$FLATTEN" = "true" ]; then
-                      cp "$file" "$TARGET"
-                      echo "Copied: $file -> $TARGET"
-                    else
-                      cp -r "$file" "$TARGET/"
-                      echo "Copied: $file -> $TARGET/"
-                    fi
+                for file in $SOURCE; do
+                  if [ -f "$file" ]; then
+                    echo "Found file: $file"
+                    cp "$file" "$TARGET"
+                    echo "Copied: $file -> $TARGET"
+                    break
                   fi
                 done
                 cd - > /dev/null
               elif [ "$TYPE" = "file" ]; then
-                # 尝试多个可能的路径
-                FOUND=false
+                # 查找文件
+                FOUND_FILE=""
                 if [ -f "$SOURCE_BASE/$SOURCE" ]; then
-                  cp "$SOURCE_BASE/$SOURCE" "$TARGET"
-                  echo "File copied from $SOURCE_BASE/$SOURCE"
-                  FOUND=true
+                  FOUND_FILE="$SOURCE_BASE/$SOURCE"
                 elif [ -f "$EXTRACT_DIR/$SOURCE" ]; then
-                  cp "$EXTRACT_DIR/$SOURCE" "$TARGET"
-                  echo "File copied from $EXTRACT_DIR/$SOURCE"
-                  FOUND=true
-                elif [ -f "$SOURCE_BASE/$(basename "$SOURCE")" ]; then
-                  cp "$SOURCE_BASE/$(basename "$SOURCE")" "$TARGET"
-                  echo "File copied from $(basename "$SOURCE")"
-                  FOUND=true
+                  FOUND_FILE="$EXTRACT_DIR/$SOURCE"
                 else
-                  # 尝试查找同名文件
-                  FOUND_FILE=$(find "$SOURCE_BASE" -name "$(basename "$SOURCE")" -type f 2>/dev/null | head -1)
-                  if [ -n "$FOUND_FILE" ]; then
-                    cp "$FOUND_FILE" "$TARGET"
-                    echo "File copied from $FOUND_FILE"
-                    FOUND=true
-                  fi
+                  FOUND_FILE=$(find "$SOURCE_BASE" -name "$SOURCE" -type f 2>/dev/null | head -1)
                 fi
                 
-                if [ "$FOUND" = false ]; then
-                  echo "Source not found: $SOURCE"
-                  MAPPING_SUCCESS=false
-                fi
-              elif [ "$TYPE" = "folder" ]; then
-                if [ -d "$SOURCE_BASE/$SOURCE" ]; then
-                  if [ "$OVERWRITE" = "true" ]; then
-                    rm -rf "$TARGET"
-                  fi
-                  mkdir -p "$TARGET"
-                  cp -r "$SOURCE_BASE/$SOURCE"/* "$TARGET/" 2>/dev/null
-                  echo "Folder synced"
+                if [ -n "$FOUND_FILE" ] && [ -f "$FOUND_FILE" ]; then
+                  cp "$FOUND_FILE" "$TARGET"
+                  echo "File copied from $FOUND_FILE"
                 else
-                  echo "Source folder not found: $SOURCE"
+                  echo "Source not found: $SOURCE"
                   MAPPING_SUCCESS=false
                 fi
               fi
@@ -311,17 +288,6 @@ jobs:
                 echo "Set executable permission"
               fi
             done
-            
-            # 更新版本号
-            UPDATE_VERSION=$(jq -r ".upstreams[$i].post_process.update_version // false" sync-mapping-config.json)
-            if [ "$UPDATE_VERSION" = "true" ]; then
-              VERSION_FILE=$(jq -r ".upstreams[$i].post_process.version_file" sync-mapping-config.json)
-              if [ -f "$VERSION_FILE" ]; then
-                sed -i "s/^version=.*/version=$LATEST_TAG/" "$VERSION_FILE"
-                sed -i "s/^versionCode=.*/versionCode=$(date +'%Y%m%d%H%M%S')/" "$VERSION_FILE"
-                echo "Updated version"
-              fi
-            fi
             
             if [ "$MAPPING_SUCCESS" = true ]; then
               echo "$LATEST_TAG" > "$VERSION_FILE"
@@ -333,7 +299,6 @@ jobs:
             fi
           done
 
-          # 只输出数字，不输出多行字符串
           echo "updated_count=$UPDATED_COUNT" >> $GITHUB_OUTPUT
           echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
@@ -353,9 +318,10 @@ jobs:
       - name: 显示目录结构
         if: steps.sync.outputs.updated_count > 0
         run: |
-          echo "Directory structure:"
-          ls -la bin/ 2>/dev/null || echo "bin directory not found"
+          echo "bin directory:"
+          ls -la bin/
           echo ""
+          echo "Repository root:"
           ls -la | head -20
 
       - name: 提交并推送
