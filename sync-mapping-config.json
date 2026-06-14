@@ -30,7 +30,7 @@
             "use_latest": true,
             "specific_tag": "",
             "asset_patterns": [
-                "AdGuardHome_linux*.tar.gz"
+                "AdGuardHome*.tar.gz"
             ],
             "asset_priority": [
                 "linux",
