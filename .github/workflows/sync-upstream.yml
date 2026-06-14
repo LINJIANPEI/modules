@@ -2,54 +2,54 @@ name: 同步上游 Releases
 
 on:
   schedule:
-    - cron: "0 */24 * * *"
+    - cron: '0 */24 * * *'
   workflow_dispatch:
     inputs:
       force_update:
-        description: "强制更新所有仓库"
+        description: '强制更新所有仓库'
         required: false
         type: boolean
         default: false
       upstream_name:
-        description: "指定上游名称（留空则全部）"
+        description: '指定上游名称（留空则全部）'
         required: false
         type: string
-        default: ""
+        default: ''
       skip_backup:
-        description: "跳过备份"
+        description: '跳过备份'
         required: false
         type: boolean
         default: false
       select_asset:
-        description: "手动指定资产文件名（留空自动选择）"
+        description: '手动指定资产文件名（留空自动选择）'
         required: false
         type: string
-        default: ""
+        default: ''
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
+    
     steps:
       - name: 检出仓库代码
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-
+      
       - name: 安装依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y jq unzip wget rsync gzip tar
-
+      
       - name: 创建必要目录
         run: |
           mkdir -pv bin
           mkdir -pv temp_downloads
           echo "目录创建完成"
-
+      
       - name: 读取配置
         id: config
         run: |
@@ -57,22 +57,22 @@ jobs:
             echo "ERROR: sync-mapping-config.json not found"
             exit 1
           fi
-
+          
           if ! jq empty sync-mapping-config.json 2>/dev/null; then
             echo "ERROR: Invalid JSON in sync-mapping-config.json"
             exit 1
           fi
-
+          
           UPSTREAMS_COUNT=$(jq '.upstreams | length' sync-mapping-config.json)
           echo "Config loaded, upstreams count: $UPSTREAMS_COUNT"
           echo "count=$UPSTREAMS_COUNT" >> $GITHUB_OUTPUT
-
+      
       - name: 备份现有文件
         if: github.event.inputs.skip_backup != 'true' && github.event.inputs.force_update != 'true'
         run: |
           BACKUP_DIR=".backup_$(date +'%Y%m%d_%H%M%S')"
           mkdir -p "$BACKUP_DIR"
-
+          
           jq -r '.upstreams[].mappings[].target' sync-mapping-config.json 2>/dev/null | while read target; do
             if [ -e "$target" ]; then
               mkdir -p "$BACKUP_DIR/$(dirname "$target")"
@@ -80,37 +80,37 @@ jobs:
               echo "Backed up: $target"
             fi
           done
-
+          
           echo "$BACKUP_DIR" > .last_backup
           echo "Backup completed: $BACKUP_DIR"
-
+          
           ls -dt .backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
-
+      
       - name: 同步上游
         id: sync
         run: |
           FORCE_UPDATE="${{ github.event.inputs.force_update }}"
           SPECIFIC_UPSTREAM="${{ github.event.inputs.upstream_name }}"
           MANUAL_ASSET="${{ github.event.inputs.select_asset }}"
-
+          
           if [ "${{ github.event_name }}" = "schedule" ]; then
             FORCE_UPDATE="false"
           fi
-
+          
           # 保存原始目录
           ORIGINAL_DIR=$(pwd)
           echo "Original directory: $ORIGINAL_DIR"
-
+          
           # 确保 bin 目录存在
           mkdir -pv bin
-
+          
           UPDATED_COUNT=0
           TOTAL_COUNT=0
           SKIP_COUNT=0
           FAIL_COUNT=0
-
+          
           UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
-
+          
           for ((i=0; i<UPSTREAMS_LEN; i++)); do
             NAME=$(jq -r ".upstreams[$i].name" sync-mapping-config.json)
             REPO=$(jq -r ".upstreams[$i].repo" sync-mapping-config.json)
@@ -161,7 +161,7 @@ jobs:
               echo "Update: $CURRENT_VERSION -> $LATEST_TAG"
             fi
             
-            # ========== 修复：使用配置文件中的 asset_patterns 和 asset_priority ==========
+            # ========== 资产选择逻辑 ==========
             SELECTED_URL=""
             SELECTED_NAME=""
             
@@ -176,7 +176,6 @@ jobs:
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               PATTERNS=$(jq -r ".upstreams[$i].asset_patterns // [] | join(\" \")" sync-mapping-config.json)
               for pattern in $PATTERNS; do
-                # 转换通配符为正则
                 regex=$(echo "$pattern" | sed 's/\./\\./g' | sed 's/\*/.*/g' | sed 's/\?/./g')
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"^$regex$\")) | .browser_download_url" 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
@@ -206,7 +205,6 @@ jobs:
               SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
               echo "Using first asset: $SELECTED_NAME"
             fi
-            # ========== 修复结束 ==========
             
             echo "Selected: $SELECTED_NAME"
             echo "Downloading..."
@@ -323,14 +321,14 @@ jobs:
               echo "$NAME failed"
             fi
           done
-
+          
           echo "updated_count=$UPDATED_COUNT" >> $GITHUB_OUTPUT
           echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
           echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
-
+          
           rm -rf temp_downloads
-
+          
           echo ""
           echo "=========================================="
           echo "Sync Summary"
@@ -339,21 +337,21 @@ jobs:
           echo "Skipped: $SKIP_COUNT"
           echo "Failed: $FAIL_COUNT"
           echo "=========================================="
-
+      
       - name: 验证 bin 目录内容
         if: steps.sync.outputs.updated_count > 0
         run: |
           echo "bin 目录内容:"
           ls -la bin/
-
+      
       - name: 提交并推送
         if: steps.sync.outputs.updated_count > 0
         run: |
           git config user.name "github-actions[bot]"
-          git config.user.email "github-actions[bot]@users.noreply.github.com"
-
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git add .
-
+          
           if git diff --staged --quiet; then
             echo "No changes"
           else
@@ -362,7 +360,7 @@ jobs:
             git push
             echo "Committed and pushed"
           fi
-
+      
       - name: 创建版本标签
         if: steps.sync.outputs.updated_count > 0 && github.event_name == 'workflow_dispatch'
         run: |
