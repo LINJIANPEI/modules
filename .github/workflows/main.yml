@@ -368,7 +368,8 @@ jobs:
             if [ "$MAPPING_SUCCESS" = true ]; then
               echo "$LATEST_TAG" > "$VERSION_FILE"
               UPDATED_COUNT=$((UPDATED_COUNT + 1))
-              if [ $FILES_COPIED -gt 0 ]; then
+              # 强制更新时也视为实际更新
+              if [ $FILES_COPIED -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
               else
@@ -399,8 +400,24 @@ jobs:
           echo "  失败: $FAIL_COUNT 个"
           echo "=========================================="
 
+      - name: 判断是否需要打包
+        id: should_package
+        run: |
+          ACTUAL_UPDATES="${{ steps.sync.outputs.actual_updates }}"
+          FORCE_UPDATE="${{ github.event.inputs.force_update }}"
+          
+          if [ "$ACTUAL_UPDATES" -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
+            echo "should_package=true" >> $GITHUB_OUTPUT
+            echo "✅ 需要打包发布"
+            echo "   实际更新: $ACTUAL_UPDATES"
+            echo "   强制更新: $FORCE_UPDATE"
+          else
+            echo "should_package=false" >> $GITHUB_OUTPUT
+            echo "⏭️ 跳过打包发布"
+          fi
+
       - name: 验证 bin 目录内容
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           echo ""
           echo "📁 bin 目录内容:"
@@ -408,7 +425,7 @@ jobs:
           echo ""
 
       - name: 提交并推送同步更新
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -424,9 +441,9 @@ jobs:
             echo "✅ 已提交并推送同步更新"
           fi
 
-      # ========== 打包模块部分 - 只有实际文件变化时才执行 ==========
+      # ========== 打包模块部分 ==========
       - name: 生成版本号
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         id: version
         run: |
           DATE_VERSION=$(date +'%Y.%m.%d')
@@ -442,7 +459,7 @@ jobs:
           echo "✅ 版本号生成完成"
 
       - name: 选择版本格式
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         id: choose
         run: |
           VERSION="${{ steps.version.outputs.datetime_version }}"
@@ -454,7 +471,7 @@ jobs:
           echo "📌 版本代码: $VERSION_CODE"
 
       - name: 验证必要文件
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           if [ ! -f "module.prop" ]; then
             echo "❌ 错误: module.prop 文件不存在！"
@@ -466,7 +483,7 @@ jobs:
           echo "✅ 文件验证通过"
 
       - name: 更新模块配置文件
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           sed -i "s/^version=.*/version=${{ steps.choose.outputs.version }}/" module.prop
           sed -i "s/^versionCode=.*/versionCode=${{ steps.choose.outputs.versionCode }}/" module.prop
@@ -477,7 +494,7 @@ jobs:
           cat module.prop
 
       - name: 更新更新日志
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           mkdir -p update
           CHANGELOG_MSG="${{ github.event.inputs.changelog }}"
@@ -516,7 +533,7 @@ jobs:
           head -30 update/changelog.md
 
       - name: 更新更新信息 JSON
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           mkdir -p update
           cat > update/update.json <<EOF
@@ -534,7 +551,7 @@ jobs:
           cat update/update.json
 
       - name: 创建 ZIP 压缩包
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           echo "📦 开始打包..."
           sudo apt-get update && sudo apt-get install -y rsync > /dev/null 2>&1
@@ -560,7 +577,7 @@ jobs:
           fi
 
       - name: 提交并推送打包更新
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -575,7 +592,7 @@ jobs:
           fi
 
       - name: 创建 GitHub Release
-        if: steps.sync.outputs.actual_updates > 0
+        if: steps.should_package.outputs.should_package == 'true'
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.choose.outputs.version }}.zip
