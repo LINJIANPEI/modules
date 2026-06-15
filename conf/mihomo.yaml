@@ -60,10 +60,9 @@ tun:
     endpoint-independent-nat: true # 启用端点独立 NAT
     auto-redirect: true # 自动重定向流量到 TUN 设备
     auto-detect-interface: true # 自动检测网络接口
-    exclude-package:
-        - bf.sgs.hdexp
+
 dns:
-    enable: true
+    enable: false
     listen: 0.0.0.0:1053
     cache-algorithm: none
     ipv6: true
