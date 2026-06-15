@@ -372,7 +372,7 @@ jobs:
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
               else
-                echo "⚠️ $NAME 版本已更新但无文件变化 (将触发打包)"
+                echo "⚠️ $NAME 版本已更新但无文件变化 (不触发打包)"
               fi
             else
               FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -400,7 +400,7 @@ jobs:
           echo "=========================================="
 
       - name: 验证 bin 目录内容
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           echo ""
           echo "📁 bin 目录内容:"
@@ -408,7 +408,7 @@ jobs:
           echo ""
 
       - name: 提交并推送同步更新
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -424,9 +424,9 @@ jobs:
             echo "✅ 已提交并推送同步更新"
           fi
 
-      # ========== 打包模块部分 - 只要版本有更新就执行 ==========
+      # ========== 打包模块部分 - 只有实际文件变化时才执行 ==========
       - name: 生成版本号
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         id: version
         run: |
           DATE_VERSION=$(date +'%Y.%m.%d')
@@ -442,7 +442,7 @@ jobs:
           echo "✅ 版本号生成完成"
 
       - name: 选择版本格式
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         id: choose
         run: |
           VERSION="${{ steps.version.outputs.datetime_version }}"
@@ -454,7 +454,7 @@ jobs:
           echo "📌 版本代码: $VERSION_CODE"
 
       - name: 验证必要文件
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           if [ ! -f "module.prop" ]; then
             echo "❌ 错误: module.prop 文件不存在！"
@@ -466,7 +466,7 @@ jobs:
           echo "✅ 文件验证通过"
 
       - name: 更新模块配置文件
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           sed -i "s/^version=.*/version=${{ steps.choose.outputs.version }}/" module.prop
           sed -i "s/^versionCode=.*/versionCode=${{ steps.choose.outputs.versionCode }}/" module.prop
@@ -477,14 +477,14 @@ jobs:
           cat module.prop
 
       - name: 更新更新日志
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           mkdir -p update
           CHANGELOG_MSG="${{ github.event.inputs.changelog }}"
           if [ -z "$CHANGELOG_MSG" ]; then
             CHANGELOG_MSG="### 上游同步更新
             - 同步了上游最新 Releases
-            - 更新了 ${{ steps.sync.outputs.updated_count }} 个组件到最新版本"
+            - 更新了 ${{ steps.sync.outputs.actual_updates }} 个组件到最新版本"
           fi
 
           {
@@ -516,7 +516,7 @@ jobs:
           head -30 update/changelog.md
 
       - name: 更新更新信息 JSON
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           mkdir -p update
           cat > update/update.json <<EOF
@@ -534,7 +534,7 @@ jobs:
           cat update/update.json
 
       - name: 创建 ZIP 压缩包
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           echo "📦 开始打包..."
           sudo apt-get update && sudo apt-get install -y rsync > /dev/null 2>&1
@@ -560,7 +560,7 @@ jobs:
           fi
 
       - name: 提交并推送打包更新
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -575,7 +575,7 @@ jobs:
           fi
 
       - name: 创建 GitHub Release
-        if: steps.sync.outputs.updated_count > 0
+        if: steps.sync.outputs.actual_updates > 0
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.choose.outputs.version }}.zip
@@ -599,3 +599,4 @@ jobs:
             ### 下载地址
             ```bash
             wget https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip
+            ```
