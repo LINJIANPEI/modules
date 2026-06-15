@@ -9,6 +9,7 @@ CACHED_TUN_DEVICE=""
 CACHED_REDIR_PORT=""
 CACHED_TPROXY_PORT=""
 CACHED_DNS_PORT=""
+CACHED_ENABLE=""
 CACHED_ENHANCED_MODE=""
 CACHED_TUN_MODE=""
 CACHED_APP_UIDS=""            # 缓存应用 UID 列表（空格分隔）
@@ -31,7 +32,7 @@ refresh_app_uids() {
     local uid_list=""
     
     if [ ! -f "$pkg_list_file" ]; then
-        log Warn "包名列表文件不存在: $pkg_list_file" "${log_dir}/mihomo.log"
+        log Warn "包名列表文件不存在: $pkg_list_file" "${log_dir}/iptables.log"
         apps=""
         CACHED_APP_UIDS=""
         return 0
@@ -46,13 +47,13 @@ refresh_app_uids() {
         if [ -n "$uid_val" ]; then
             uid_list="$uid_list $uid_val"
         else
-            log Warn "包名 $line 未找到对应 UID，已跳过" "${log_dir}/mihomo.log"
+            log Warn "包名 $line 未找到对应 UID，已跳过" "${log_dir}/iptables.log"
         fi
     done < "$pkg_list_file"
     
     apps=$(echo "$uid_list" | xargs)
     CACHED_APP_UIDS="$apps"
-    log Info "从包名文件加载了应用 UID" "${log_dir}/mihomo.log"
+    log Info "从包名文件加载了应用 UID" "${log_dir}/iptables.log"
 }
 
 # 从 YAML 读取配置（总是重新读取）
@@ -63,10 +64,38 @@ _cache_yaml_values() {
     CACHED_TUN_DEVICE=$(yamlcli -f "${YAML_FILE}" get 'tun.device' 2>/dev/null)
     CACHED_REDIR_PORT=$(yamlcli -f "${YAML_FILE}" get 'redir-port' 2>/dev/null)
     CACHED_TPROXY_PORT=$(yamlcli -f "${YAML_FILE}" get 'tproxy-port' 2>/dev/null)
+    CACHED_ENABLE=$(yamlcli -f "${YAML_FILE}" get 'dns.enable' 2>/dev/null)    
     CACHED_ENHANCED_MODE=$(yamlcli -f "${YAML_FILE}" get 'dns.enhanced-mode' 2>/dev/null)
-    local dns_listen=$(yamlcli -f "${YAML_FILE}" get 'dns.listen' 2>/dev/null)
-    CACHED_DNS_PORT=$(echo "$dns_listen" | sed -n 's/.*:\([0-9]\+\)$/\1/p')
-    [ -z "$CACHED_DNS_PORT" ] && CACHED_DNS_PORT="$dns_listen"
+    
+    
+    # 直接获取 dns.listen 值
+    local dns_listen_raw=$(yamlcli -f "${YAML_FILE}" get 'dns.listen' 2>/dev/null | head -1)
+    
+    
+    if [ "$CACHED_ENABLE" = "true" ]; then
+    # 方法1：使用 sed 提取端口号（支持 0.0.0.0:1053, [::]:1053, :1053 等格式）
+        CACHED_DNS_PORT=$(echo "$dns_listen_raw" | sed -n 's/.*:\([0-9][0-9]*\)$/\1/p')
+    else
+        CACHED_DNS_PORT=${redir_port}
+    
+    fi
+    # 如果上面的方法失败，尝试直接提取数字
+    if [ -z "$CACHED_DNS_PORT" ]; then
+        CACHED_DNS_PORT=$(echo "$dns_listen_raw" | grep -oE '[0-9]+$')
+    fi
+    
+    # 如果还是失败，尝试从冒号后提取所有数字
+    if [ -z "$CACHED_DNS_PORT" ]; then
+        CACHED_DNS_PORT=$(echo "$dns_listen_raw" | awk -F':' '{print $NF}' | grep -oE '[0-9]+')
+    fi
+    
+    # 最终验证
+    if [ -z "$CACHED_DNS_PORT" ] || ! echo "$CACHED_DNS_PORT" | grep -qE '^[0-9]+$'; then
+        log Warn "DNS 端口解析失败，原始值: '$dns_listen_raw'，使用默认 1053" "${log_dir}/iptables.log"
+        CACHED_DNS_PORT="1053"
+    else
+        log Info "DNS 端口解析成功: $CACHED_DNS_PORT" "${log_dir}/iptables.log"
+    fi
 }
 
 # 增强版 iptables_wait（保持原逻辑，仅依赖 CACHED_IPV6）
@@ -151,7 +180,7 @@ _setup_tun_auto() {
     iptables_wait -I FORWARD -o "$CACHED_TUN_DEVICE" -j ACCEPT
     iptables_wait -D FORWARD -i "$CACHED_TUN_DEVICE" -j ACCEPT 2>/dev/null
     iptables_wait -I FORWARD -i "$CACHED_TUN_DEVICE" -j ACCEPT
-    log Info "auto-route 已开启，核心自动处理路由" "${log_dir}/mihomo.log"
+    log Info "auto-route 已开启，核心自动处理路由" "${log_dir}/iptables.log"
 }
 
 _setup_tun_manual() {
@@ -175,13 +204,13 @@ _setup_tun_manual() {
     if [ "$CACHED_IPV6" != "true" ]; then
         echo 1 > /proc/sys/net/ipv6/conf/"$CACHED_TUN_DEVICE"/disable_ipv6 2>/dev/null
     fi
-    log Info "Tun 手动模式规则应用成功" "${log_dir}/mihomo.log"
+    log Info "Tun 手动模式规则应用成功" "${log_dir}/iptables.log"
 }
 
 _cleanup_tun_auto() {
     iptables_wait -D FORWARD -o "$CACHED_TUN_DEVICE" -j ACCEPT 2>/dev/null
     iptables_wait -D FORWARD -i "$CACHED_TUN_DEVICE" -j ACCEPT 2>/dev/null
-    log Info "auto-route 已关闭，核心停止自动路由" "${log_dir}/mihomo.log"
+    log Info "auto-route 已关闭，核心停止自动路由" "${log_dir}/iptables.log"
 }
 
 _cleanup_tun_manual() {
@@ -198,7 +227,7 @@ _cleanup_tun_manual() {
     iptables_wait -t mangle -D OUTPUT -j KERNEL_OUT 2>/dev/null
     iptables_wait -t mangle -F KERNEL_OUT 2>/dev/null
     iptables_wait -t mangle -X KERNEL_OUT 2>/dev/null
-    log Info "Tun 手动模式规则移除成功" "${log_dir}/mihomo.log"
+    log Info "Tun 手动模式规则移除成功" "${log_dir}/iptables.log"
 }
 
 # ======================== Redirect 模式 ========================
@@ -221,7 +250,7 @@ _setup_redirect() {
     iptables_wait -t nat -A OUTPUT -j KERNEL_OUT
 
     _block_loopback_to_proxy "${CACHED_REDIR_PORT}"
-    log Info "Redirect 规则应用成功" "${log_dir}/mihomo.log"
+    log Info "Redirect 规则应用成功" "${log_dir}/iptables.log"
 }
 
 _cleanup_redirect() {
@@ -233,7 +262,7 @@ _cleanup_redirect() {
     iptables_wait -t nat -X KERNEL_OUT 2>/dev/null
     iptables_wait -D OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner "${uid}" -m tcp --dport "${CACHED_REDIR_PORT}" -j REJECT 2>/dev/null
     [ "$CACHED_IPV6" = "true" ] && iptables_wait -D OUTPUT -d ::1 -p tcp -m owner --uid-owner "${uid}" -m tcp --dport "${CACHED_REDIR_PORT}" -j REJECT 2>/dev/null
-    log Info "Redirect 规则移除成功" "${log_dir}/mihomo.log"
+    log Info "Redirect 规则移除成功" "${log_dir}/iptables.log"
 }
 
 # ======================== TProxy 模式 ========================
@@ -247,13 +276,16 @@ _setup_tproxy() {
         ip -6 route add local default dev lo table "${table_id}" 2>/dev/null
     fi
 
+    # nat 表同时处理 UDP 和 TCP DNS
     iptables_wait -t nat -N DNS_KERNEL_PRE 2>/dev/null
     iptables_wait -t nat -F DNS_KERNEL_PRE
     iptables_wait -t nat -A DNS_KERNEL_PRE -p udp --dport 53 -j REDIRECT --to-ports "${CACHED_DNS_PORT}"
+    iptables_wait -t nat -A DNS_KERNEL_PRE -p tcp --dport 53 -j REDIRECT --to-ports "${CACHED_DNS_PORT}"
     iptables_wait -t nat -I PREROUTING -j DNS_KERNEL_PRE
 
     iptables_wait -t mangle -N KERNEL_PRE 2>/dev/null
     iptables_wait -t mangle -F KERNEL_PRE
+    # mangle 表中跳过 DNS（让 nat 表处理），避免双重处理
     iptables_wait -t mangle -A KERNEL_PRE -p tcp --dport 53 -j RETURN
     iptables_wait -t mangle -A KERNEL_PRE -p udp --dport 53 -j RETURN
     iptables_wait -t mangle -A KERNEL_PRE -p tcp -m socket --transparent -j MARK --set-xmark "${mark_id}"
@@ -264,7 +296,7 @@ _setup_tproxy() {
     for iface in $(ip -4 link show | grep -E '^[0-9]+:' | awk -F ': ' '{print $2}' | grep -v lo); do
         iptables_wait -t mangle -A KERNEL_PRE -p tcp -i "$iface" -j TPROXY --on-port "${CACHED_TPROXY_PORT}" --tproxy-mark "${mark_id}"
         iptables_wait -t mangle -A KERNEL_PRE -p udp -i "$iface" -j TPROXY --on-port "${CACHED_TPROXY_PORT}" --tproxy-mark "${mark_id}"
-        log Info "已对接口 ${iface} 开启 TProxy 劫持" "${log_dir}/mihomo.log"
+        log Info "已对接口 ${iface} 开启 TProxy 劫持" "${log_dir}/iptables.log"
     done
     iptables_wait -t mangle -A PREROUTING -j KERNEL_PRE
 
@@ -279,7 +311,7 @@ _setup_tproxy() {
     iptables_wait -t mangle -A OUTPUT -j KERNEL_OUT
 
     _block_loopback_to_proxy "${CACHED_TPROXY_PORT}"
-    log Info "TProxy 规则应用成功" "${log_dir}/mihomo.log"
+    log Info "TProxy 规则应用成功（TCP/UDP DNS 均已转发）" "${log_dir}/iptables.log"
 }
 
 _cleanup_tproxy() {
@@ -303,7 +335,7 @@ _cleanup_tproxy() {
 
     iptables_wait -D OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner "${uid}" -m tcp --dport "${CACHED_TPROXY_PORT}" -j REJECT 2>/dev/null
     [ "$CACHED_IPV6" = "true" ] && iptables_wait -D OUTPUT -d ::1 -p tcp -m owner --uid-owner "${uid}" -m tcp --dport "${CACHED_TPROXY_PORT}" -j REJECT 2>/dev/null
-    log Info "TProxy 规则移除成功" "${log_dir}/mihomo.log"
+    log Info "TProxy 规则移除成功" "${log_dir}/iptables.log"
 }
 
 # ======================== 统一路由启停 ========================
@@ -313,7 +345,7 @@ _start_routing() {
     _stop_routing 2>/dev/null
 
     if [ "${CACHED_TUN_ENABLE}" = "true" ]; then
-        log Info "当前为 Tun 模式" "${log_dir}/mihomo.log"
+        log Info "当前为 Tun 模式" "${log_dir}/iptables.log"
         if [ "${CACHED_TUN_AUTO_ROUTE}" = "true" ]; then
             _setup_tun_auto
         else
@@ -324,7 +356,7 @@ _start_routing() {
 
     local support_tproxy="$(_check_tproxy_support)"
     if [ "${support_tproxy}" != "true" ]; then
-        log Warn "内核不支持 TProxy，切换至 Redirect 模式" "${log_dir}/mihomo.log"
+        log Warn "内核不支持 TProxy，切换至 Redirect 模式" "${log_dir}/iptables.log"
         _setup_redirect
     else
         _setup_tproxy
@@ -335,7 +367,7 @@ _stop_routing() {
     _cache_yaml_values
     
     if [ "${CACHED_TUN_ENABLE}" = "true" ]; then
-        log Info "当前为 Tun 模式" "${log_dir}/mihomo.log"
+        log Info "当前为 Tun 模式" "${log_dir}/iptables.log"
         if [ "${CACHED_TUN_AUTO_ROUTE}" = "true" ]; then
             _cleanup_tun_auto
         else
@@ -503,44 +535,16 @@ disable_ipv6_iptables() {
   return 0
 }
 
-#case "$1" in
-#enable)
-#  log Info "启用 iptables"  ${log_dir}/iptables.log
-#  enable_iptables || exit 1
-  
-#  if [ "$block_ipv6_dns" = true ]; then
-#    log Info "IPv6 DNS 模式: block (丢弃 IPv6 DNS 流量)" ${log_dir}/iptables.log
-#    add_block_ipv6_dns || exit 1
-#  else
-#    log Info "IPv6 DNS 模式: hijack (劫持 IPv6 到 AdGuard Home)" ${log_dir}/iptables.log
-#    enable_ipv6_iptables || exit 1
-#  fi
-#  ;;
-#disable)
-#  log Info "禁用 iptables 和 ipv6 DNS 阻断" ${log_dir}/iptables.log
-#  disable_iptables || exit 1
-  
-#  del_block_ipv6_dns || exit 1
-#  disable_ipv6_iptables || exit 1
-#  ;;
-#*)
-#  log Info "启用 iptables"  ${log_dir}/iptables.log
-#  enable_iptables || exit 1
-  
-#  if [ "$block_ipv6_dns" = true ]; then
-#    log Info "IPv6 DNS 模式: block (丢弃 IPv6 DNS 流量)" ${log_dir}/iptables.log
-#    add_block_ipv6_dns || exit 1
-#  else
-#    log Info "IPv6 DNS 模式: hijack (劫持 IPv6 到 AdGuard Home)" ${log_dir}/iptables.log
-#    enable_ipv6_iptables || exit 1
-#  fi
-#  ;;
-#esac
-
 
 case "$1" in
     enable)
+        if [ "${enable_mihomo}" = "true" ]; then
+            disable_iptables || exit 1
+            del_block_ipv6_dns || exit 1
+            disable_ipv6_iptables || exit 1
             _start_routing
+        else
+            _stop_routing
             enable_iptables || exit 1
             if [ "$block_ipv6_dns" = true ]; then
                log Info "IPv6 DNS 模式: block (丢弃 IPv6 DNS 流量)" ${log_dir}/iptables.log
@@ -548,6 +552,7 @@ case "$1" in
             else
                log Info "IPv6 DNS 模式: hijack (劫持 IPv6 到 AdGuard Home)" ${log_dir}/iptables.log                  enable_ipv6_iptables || exit 1
             fi
+        fi
         ;;
     disable)
         _stop_routing
@@ -556,12 +561,20 @@ case "$1" in
         disable_ipv6_iptables || exit 1
         ;;
     switch_to_mihomo)
-        
+        disable_iptables || exit 1
+        del_block_ipv6_dns || exit 1
+        disable_ipv6_iptables || exit 1
         _start_routing
         ;;
     switch_to_adguard)
         _stop_routing
-        
+        enable_iptables || exit 1
+         if [ "$block_ipv6_dns" = true ]; then
+            log Info "IPv6 DNS 模式: block (丢弃 IPv6 DNS 流量)" ${log_dir}/iptables.log
+            add_block_ipv6_dns || exit 1
+         else
+            log Info "IPv6 DNS 模式: hijack (劫持 IPv6 到 AdGuard Home)" ${log_dir}/iptables.log                          enable_ipv6_iptables || exit 1
+         fi
         ;;
     *)
         echo "用法: $0 {enable|disable|switch_to_mihomo|switch_to_adguard}"
