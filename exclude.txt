@@ -12,3 +12,4 @@ sync-mapping-config.json
 mihomoData/proxies/.gitkeep
 log/.gitkeep
 cache/.gitkeep
+.last_backup
