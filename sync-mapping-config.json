@@ -98,14 +98,15 @@
       "repo": "LINJIANPEI/AppOpt",
       "use_latest": true,
       "asset_patterns": [
-        "*"
+        "AppOpt"
       ],
       "asset_priority": [
-        "AppOpt"
+        "arm64",
+        "v8a"
       ],
       "mappings": [
         {
-          "source": "AppOpt",
+          "source": "AppOpt-arm64-v8a",
           "target": "bin/AppOpt",
           "type": "file",
           "overwrite": true,
