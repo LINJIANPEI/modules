@@ -35,7 +35,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 安装依赖
         run: |
@@ -44,24 +43,24 @@ jobs:
 
       - name: 设置时区
         run: |
-          sudo timedatectl set-timezone ${{ github.event.inputs.timezone }}
+          sudo timedatectl set-timezone Asia/Shanghai
 
       - name: 创建目录
         run: |
           mkdir -p bin temp_downloads update
 
       - name: 读取配置
-        id: config
-        run: |
-          jq empty sync-mapping-config.json
+        run: jq empty sync-mapping-config.json
 
       # =========================
-      # 🧠 VERSION CODE（核心升级）
+      # 🧠 version_code（加锁防并发）
       # =========================
-      - name: 生成版本号（持久递增）
+      - name: 生成版本号
         id: version
         run: |
-          # 初始化 version_code
+          exec 200>.lock
+          flock 200
+
           if [ ! -f .version_code ]; then
             echo 100 > .version_code
           fi
@@ -69,6 +68,8 @@ jobs:
           OLD=$(cat .version_code)
           NEW=$((OLD + 1))
           echo $NEW > .version_code
+
+          flock -u 200
 
           DATE_VERSION=$(date +'%Y.%m.%d-%H%M%S')
           RELEASE_DATE=$(date +'%Y-%m-%d %H:%M:%S')
@@ -84,8 +85,6 @@ jobs:
         id: sync
         run: |
           FORCE="${{ github.event.inputs.force_update }}"
-          TOTAL=0
-          UPDATED=0
           ACTUAL=0
 
           LEN=$(jq '.upstreams | length' sync-mapping-config.json)
@@ -94,12 +93,8 @@ jobs:
             NAME=$(jq -r ".upstreams[$i].name" sync-mapping-config.json)
             REPO=$(jq -r ".upstreams[$i].repo" sync-mapping-config.json)
 
-            URL="https://api.github.com/repos/$REPO/releases/latest"
-            DATA=$(curl -s $URL)
-
+            DATA=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
             TAG=$(echo "$DATA" | jq -r '.tag_name')
-
-            TOTAL=$((TOTAL+1))
 
             FILE_VER=".version_$NAME"
 
@@ -111,13 +106,12 @@ jobs:
             fi
 
             echo "$TAG" > "$FILE_VER"
-            UPDATED=$((UPDATED+1))
 
             ASSET_URL=$(echo "$DATA" | jq -r '.assets[0].browser_download_url')
             NAME_FILE=$(echo "$DATA" | jq -r '.assets[0].name')
 
             mkdir -p temp_downloads/$NAME
-            wget -q -O temp_downloads/$NAME/$NAME_FILE $ASSET_URL
+            wget -q -O temp_downloads/$NAME/$NAME_FILE "$ASSET_URL"
 
             EXTRACT=temp_downloads/$NAME/extract
             mkdir -p $EXTRACT
@@ -142,7 +136,7 @@ jobs:
               TYPE=$(jq -r ".upstreams[$i].mappings[$m].type" sync-mapping-config.json)
 
               if [ "$TYPE" = "file" ]; then
-                FILE=$(find $SOURCE -name "$SRC" | head -1)
+                FILE=$(find "$SOURCE" -name "$SRC" | head -1)
 
                 if [ -f "$FILE" ]; then
                   if [ -f "$TGT" ] && cmp -s "$FILE" "$TGT"; then
@@ -156,9 +150,7 @@ jobs:
               fi
             done
 
-            if [ "$FILE_CHANGED" -gt 0 ]; then
-              ACTUAL=$((ACTUAL+1))
-            fi
+            ACTUAL=$((ACTUAL + FILE_CHANGED))
           done
 
           echo "actual_updates=$ACTUAL" >> $GITHUB_OUTPUT
@@ -170,15 +162,13 @@ jobs:
         id: should
         run: |
           if [ "${{ steps.sync.outputs.actual_updates }}" -gt 0 ]; then
-            echo "true" > should.txt
             echo "should=true" >> $GITHUB_OUTPUT
           else
-            echo "false" > should.txt
             echo "should=false" >> $GITHUB_OUTPUT
           fi
 
       # =========================
-      # 📦 更新 module.prop
+      # 📦 module.prop
       # =========================
       - name: 更新 module.prop
         if: steps.should.outputs.should == 'true'
@@ -209,12 +199,17 @@ EOF
         if: steps.should.outputs.should == 'true'
         run: |
           mkdir build
-          rsync -av --exclude=".git" --exclude="temp_downloads" ./ build/
+          rsync -av \
+            --exclude=".git" \
+            --exclude="temp_downloads" \
+            --exclude="build" \
+            ./ build/
+
           cd build
           zip -r ../module.zip .
 
       # =========================
-      # 🚀 Release
+      # 🚀 Release（已彻底修复 YAML 风险）
       # =========================
       - name: 发布 Release
         if: steps.should.outputs.should == 'true'
