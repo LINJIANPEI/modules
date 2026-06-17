@@ -3,6 +3,7 @@ name: 同步上游并打包更新
 on:
   schedule:
     - cron: "0 */24 * * *"
+
   workflow_dispatch:
     inputs:
       force_update:
@@ -25,7 +26,7 @@ on:
         default: ""
 
 jobs:
-  sync-and-package:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,31 +37,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 安装依赖
+      - name: Install tools
         run: |
           sudo apt-get update
           sudo apt-get install -y jq unzip wget rsync tar gzip zip
 
-      - name: 设置时区
+      - name: Setup timezone
         run: |
           sudo timedatectl set-timezone Asia/Shanghai
 
-      - name: 创建目录
+      - name: Prepare dirs
         run: |
           mkdir -p bin temp_downloads update
 
-      - name: 校验配置
+      - name: Validate config
         run: jq empty sync-mapping-config.json
 
       # =========================
-      # 🧠 version_code（防并发）
+      # VERSION CODE
       # =========================
-      - name: 生成版本号
+      - name: Generate version
         id: version
         run: |
-          exec 200>.lock
-          flock 200
-
           if [ ! -f .version_code ]; then
             echo 100 > .version_code
           fi
@@ -69,19 +67,14 @@ jobs:
           NEW=$((OLD + 1))
           echo $NEW > .version_code
 
-          flock -u 200
-
-          DATE_VERSION=$(date +'%Y.%m.%d-%H%M%S')
-          RELEASE_DATE=$(date +'%Y-%m-%d %H:%M:%S')
-
           echo "version_code=$NEW" >> $GITHUB_OUTPUT
-          echo "version=$DATE_VERSION" >> $GITHUB_OUTPUT
-          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+          echo "version=$(date +'%Y.%m.%d-%H%M%S')" >> $GITHUB_OUTPUT
+          echo "release_date=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
       # =========================
-      # 🔄 同步上游
+      # SYNC UPSTREAM
       # =========================
-      - name: 同步上游
+      - name: Sync upstream
         id: sync
         run: |
           FORCE="${{ github.event.inputs.force_update }}"
@@ -99,7 +92,7 @@ jobs:
             FILE=".version_$NAME"
 
             if [ -f "$FILE" ] && [ "$FORCE" != "true" ]; then
-              OLD=$(cat $FILE)
+              OLD=$(cat "$FILE")
               if [ "$OLD" = "$TAG" ]; then
                 continue
               fi
@@ -107,29 +100,29 @@ jobs:
 
             echo "$TAG" > "$FILE"
 
-            ASSET_URL=$(echo "$DATA" | jq -r '.assets[0].browser_download_url')
-            ASSET_NAME=$(echo "$DATA" | jq -r '.assets[0].name')
+            URL=$(echo "$DATA" | jq -r '.assets[0].browser_download_url')
+            NAME_FILE=$(echo "$DATA" | jq -r '.assets[0].name')
 
             mkdir -p temp_downloads/$NAME
-            wget -q -O temp_downloads/$NAME/$ASSET_NAME "$ASSET_URL"
+            wget -q -O temp_downloads/$NAME/$NAME_FILE "$URL"
 
             EXTRACT=temp_downloads/$NAME/extract
-            mkdir -p $EXTRACT
+            mkdir -p "$EXTRACT"
 
-            if [[ "$ASSET_NAME" == *.zip ]]; then
-              unzip -q temp_downloads/$NAME/$ASSET_NAME -d $EXTRACT
-            elif [[ "$ASSET_NAME" == *.tar.gz ]]; then
-              tar -xzf temp_downloads/$NAME/$ASSET_NAME -C $EXTRACT
+            if [[ "$NAME_FILE" == *.zip ]]; then
+              unzip -q temp_downloads/$NAME/$NAME_FILE -d "$EXTRACT"
+            elif [[ "$NAME_FILE" == *.tar.gz ]]; then
+              tar -xzf temp_downloads/$NAME/$NAME_FILE -C "$EXTRACT"
             else
-              cp temp_downloads/$NAME/$ASSET_NAME $EXTRACT/
+              cp temp_downloads/$NAME/$NAME_FILE "$EXTRACT/"
             fi
 
-            SOURCE=$EXTRACT
+            SOURCE="$EXTRACT"
 
-            MAPPING=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
-            FILE_CHANGED=0
+            MCOUNT=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
+            CHANGED=0
 
-            for ((m=0;m<MAPPING;m++)); do
+            for ((m=0;m<MCOUNT;m++)); do
               SRC=$(jq -r ".upstreams[$i].mappings[$m].source" sync-mapping-config.json)
               TGT=$(jq -r ".upstreams[$i].mappings[$m].target" sync-mapping-config.json)
               TYPE=$(jq -r ".upstreams[$i].mappings[$m].type" sync-mapping-config.json)
@@ -138,26 +131,22 @@ jobs:
                 FILE=$(find "$SOURCE" -name "$SRC" | head -1)
 
                 if [ -f "$FILE" ]; then
-                  if [ -f "$TGT" ] && cmp -s "$FILE" "$TGT"; then
-                    continue
-                  fi
-
                   mkdir -p "$(dirname "$TGT")"
-                  cp "$FILE" "$TGT"
-                  FILE_CHANGED=$((FILE_CHANGED+1))
+                  cp -f "$FILE" "$TGT"
+                  CHANGED=$((CHANGED+1))
                 fi
               fi
             done
 
-            ACTUAL=$((ACTUAL + FILE_CHANGED))
+            ACTUAL=$((ACTUAL + CHANGED))
           done
 
           echo "actual_updates=$ACTUAL" >> $GITHUB_OUTPUT
 
       # =========================
-      # 🧠 是否发布
+      # SHOULD RELEASE
       # =========================
-      - name: 判断是否发布
+      - name: Check release
         id: should
         run: |
           if [ "${{ steps.sync.outputs.actual_updates }}" -gt 0 ]; then
@@ -167,50 +156,45 @@ jobs:
           fi
 
       # =========================
-      # 📦 module.prop
+      # UPDATE module.prop
       # =========================
-      - name: 更新 module.prop
+      - name: Update module.prop
         if: steps.should.outputs.should == 'true'
         run: |
           sed -i "s/^version=.*/version=${{ steps.version.outputs.version }}/" module.prop
           sed -i "s/^versionCode=.*/versionCode=${{ steps.version.outputs.version_code }}/" module.prop
 
       # =========================
-      # 🧾 update.json
+      # UPDATE JSON
       # =========================
-      - name: update.json
+      - name: Generate update.json
         if: steps.should.outputs.should == 'true'
         run: |
           cat > update/update.json <<EOF
 {
   "version": "${{ steps.version.outputs.version }}",
   "versionCode": ${{ steps.version.outputs.version_code }},
-  "zipUrl": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_code }}/${{ steps.version.outputs.version }}.zip",
+  "zipUrl": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_code }}/module.zip",
   "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/main/update/changelog.md",
   "releaseDate": "${{ steps.version.outputs.release_date }}"
 }
 EOF
 
       # =========================
-      # 📦 打包
+      # PACKAGE
       # =========================
-      - name: 打包模块
+      - name: Build package
         if: steps.should.outputs.should == 'true'
         run: |
           mkdir build
-          rsync -av \
-            --exclude=".git" \
-            --exclude="temp_downloads" \
-            --exclude="build" \
-            ./ build/
-
+          rsync -a --exclude=".git" --exclude="temp_downloads" ./ build/
           cd build
           zip -r ../module.zip .
 
       # =========================
-      # 🚀 Release（彻底安全版）
+      # RELEASE (SAFE)
       # =========================
-      - name: 发布 Release
+      - name: Release
         if: steps.should.outputs.should == 'true'
         uses: softprops/action-gh-release@v1
         with:
