@@ -31,7 +31,7 @@ jobs:
       contents: write
 
     steps:
-      - name: 检出仓库代码
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -49,11 +49,11 @@ jobs:
         run: |
           mkdir -p bin temp_downloads update
 
-      - name: 读取配置
+      - name: 校验配置
         run: jq empty sync-mapping-config.json
 
       # =========================
-      # 🧠 version_code（加锁防并发）
+      # 🧠 version_code（防并发）
       # =========================
       - name: 生成版本号
         id: version
@@ -81,7 +81,7 @@ jobs:
       # =========================
       # 🔄 同步上游
       # =========================
-      - name: 同步上游 Releases
+      - name: 同步上游
         id: sync
         run: |
           FORCE="${{ github.event.inputs.force_update }}"
@@ -96,38 +96,37 @@ jobs:
             DATA=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
             TAG=$(echo "$DATA" | jq -r '.tag_name')
 
-            FILE_VER=".version_$NAME"
+            FILE=".version_$NAME"
 
-            if [ -f "$FILE_VER" ] && [ "$FORCE" != "true" ]; then
-              OLD_TAG=$(cat $FILE_VER)
-              if [ "$OLD_TAG" = "$TAG" ]; then
+            if [ -f "$FILE" ] && [ "$FORCE" != "true" ]; then
+              OLD=$(cat $FILE)
+              if [ "$OLD" = "$TAG" ]; then
                 continue
               fi
             fi
 
-            echo "$TAG" > "$FILE_VER"
+            echo "$TAG" > "$FILE"
 
             ASSET_URL=$(echo "$DATA" | jq -r '.assets[0].browser_download_url')
-            NAME_FILE=$(echo "$DATA" | jq -r '.assets[0].name')
+            ASSET_NAME=$(echo "$DATA" | jq -r '.assets[0].name')
 
             mkdir -p temp_downloads/$NAME
-            wget -q -O temp_downloads/$NAME/$NAME_FILE "$ASSET_URL"
+            wget -q -O temp_downloads/$NAME/$ASSET_NAME "$ASSET_URL"
 
             EXTRACT=temp_downloads/$NAME/extract
             mkdir -p $EXTRACT
 
-            if [[ "$NAME_FILE" == *.zip ]]; then
-              unzip -q temp_downloads/$NAME/$NAME_FILE -d $EXTRACT
-            elif [[ "$NAME_FILE" == *.tar.gz ]]; then
-              tar -xzf temp_downloads/$NAME/$NAME_FILE -C $EXTRACT
+            if [[ "$ASSET_NAME" == *.zip ]]; then
+              unzip -q temp_downloads/$NAME/$ASSET_NAME -d $EXTRACT
+            elif [[ "$ASSET_NAME" == *.tar.gz ]]; then
+              tar -xzf temp_downloads/$NAME/$ASSET_NAME -C $EXTRACT
             else
-              cp temp_downloads/$NAME/$NAME_FILE $EXTRACT/
+              cp temp_downloads/$NAME/$ASSET_NAME $EXTRACT/
             fi
 
             SOURCE=$EXTRACT
 
             MAPPING=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
-
             FILE_CHANGED=0
 
             for ((m=0;m<MAPPING;m++)); do
@@ -179,7 +178,7 @@ jobs:
       # =========================
       # 🧾 update.json
       # =========================
-      - name: 生成 update.json
+      - name: update.json
         if: steps.should.outputs.should == 'true'
         run: |
           cat > update/update.json <<EOF
@@ -209,7 +208,7 @@ EOF
           zip -r ../module.zip .
 
       # =========================
-      # 🚀 Release（已彻底修复 YAML 风险）
+      # 🚀 Release（彻底安全版）
       # =========================
       - name: 发布 Release
         if: steps.should.outputs.should == 'true'
@@ -217,4 +216,5 @@ EOF
         with:
           tag_name: v${{ steps.version.outputs.version_code }}
           name: v${{ steps.version.outputs.version_code }}
-          files: module.zip
+          files: |
+            module.zip
