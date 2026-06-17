@@ -4,11 +4,7 @@ temp_package
 .github
 update
 sync-mapping-config.json
-.version_AdGuardHome
-.version_mihomo
-.version_oxidns
-.version_smartdns
-.version_AppOpt
+.version_*
 mihomoData/proxies/.gitkeep
 log/.gitkeep
 cache/.gitkeep
