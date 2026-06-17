@@ -35,6 +35,11 @@ on:
         required: false
         type: string
         default: ""
+      reset_version_code:
+        description: "重置版本号到指定值（输入数字，如: 100，留空不重置）"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   sync-and-package:
@@ -441,52 +446,74 @@ jobs:
             echo "✅ 已提交并推送同步更新"
           fi
 
-      # ========== 打包模块部分 ==========
+      # ========== 版本号生成（使用 .version_code 文件，支持重置）==========
       - name: 生成版本号
         if: steps.should_package.outputs.should_package == 'true'
         id: version
         run: |
+          RESET_VALUE="${{ github.event.inputs.reset_version_code }}"
+
+          echo "=========================================="
+          echo "📌 版本号管理"
+          echo "=========================================="
+
+          # 处理重置请求
+          if [ -n "$RESET_VALUE" ]; then
+            if [[ "$RESET_VALUE" =~ ^[0-9]+$ ]]; then
+              echo "🔄 重置版本号为: $RESET_VALUE"
+              echo "$RESET_VALUE" > .version_code
+              CURRENT_VERSION_CODE=$RESET_VALUE
+            else
+              echo "❌ 错误: 重置值必须是数字: '$RESET_VALUE'"
+              exit 1
+            fi
+          else
+            # 正常读取当前版本号
+            if [ -f ".version_code" ]; then
+              CURRENT_VERSION_CODE=$(cat .version_code)
+              # 验证是否为数字
+              if ! [[ "$CURRENT_VERSION_CODE" =~ ^[0-9]+$ ]]; then
+                echo "⚠️ .version_code 不是有效数字，重置为 100"
+                CURRENT_VERSION_CODE=100
+                echo "$CURRENT_VERSION_CODE" > .version_code
+              fi
+            else
+              echo "📄 .version_code 不存在，初始化为 100"
+              CURRENT_VERSION_CODE=100
+              echo "$CURRENT_VERSION_CODE" > .version_code
+            fi
+          fi
+
+          # 递增版本号
+          NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+
+          # 保存新版本号到文件
+          echo "$NEW_VERSION_CODE" > .version_code
+
+          # 生成可读版本号
           DATE_VERSION=$(date +'%Y.%m.%d')
-          DATETIME_VERSION=$(date +'%Y.%m.%d-%H%M%S')
-          DATETIME_VERSION_CODE=$(date +'%Y%m%d%H%M%S')
-          DATE_VERSION_CODE=$(date +'%Y%m%d')
-          echo "date_version=$DATE_VERSION" >> $GITHUB_OUTPUT
-          echo "datetime_version=$DATETIME_VERSION" >> $GITHUB_OUTPUT
-          echo "version_code=$DATETIME_VERSION_CODE" >> $GITHUB_OUTPUT
-          echo "date_version_code=$DATE_VERSION_CODE" >> $GITHUB_OUTPUT
+          VERSION="${DATE_VERSION}.${NEW_VERSION_CODE}"
+
+          # 输出到 GitHub Actions
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "versionCode=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "release_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           echo "release_datetime=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
-          echo "✅ 版本号生成完成"
 
-      - name: 选择版本格式
-        if: steps.should_package.outputs.should_package == 'true'
-        id: choose
-        run: |
-          VERSION="${{ steps.version.outputs.datetime_version }}"
-          VERSION_CODE="${{ steps.version.outputs.version_code }}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-          echo "📌 版本: $VERSION"
-          echo "📌 版本代码: $VERSION_CODE"
-
-      - name: 验证必要文件
-        if: steps.should_package.outputs.should_package == 'true'
-        run: |
-          if [ ! -f "module.prop" ]; then
-            echo "❌ 错误: module.prop 文件不存在！"
-            exit 1
-          fi
-          if [ ! -f "exclude.txt" ]; then
-            echo "⚠️ 警告: exclude.txt 文件不存在，将打包所有文件"
-          fi
-          echo "✅ 文件验证通过"
+          echo ""
+          echo "📊 版本信息:"
+          echo "  旧版本号: $CURRENT_VERSION_CODE"
+          echo "  新版本号: $NEW_VERSION_CODE"
+          echo "  版本标签: v$VERSION"
+          echo "  已保存到: .version_code"
+          echo "=========================================="
 
       - name: 更新模块配置文件
         if: steps.should_package.outputs.should_package == 'true'
         run: |
-          sed -i "s/^version=.*/version=${{ steps.choose.outputs.version }}/" module.prop
-          sed -i "s/^versionCode=.*/versionCode=${{ steps.choose.outputs.versionCode }}/" module.prop
+          sed -i "s/^version=.*/version=${{ steps.version.outputs.version }}/" module.prop
+          sed -i "s/^versionCode=.*/versionCode=${{ steps.version.outputs.versionCode }}/" module.prop
           sed -i "s|^updateJson=.*|updateJson=https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/update.json|" module.prop
           echo "✅ module.prop 已更新"
           echo ""
@@ -505,13 +532,13 @@ jobs:
           fi
 
           {
-            echo "## [${{ steps.choose.outputs.version }}] - ${{ steps.version.outputs.release_date }}"
+            echo "## [${{ steps.version.outputs.version }}] - ${{ steps.version.outputs.release_date }}"
             echo ""
             echo "$CHANGELOG_MSG"
             echo ""
             echo "### 下载"
             echo ""
-            echo "- [ZIP 下载链接](https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip)"
+            echo "- [ZIP 下载链接](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.version }}.zip)"
             echo ""
             echo "---"
             echo ""
@@ -538,9 +565,9 @@ jobs:
           mkdir -p update
           cat > update/update.json <<EOF
           {
-              "version": "${{ steps.choose.outputs.version }}",
-              "versionCode": ${{ steps.choose.outputs.versionCode }},
-              "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip",
+              "version": "${{ steps.version.outputs.version }}",
+              "versionCode": ${{ steps.version.outputs.versionCode }},
+              "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.version }}.zip",
               "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/main/update/changelog.md",
               "releaseDate": "${{ steps.version.outputs.release_datetime }}"
           }
@@ -563,13 +590,13 @@ jobs:
             rsync -av --exclude='.git' --exclude='.github' --exclude='temp_package' --exclude='temp_downloads' --exclude='*.zip' --exclude='.backup_*' --exclude='.version_*' ./ temp_package/ 2>&1 | grep -v "^sent\|^total size" || true
           fi
 
-          cd temp_package && zip -r ../${{ steps.choose.outputs.version }}.zip . > /dev/null && cd ..
+          cd temp_package && zip -r ../${{ steps.version.outputs.version }}.zip . > /dev/null && cd ..
           rm -rf temp_package
 
-          if [ -f "${{ steps.choose.outputs.version }}.zip" ]; then
-            ZIP_SIZE=$(stat -c%s "${{ steps.choose.outputs.version }}.zip")
+          if [ -f "${{ steps.version.outputs.version }}.zip" ]; then
+            ZIP_SIZE=$(stat -c%s "${{ steps.version.outputs.version }}.zip")
             ZIP_SIZE_MB=$((ZIP_SIZE / 1024 / 1024))
-            echo "✅ ZIP 压缩包已创建: ${{ steps.choose.outputs.version }}.zip"
+            echo "✅ ZIP 压缩包已创建: ${{ steps.version.outputs.version }}.zip"
             echo "📦 文件大小: $ZIP_SIZE_MB MB ($ZIP_SIZE bytes)"
           else
             echo "❌ 错误: ZIP 包创建失败"
@@ -581,12 +608,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add module.prop update/update.json update/changelog.md
+
+          # 添加所有修改的文件（包括 .version_code）
+          git add module.prop update/update.json update/changelog.md .version_code
 
           if git diff --staged --quiet; then
             echo "📝 没有需要提交的更改"
           else
-            git commit -m "发布: v${{ steps.choose.outputs.version }} (版本代码: ${{ steps.choose.outputs.versionCode }})"
+            git commit -m "发布: v${{ steps.version.outputs.version }} (版本代码: ${{ steps.version.outputs.versionCode }})"
             git push
             echo "✅ 已推送到远程仓库"
           fi
@@ -595,15 +624,15 @@ jobs:
         if: steps.should_package.outputs.should_package == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.choose.outputs.version }}.zip
-          name: ${{ steps.choose.outputs.tag }}
-          tag_name: ${{ steps.choose.outputs.tag }}
+          files: ${{ steps.version.outputs.version }}.zip
+          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
           body: |
             ## 自动发布
 
             ### 版本信息
-            - **版本号**: ${{ steps.choose.outputs.version }}
-            - **版本代码**: ${{ steps.choose.outputs.versionCode }}
+            - **版本号**: ${{ steps.version.outputs.version }}
+            - **版本代码**: ${{ steps.version.outputs.versionCode }}
             - **发布时间**: ${{ steps.version.outputs.release_datetime }}
 
             ### 更新内容
@@ -615,5 +644,4 @@ jobs:
 
             ### 下载地址
             ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.choose.outputs.tag }}/${{ steps.choose.outputs.version }}.zip
-            ```
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.version }}.zip
