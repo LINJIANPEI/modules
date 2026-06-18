@@ -127,7 +127,7 @@ proxy-providers:
         url: ""
         # path: ./proxy_providers/jichang2.yaml #保存路径
 proxy-groups:
-    - name: "\U0001F680 国外代理"
+    - name: "🚀 国外代理"
       type: "select"
       proxies:
         - "♻️ 自动选择"
@@ -140,14 +140,14 @@ proxy-groups:
         - "🇺🇸 美国"
         - "🌐 全部节点"
       disable-udp: false
-    - name: "\U0001F3AF 国内代理"
+    - name: "🎯 国内代理"
       type: "select"
       proxies:
         - "➡️ 直连"
         - "🇨🇳 中国"
         - "♻️ 自动选择"
       disable-udp: false
-    - name: "\U0001F41F 漏网之鱼"
+    - name: "🐟 漏网之鱼"
       type: "select"
       proxies:
         - "♻️ 自动选择"
@@ -293,20 +293,20 @@ rule-providers:
         url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.yaml
         interval: 86400
 rules:
-    - "RULE-SET,private_ip,\U0001F3AF 国内代理"
-    - "RULE-SET,private_domain,\U0001F3AF 国内代理"
-    - "RULE-SET,bilibili_domain,\U0001F3AF 国内代理"
-    - "RULE-SET,cn_domain,\U0001F3AF 国内代理"
-    - "RULE-SET,cn_ip,\U0001F3AF 国内代理"
-    - "RULE-SET,github_domain,\U0001F680 国外代理"
-    - "RULE-SET,google_domain,\U0001F680 国外代理"
-    - "RULE-SET,youtube_domain,\U0001F680 国外代理"
-    - "RULE-SET,tiktok_domain,\U0001F680 国外代理"
-    - "RULE-SET,netflix_domain,\U0001F680 国外代理"
-    - "RULE-SET,telegram_domain,\U0001F680 国外代理"
-    - "RULE-SET,gfw_domain,\U0001F680 国外代理"
-    - "RULE-SET,nocn_domain,\U0001F680 国外代理"
-    - "RULE-SET,google_ip,\U0001F680 国外代理"
-    - "RULE-SET,netflix_ip,\U0001F680 国外代理"
-    - "RULE-SET,telegram_ip,\U0001F680 国外代理"
-    - "MATCH,\U0001F41F 漏网之鱼"
+    - "RULE-SET,private_ip,🎯 国内代理"
+    - "RULE-SET,private_domain,🎯 国内代理"
+    - "RULE-SET,bilibili_domain,🎯 国内代理"
+    - "RULE-SET,cn_domain,🎯 国内代理"
+    - "RULE-SET,cn_ip,🎯 国内代理"
+    - "RULE-SET,github_domain,🚀 国外代理"
+    - "RULE-SET,google_domain,🚀 国外代理"
+    - "RULE-SET,youtube_domain,🚀 国外代理"
+    - "RULE-SET,tiktok_domain,🚀 国外代理"
+    - "RULE-SET,netflix_domain,🚀 国外代理"
+    - "RULE-SET,telegram_domain,🚀 国外代理"
+    - "RULE-SET,gfw_domain,🚀 国外代理"
+    - "RULE-SET,nocn_domain,🚀 国外代理"
+    - "RULE-SET,google_ip,🚀 国外代理"
+    - "RULE-SET,netflix_ip,🚀 国外代理"
+    - "RULE-SET,telegram_ip,🚀 国外代理"
+    - "MATCH,🐟 漏网之鱼"
