@@ -54,9 +54,6 @@ if [ "${enable_AppOpt}" = "true" ]; then
     nohup "${module_dir}/bin/AppOpt" \
         -c "${module_dir}/conf/applist.prop" \
         >"${log_dir}/AppOpt.log" 2>&1 &
-        
-    "${module_dir}/scripts/oiface.sh" &
-       
 fi
 
 # AdGuardHome
@@ -101,7 +98,7 @@ processes=""
 [ "${enable_smartdns}" = "true" ] && processes="${processes} smartdns"
 [ "${enable_mihomo}" = "true" ] && processes="${processes} mihomo"
 
-started_procs=$(parallel_wait_all 60 $processes)
+started_procs=$(parallel_wait_all 120 $processes)
 
 if [ $? -eq 0 ]; then
 
@@ -114,7 +111,9 @@ if [ $? -eq 0 ]; then
     "${module_dir}/scripts/iptables.sh" enable &
     "${module_dir}/scripts/clearLog.sh" &
     "${module_dir}/scripts/dns.sh" &
-
+    if [ "${enable_oiface}" = "true" ]; then    
+      "${module_dir}/scripts/oiface.sh" enable &
+    fi 
 else
     ${module_dir}/uninstall.sh &
     
