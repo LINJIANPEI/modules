@@ -39,7 +39,7 @@ fi
 
 
 # -------------------- 清理log --------------------
-clear_log "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log"
+clear_log "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log" "${log_dir}/oiface.log"
 
 # mihomo
 if [ "${enable_mihomo}" = "true" ]; then
@@ -113,6 +113,8 @@ if [ $? -eq 0 ]; then
     "${module_dir}/scripts/dns.sh" &
     if [ "${enable_oiface}" = "true" ]; then    
       "${module_dir}/scripts/oiface.sh" enable &
+    else
+      "${module_dir}/scripts/oiface.sh" disable &
     fi 
 else
     ${module_dir}/uninstall.sh &
