@@ -20,5 +20,5 @@ if ! pgrep -f "crond -c $cron_dir" >/dev/null 2>&1; then
 fi
 
 # 清空超过 100MB 的文件
-auto_clear_logs $((2 * 1024 * 1024)) "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log"
+auto_clear_logs $((2 * 1024 * 1024)) "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log" "${log_dir}/oiface.log"
 
