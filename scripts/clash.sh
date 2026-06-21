@@ -147,11 +147,16 @@ start_service() {
         return 1
     fi
 
+    calc_all_fd
+    (
+    # 设置 FD 限制
+    ulimit -n "$FD_MIHOMO"
     nohup busybox setuidgid "${uid}:${gid}" "${module_dir}/bin/mihomo" \
         -d "${module_dir}/mihomoData" \
         -f "$YAML_FILE" \
         >> "${log_dir}/mihomoRun.log" 2>&1 &
-
+    ) &  
+    
     sleep 1
     if ! is_process_running "mihomo"; then
         log Error "mihomo 进程启动失败" "${log_dir}/mihomo.log"

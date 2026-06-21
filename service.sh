@@ -39,57 +39,86 @@ fi
 
 
 # -------------------- 清理log --------------------
-clear_log "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log"
+clear_log "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log" "${log_dir}/oiface.log"
+
+
+# -------------------- FD配置 --------------------
+
+
+calc_all_fd
+
+log_msg="FD分配 ->"
+[ "${enable_AppOpt}" = "true" ] && log_msg="$log_msg AppOpt:$FD_APPOPT"
+[ "${enable_adguardhome}" = "true" ] && log_msg="$log_msg AGH:$FD_ADGUARD"
+[ "${enable_oxidns}" = "true" ] && log_msg="$log_msg Mos:$FD_OXIDNS"
+[ "${enable_mihomo}" = "true" ] && log_msg="$log_msg Mihomo:$FD_MIHOMO"
+[ "${enable_smartdns}" = "true" ] && log_msg="$log_msg Smart:$FD_SMARTDNS"
+# RESERVED 通常总是输出
+log_msg="${log_msg} Reserved:${RESERVED}"
+log Info "${log_msg}" ${log_dir}/run.log
+
 
 # mihomo
 if [ "${enable_mihomo}" = "true" ]; then
     kill_by_name "mihomo"
     kill_by_name "ruleconverter"
+    (
+    ulimit -n "$FD_MIHOMO"
     nohup ${module_dir}/scripts/clash.sh "enable" & > "${log_dir}/mihomo.log" 2>&1 &
+    ) &
 fi
 
 # AppOpt
 if [ "${enable_AppOpt}" = "true" ]; then
-    kill_by_name "AppOpt"  
+    kill_by_name "AppOpt"
+    (
+    ulimit -n "$FD_APPOPT"
     nohup "${module_dir}/bin/AppOpt" \
         -c "${module_dir}/conf/applist.prop" \
         >"${log_dir}/AppOpt.log" 2>&1 &
-        
-    "${module_dir}/scripts/oiface.sh" &
-       
+    ) &
 fi
 
 # AdGuardHome
 if [ "${enable_adguardhome}" = "true" ]; then
     kill_by_name "AdGuardHome"
+    (
+    ulimit -n "$FD_ADGUARD"
     nohup busybox setuidgid ${uid}:${gid} \
         "${module_dir}/bin/AdGuardHome" \
         -c "${module_dir}/conf/AdGuardHome.yaml" \
         -w "${module_dir}/adguardHomeData" \
         --no-check-update \
         >"${log_dir}/AdGuardHome.log" 2>&1 &
+    ) &
 fi
 
 
 # oxidns
 if [ "${enable_oxidns}" = "true" ]; then
     kill_by_name "oxidns"
+    (
+    ulimit -n "$FD_OXIDNS"
     nohup busybox setuidgid ${uid}:${gid} \
         "${module_dir}/bin/oxidns" \
         start \
         -d "${module_dir}/oxidnsData" \
         -c "${module_dir}/conf/oxidns.yaml" \
         >"${log_dir}/oxidns.log" 2>&1 &
+    ) &
 fi
 
 # smartdns
 if [ "${enable_smartdns}" = "true" ]; then
     kill_by_name "smartdns"
+    (
+    ulimit -n "$FD_SMARTDNS"
     nohup busybox setuidgid ${uid}:${gid} \
         "${module_dir}/bin/smartdns" \
         -c "${module_dir}/conf/smartdns.conf" \
         -f \
        >"${log_dir}/smartdns.log" 2>&1 &
+    ) &
 fi
 
 # -------------------- 其他脚本 --------------------
@@ -101,7 +130,7 @@ processes=""
 [ "${enable_smartdns}" = "true" ] && processes="${processes} smartdns"
 [ "${enable_mihomo}" = "true" ] && processes="${processes} mihomo"
 
-started_procs=$(parallel_wait_all 60 $processes)
+started_procs=$(parallel_wait_all 120 $processes)
 
 if [ $? -eq 0 ]; then
 
@@ -114,7 +143,11 @@ if [ $? -eq 0 ]; then
     "${module_dir}/scripts/iptables.sh" enable &
     "${module_dir}/scripts/clearLog.sh" &
     "${module_dir}/scripts/dns.sh" &
-
+    if [ "${enable_oiface}" = "true" ]; then    
+      "${module_dir}/scripts/oiface.sh" enable &
+    else
+      "${module_dir}/scripts/oiface.sh" disable &
+    fi 
 else
     ${module_dir}/uninstall.sh &
     
