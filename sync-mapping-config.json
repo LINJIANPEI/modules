@@ -101,8 +101,8 @@
         "AppOpt"
       ],
       "asset_priority": [
-        "arm64",
-        "v8a"
+        "android",
+        "arm64"
       ],
       "mappings": [
         {
