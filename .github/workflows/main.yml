@@ -55,6 +55,7 @@ on:
       - ".gitignore"
       - "LICENSE"
       - ".github/**"
+      - "conf/**"
 
 # 并发控制 - 避免多个 workflow 同时运行
 concurrency:
