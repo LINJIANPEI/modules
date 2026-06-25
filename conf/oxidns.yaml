@@ -48,7 +48,7 @@ plugins:
       concurrent: 2
       upstreams:
         - addr: "tcp://127.0.0.1:5445"
-        - addr: "udp://127.0.0.1:5445"
+          bootstrap: "127.0.0.1:5445"
 
   - tag: forward_remote
     type: forward
@@ -56,7 +56,7 @@ plugins:
       concurrent: 2
       upstreams:
         - addr: "tcp://127.0.0.1:5555"
-        - addr: "udp://127.0.0.1:5555"
+          bootstrap: "127.0.0.1:5555"
 
   - tag: fallback_main
     type: fallback
@@ -79,10 +79,10 @@ plugins:
     type: sequence
     args:
     
-      - exec: $cache_main
+      #- exec: $cache_main
       
-      - matches: has_resp
-        exec: accept
+      #- matches: has_resp
+      #  exec: accept
 
       # ---------- 中国域名 ----------
       - matches: "qname $cn_domains"
