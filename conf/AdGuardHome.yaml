@@ -32,10 +32,9 @@ dns:
   refuse_any: true
   upstream_dns:
     - tcp://127.0.0.1:5335
-    - udp://127.0.0.1:5335
   upstream_dns_file: ""
   bootstrap_dns:
-    - 223.5.5.5
+    - 127.0.0.1:5335
   fallback_dns: []
   upstream_mode: parallel
   fastest_timeout: 1s
@@ -48,7 +47,7 @@ dns:
   trusted_proxies:
     - 127.0.0.0/8
     - ::1/128
-  cache_enabled: true
+  cache_enabled: false
   cache_size: 256
   cache_ttl_min: 300
   cache_ttl_max: 3600
