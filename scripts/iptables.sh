@@ -97,39 +97,25 @@ del_block_ipv6_dns() {
 
 enable_ipv6_iptables() {
   if ! check_ipv6_nat_support; then
-    log Warn "IPv6 NAT 不支持，跳过 IPv6 DNS 劫持" ${log_dir}/iptables.log
-    return 0
-  fi
-
-  if $ip6tables_w -t nat -L ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1; then
-    log Info "ADGUARD_REDIRECT_DNS6 链已经存在" ${log_dir}/iptables.log
-    if ! $ip6tables_w -t nat -C OUTPUT -j ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1; then
-      $ip6tables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS6
-    fi
-    return 0
+    return 1
   fi
 
   log Info "创建 ADGUARD_REDIRECT_DNS6 链并添加规则" ${log_dir}/iptables.log
-  $ip6tables_w -t nat -N ADGUARD_REDIRECT_DNS6 || return 1
-  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -m owner --uid-owner $uid --gid-owner $gid -j RETURN || return 1
+
+  $ip6tables_w -t nat -N ADGUARD_REDIRECT_DNS6 2>/dev/null
+  $ip6tables_w -t nat -F ADGUARD_REDIRECT_DNS6
+
+  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -m owner --uid-owner $uid -j RETURN
 
   for subnet in $ignore_dest_list; do
-    if ! $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -d $subnet -j RETURN >/dev/null 2>&1; then
-      log Warn "警告：无法为 $subnet 添加 ipv6 绕过规则" ${log_dir}/iptables.log
-    fi
+    $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -d $subnet -j RETURN
   done
 
-  for subnet in $ignore_src_list; do
-    if ! $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -s $subnet -j RETURN >/dev/null 2>&1; then
-      log Warn "警告：无法为源 $subnet 添加 ipv6 绕过规则" ${log_dir}/iptables.log
-    fi
-  done
+  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -p udp --dport 53 -j REDIRECT --to-ports $redir_port
+  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -p tcp --dport 53 -j REDIRECT --to-ports $redir_port
+  $ip6tables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS6
 
-  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -p udp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
-  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -p tcp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
-  $ip6tables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS6 || return 1
-
-  log Info "成功应用 ipv6 iptables 规则" ${log_dir}/iptables.log
+  return 0
 }
 
 disable_ipv6_iptables() {
@@ -503,10 +489,17 @@ _start_routing() {
         if [ "$CACHED_ENABLE" != "true" ]; then
             enable_iptables || exit 1
             if [ "$block_ipv6_dns" = true ]; then
-               log Info "IPv6 DNS 模式: block (丢弃 IPv6 DNS 流量)" ${log_dir}/iptables.log
-               add_block_ipv6_dns || exit 1
+                log Info "IPv6 DNS 模式: block (强制丢弃)" ${log_dir}/iptables.log
+                add_block_ipv6_dns || exit 1
             else
-               log Info "IPv6 DNS 模式: hijack (劫持 IPv6 到 AdGuard Home)" ${log_dir}/iptables.log                  enable_ipv6_iptables || exit 1
+                log Info "IPv6 DNS 模式: 尝试 hijack IPv6 DNS" ${log_dir}/iptables.log
+
+                if enable_ipv6_iptables; then
+                    log Info "IPv6 DNS hijack: 成功 (nat支持)" ${log_dir}/iptables.log
+                    else
+                    log Warn "IPv6 NAT 不支持 → 自动降级 DROP" ${log_dir}/iptables.log
+                    add_block_ipv6_dns || exit 1
+                fi
             fi
         fi
         return 0
