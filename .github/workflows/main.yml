@@ -56,6 +56,7 @@ on:
       - "LICENSE"
       - ".github/**"
       - "conf/**"
+      - "备份.json"
 
 # 并发控制 - 避免多个 workflow 同时运行
 concurrency:

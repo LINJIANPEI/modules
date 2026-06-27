@@ -10,3 +10,4 @@ log/.gitkeep
 cache/.gitkeep
 .last_backup
 .back*
+备份.json

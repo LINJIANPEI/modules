@@ -1,0 +1,125 @@
+{
+    "upstreams": [
+        {
+            "name": "mihomo",
+            "repo": "MetaCubeX/mihomo",
+            "use_latest": true,
+            "asset_patterns": [
+                "*.gz"
+            ],
+            "asset_priority": [
+                "android-arm64",
+                "arm64",
+                "android"
+            ],
+            "mappings": [
+                {
+                    "source": "mihomo*",
+                    "target": "bin/mihomo",
+                    "type": "pattern",
+                    "flatten": true,
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        },
+        {
+            "name": "AdGuardHome",
+            "repo": "AdguardTeam/AdGuardHome",
+            "use_latest": true,
+            "asset_patterns": [
+                "*.tar.gz"
+            ],
+            "asset_priority": [
+                "linux_arm64",
+                "arm64",
+                "linux"
+            ],
+            "mappings": [
+                {
+                    "source": "AdGuardHome",
+                    "target": "bin/AdGuardHome",
+                    "type": "file",
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        },
+        {
+            "name": "oxidns",
+            "repo": "svenshi/oxidns",
+            "use_latest": true,
+            "asset_patterns": [
+                "*.tar.gz"
+            ],
+            "asset_priority": [
+                "linux-musl",
+                "unknown-linux",
+                "aarch64"
+            ],
+            "mappings": [
+                {
+                    "source": "oxidns",
+                    "target": "bin/oxidns",
+                    "type": "file",
+                    "overwrite": true,
+                    "make_executable": true
+                },
+                {
+                    "source": "webui",
+                    "target": "webui",
+                    "type": "folder",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "name": "smartdns",
+            "repo": "pymumu/smartdns",
+            "use_latest": true,
+            "asset_patterns": [
+                "*"
+            ],
+            "asset_priority": [
+                "aarch64"
+            ],
+            "mappings": [
+                {
+                    "source": "smartdns-aarch64",
+                    "target": "bin/smartdns",
+                    "type": "file",
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        },
+        {
+            "name": "AppOpt",
+            "repo": "LINJIANPEI/AppOpt",
+            "use_latest": true,
+            "asset_patterns": [
+                "AppOpt"
+            ],
+            "asset_priority": [
+                "android",
+                "arm64"
+            ],
+            "mappings": [
+                {
+                    "source": "AppOpt-android-arm64",
+                    "target": "bin/AppOpt",
+                    "type": "file",
+                    "overwrite": true,
+                    "make_executable": true
+                }
+            ]
+        }
+    ],
+    "global": {
+        "backup_before_sync": true,
+        "auto_commit": true,
+        "clean_temp": true,
+        "retry_count": 3,
+        "max_backups": 5
+    }
+}
