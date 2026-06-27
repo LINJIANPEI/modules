@@ -63,7 +63,6 @@ set_perm $MODPATH/uninstall.sh 0 0 0755
 set_perm $MODPATH/bin/AppOpt 0 0 0755
 set_perm $MODPATH/bin/AdGuardHome 0 0 0755
 set_perm $MODPATH/bin/oxidns 0 0 0755
-set_perm $MODPATH/bin/smartdns 0 0 0755
 set_perm $MODPATH/bin/curl 0 0 0755
 set_perm $MODPATH/bin/mihomo 0 0 0755
 set_perm $MODPATH/bin/yamlcli 0 0 0755
@@ -75,6 +74,14 @@ set_perm $MODPATH/scripts/clearLog.sh 0 0 0755
 set_perm $MODPATH/scripts/clash.sh 0 0 0755
 set_perm $MODPATH/scripts/action.sh 0 0 0755
 set_perm $MODPATH/scripts/oiface.sh 0 0 0755
+
+set_perm $MODPATH/smartdnsData/smartdns 0 0 0755
+set_perm $MODPATH/smartdnsData/smartdns_ui.so 0 0 0755
+set_perm $MODPATH/smartdnsData/lib/libc.so 0 0 0755
+set_perm $MODPATH/smartdnsData/lib/libcrypto.so.3 0 0 0755
+set_perm $MODPATH/smartdnsData/lib/libgcc_s.so.1 0 0 0755
+set_perm $MODPATH/smartdnsData/lib/libssl.so.3 0 0 0755
+
 
 ui_print "********************************************"
 ui_print "安装完成！"

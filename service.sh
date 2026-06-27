@@ -38,6 +38,12 @@ if [ ! -d ${module_dir}/cache ]; then
 fi
 
 
+# 创建软链接
+ln -sf "${module_dir}/smartdnsData/smartdns" "${module_dir}/bin/smartdns"
+ln -sf "${module_dir}/smartdnsData/lib/libc.so" "${module_dir}/smartdnsData/lib/ld-musl-aarch64.so.1"
+ln -sf "${module_dir}/smartdnsData/lib/ld-musl-aarch64.so.1" "${module_dir}/smartdnsData/lib/ld-linux.so"
+
+
 # -------------------- 清理log --------------------
 clear_log "${log_dir}/run.log" "${log_dir}/AppOpt.log" "${log_dir}/AdGuardHome.log" "${log_dir}/oxidns.log" "${log_dir}/smartdns.log" "${log_dir}/iptables.log" "${log_dir}/mihomoRun.log" "${log_dir}/ruleconverter.log" "${log_dir}/oiface.log"
 
@@ -113,12 +119,13 @@ if [ "${enable_smartdns}" = "true" ]; then
     kill_by_name "smartdns"
     (
     ulimit -n "$FD_SMARTDNS"
+    cd ${module_dir}/smartdnsData
     nohup busybox setuidgid ${uid}:${gid} \
         "${module_dir}/bin/smartdns" \
         -c "${module_dir}/conf/smartdns.conf" \
         -f \
        >"${log_dir}/smartdns.log" 2>&1 &
-    ) &
+    ) 
 fi
 
 # -------------------- 其他脚本 --------------------

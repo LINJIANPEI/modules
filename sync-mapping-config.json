@@ -74,26 +74,6 @@
       ]
     },
     {
-      "name": "smartdns",
-      "repo": "pymumu/smartdns",
-      "use_latest": true,
-      "asset_patterns": [
-        "*"
-      ],
-      "asset_priority": [
-        "aarch64"
-      ],
-      "mappings": [
-        {
-          "source": "smartdns-aarch64",
-          "target": "bin/smartdns",
-          "type": "file",
-          "overwrite": true,
-          "make_executable": true
-        }
-      ]
-    },
-    {
       "name": "AppOpt",
       "repo": "LINJIANPEI/AppOpt",
       "use_latest": true,
@@ -123,3 +103,23 @@
     "max_backups": 5
   }
 }
+// {
+//   "name": "smartdns",
+//   "repo": "pymumu/smartdns",
+//   "use_latest": true,
+//   "asset_patterns": [
+//     "*"
+//   ],
+//   "asset_priority": [
+//     "aarch64"
+//   ],
+//   "mappings": [
+//     {
+//       "source": "smartdns-aarch64",
+//       "target": "bin/smartdns",
+//       "type": "file",
+//       "overwrite": true,
+//       "make_executable": true
+//     }
+//   ]
+// },
