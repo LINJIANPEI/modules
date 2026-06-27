@@ -140,7 +140,9 @@ if [ $? -eq 0 ]; then
     until netstat -tunlp | grep ${redir_port}; do
       sleep 1
     done
-    "${module_dir}/scripts/iptables.sh" enable &
+    if [ "${enable_iptables}" = "true" ]; then
+        "${module_dir}/scripts/iptables.sh" enable &
+    fi
     "${module_dir}/scripts/clearLog.sh" &
     "${module_dir}/scripts/dns.sh" &
     if [ "${enable_oiface}" = "true" ]; then    
