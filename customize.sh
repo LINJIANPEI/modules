@@ -52,6 +52,11 @@ preserve_existing_config "conf/smartdns.conf"
 preserve_existing_config "mihomoData/proxies"
 preserve_existing_config "mihomoData/cache.db"
 preserve_existing_config "mihomoData/packages.list"
+preserve_existing_config "cache/smartdns.cache"
+preserve_existing_config "cache/oxidns.cache"
+preserve_existing_config "adguardHomeData/data"
+
+
 
 
 
