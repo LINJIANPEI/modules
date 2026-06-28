@@ -74,6 +74,46 @@
       ]
     },
     {
+      "name": "smartdns",
+      "repo": "pymumu/smartdns",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.gz"
+      ],
+      "asset_priority": [
+        "aarch64",
+        "linux"
+      ],
+      "mappings": [
+        {
+          "source": "usr/local/lib/smartdns/smartdns",
+          "target": "smartdnsData/smartdns",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "usr/local/lib/smartdns/smartdns_ui.so",
+          "target": "smartdnsData/smartdns_ui.so",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "usr/share/smartdns/wwwroot",
+          "target": "smartdnsData/wwwroot",
+          "type": "folder",
+          "overwrite": true
+        },
+        {
+          "source": "usr/local/lib/smartdns/lib",
+          "target": "smartdnsData/lib",
+          "type": "folder",
+          "overwrite": true
+        }
+      ]
+    },
+    {
       "name": "AppOpt",
       "repo": "LINJIANPEI/AppOpt",
       "use_latest": true,

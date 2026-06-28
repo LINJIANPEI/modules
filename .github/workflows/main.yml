@@ -335,9 +335,10 @@ jobs:
               TYPE=$(jq -r ".upstreams[$i].mappings[$m].type" sync-mapping-config.json)
               OVERWRITE=$(jq -r ".upstreams[$i].mappings[$m].overwrite // true" sync-mapping-config.json)
               MAKE_EXEC=$(jq -r ".upstreams[$i].mappings[$m].make_executable // false" sync-mapping-config.json)
+              FLATTEN=$(jq -r ".upstreams[$i].mappings[$m].flatten // false" sync-mapping-config.json)
               
               echo ""
-              echo "  📍 映射: $SOURCE -> $TARGET"
+              echo "  📍 映射: $SOURCE -> $TARGET (类型: $TYPE)"
               
               if [ "$OVERWRITE" = "false" ] && [ -e "$TARGET" ]; then
                 echo "  ⏭️ 目标已存在且禁止覆盖，跳过"
@@ -348,27 +349,73 @@ jobs:
               TARGET_DIR=$(dirname "$TARGET")
               mkdir -pv "$TARGET_DIR" > /dev/null 2>&1
               
+              # ==================== pattern 类型处理 ====================
               if [ "$TYPE" = "pattern" ]; then
                 cd "$SOURCE_BASE"
                 
-                for file in $SOURCE; do
-                  if [ -f "$file" ]; then
-                    # 检查文件是否真的不同
+                # 判断 SOURCE 是否包含通配符
+                if [[ "$SOURCE" == *"*"* ]] || [[ "$SOURCE" == *"?"* ]]; then
+                  # 有通配符，匹配文件
+                  for file in $SOURCE; do
+                    if [ -f "$file" ]; then
+                      # 检查文件是否真的不同
+                      if [ -f "$ORIGINAL_DIR/$TARGET" ]; then
+                        if cmp -s "$file" "$ORIGINAL_DIR/$TARGET"; then
+                          echo "  ℹ️ 文件内容相同，跳过: $file"
+                          break
+                        fi
+                      fi
+                      cp -v "$file" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
+                      echo "  ✅ 已复制: $file -> $ORIGINAL_DIR/$TARGET"
+                      FILES_COPIED=$((FILES_COPIED + 1))
+                      break
+                    fi
+                  done
+                else
+                  # 无通配符，直接查找文件或文件夹
+                  if [ -f "$SOURCE" ]; then
+                    # 是文件
                     if [ -f "$ORIGINAL_DIR/$TARGET" ]; then
-                      if cmp -s "$file" "$ORIGINAL_DIR/$TARGET"; then
-                        echo "  ℹ️ 文件内容相同，跳过: $file"
-                        break
+                      if cmp -s "$SOURCE" "$ORIGINAL_DIR/$TARGET"; then
+                        echo "  ℹ️ 文件内容相同，跳过: $SOURCE"
+                      else
+                        cp -v "$SOURCE" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
+                        echo "  ✅ 已复制: $SOURCE -> $ORIGINAL_DIR/$TARGET"
+                        FILES_COPIED=$((FILES_COPIED + 1))
+                      fi
+                    else
+                      cp -v "$SOURCE" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
+                      echo "  ✅ 已复制: $SOURCE -> $ORIGINAL_DIR/$TARGET"
+                      FILES_COPIED=$((FILES_COPIED + 1))
+                    fi
+                  elif [ -d "$SOURCE" ]; then
+                    # 是文件夹
+                    if [ "$FLATTEN" = "true" ]; then
+                      # 扁平化复制：只复制文件夹内的文件，不保留结构
+                      find "$SOURCE" -type f -exec cp -v {} "$ORIGINAL_DIR/$TARGET_DIR/" \; 2>&1 | sed 's/^/    /'
+                      echo "  ✅ 已扁平化复制文件夹内容: $SOURCE -> $ORIGINAL_DIR/$TARGET_DIR/"
+                      FILES_COPIED=$((FILES_COPIED + 1))
+                    else
+                      # 保留结构复制
+                      if [ -d "$ORIGINAL_DIR/$TARGET" ]; then
+                        rsync -a "$SOURCE/" "$ORIGINAL_DIR/$TARGET/" 2>&1 | grep -v "^sent\|^total size" | sed 's/^/    /' || true
+                        echo "  ✅ 已同步文件夹: $SOURCE -> $ORIGINAL_DIR/$TARGET"
+                        FILES_COPIED=$((FILES_COPIED + 1))
+                      else
+                        cp -r "$SOURCE" "$ORIGINAL_DIR/$TARGET"
+                        echo "  ✅ 已复制文件夹: $SOURCE -> $ORIGINAL_DIR/$TARGET"
+                        FILES_COPIED=$((FILES_COPIED + 1))
                       fi
                     fi
-                    cp -v "$file" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
-                    echo "  ✅ 已复制: $file -> $ORIGINAL_DIR/$TARGET"
-                    FILES_COPIED=$((FILES_COPIED + 1))
-                    break
+                  else
+                    echo "  ❌ 源不存在: $SOURCE"
+                    MAPPING_SUCCESS=false
                   fi
-                done
+                fi
                 
                 cd "$ORIGINAL_DIR"
-                
+              
+              # ==================== file 类型处理 ====================
               elif [ "$TYPE" = "file" ]; then
                 FOUND_FILE=""
                 if [ -f "$SOURCE_BASE/$SOURCE" ]; then
@@ -396,8 +443,62 @@ jobs:
                   echo "  ❌ 源文件不存在: $SOURCE"
                   MAPPING_SUCCESS=false
                 fi
+              
+              # ==================== folder 类型处理（新增） ====================
+              elif [ "$TYPE" = "folder" ]; then
+                SOURCE_FOLDER="$SOURCE_BASE/$SOURCE"
+                TARGET_FOLDER="$TARGET"
+                
+                echo "  📁 同步文件夹: $SOURCE -> $TARGET"
+                
+                if [ ! -d "$SOURCE_FOLDER" ]; then
+                  echo "  ❌ 源文件夹不存在: $SOURCE_FOLDER"
+                  MAPPING_SUCCESS=false
+                  continue
+                fi
+                
+                # 创建目标目录
+                mkdir -p "$TARGET_FOLDER"
+                
+                # 检查是否有实际变化（使用 rsync dry-run）
+                if command -v rsync > /dev/null 2>&1; then
+                  # 检查是否有变化
+                  if rsync -n -a --delete "$SOURCE_FOLDER/" "$TARGET_FOLDER/" 2>/dev/null | grep -q "."; then
+                    rsync -a --delete "$SOURCE_FOLDER/" "$TARGET_FOLDER/" 2>&1 | grep -v "^sent\|^total size" | sed 's/^/    /' || true
+                    echo "  ✅ 文件夹已同步（rsync）"
+                    FILES_COPIED=$((FILES_COPIED + 1))
+                  else
+                    echo "  ℹ️ 文件夹内容无变化，跳过"
+                  fi
+                else
+                  # 没有 rsync 时使用 cp
+                  if [ -d "$TARGET_FOLDER" ]; then
+                    # 简单比较：检查文件数量和大小
+                    SOURCE_COUNT=$(find "$SOURCE_FOLDER" -type f 2>/dev/null | wc -l)
+                    TARGET_COUNT=$(find "$TARGET_FOLDER" -type f 2>/dev/null | wc -l)
+                    
+                    if [ "$SOURCE_COUNT" != "$TARGET_COUNT" ]; then
+                      rm -rf "$TARGET_FOLDER"
+                      cp -r "$SOURCE_FOLDER" "$TARGET_FOLDER"
+                      echo "  ✅ 文件夹已复制（文件数量变化）"
+                      FILES_COPIED=$((FILES_COPIED + 1))
+                    else
+                      echo "  ℹ️ 文件夹文件数量相同，跳过"
+                    fi
+                  else
+                    cp -r "$SOURCE_FOLDER" "$TARGET_FOLDER"
+                    echo "  ✅ 文件夹已复制"
+                    FILES_COPIED=$((FILES_COPIED + 1))
+                  fi
+                fi
+              
+              # ==================== 未知类型处理 ====================
+              else
+                echo "  ⚠️ 未知映射类型: $TYPE，跳过"
+                continue
               fi
               
+              # 设置可执行权限
               if [ "$MAKE_EXEC" = "true" ] && [ -f "$TARGET" ]; then
                 chmod +x "$TARGET"
                 echo "  🔧 已设置可执行权限"
@@ -646,41 +747,4 @@ jobs:
         if: steps.should_package.outputs.should_package == 'true'
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 添加所有修改的文件（包括 .version_code）
-          git add module.prop update/update.json update/changelog.md .version_code
-
-          if git diff --staged --quiet; then
-            echo "📝 没有需要提交的更改"
-          else
-            git commit -m "发布: v${{ steps.version.outputs.version }} (版本代码: ${{ steps.version.outputs.versionCode }})"
-            git push
-            echo "✅ 已推送到远程仓库"
-          fi
-
-      - name: 创建 GitHub Release
-        if: steps.should_package.outputs.should_package == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.version.outputs.version }}.zip
-          name: ${{ steps.version.outputs.tag }}
-          tag_name: ${{ steps.version.outputs.tag }}
-          body: |
-            ## 自动发布
-
-            ### 版本信息
-            - **版本号**: ${{ steps.version.outputs.version }}
-            - **版本代码**: ${{ steps.version.outputs.versionCode }}
-            - **发布时间**: ${{ steps.version.outputs.release_datetime }}
-
-            ### 更新内容
-            ${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}
-
-            ### 本次更新统计
-            - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
-            - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
-
-            ### 下载地址
-            ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.version }}.zip
+          git config user.email "github-actions[bot]@users.nore
