@@ -78,7 +78,7 @@
       "repo": "pymumu/smartdns",
       "use_latest": true,
       "asset_patterns": [
-        "*.gz"
+        "*.tar.gz"
       ],
       "asset_priority": [
         "aarch64",
