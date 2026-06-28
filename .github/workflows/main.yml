@@ -747,4 +747,41 @@ jobs:
         if: steps.should_package.outputs.should_package == 'true'
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.nore
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 添加所有修改的文件（包括 .version_code）
+          git add module.prop update/update.json update/changelog.md .version_code
+
+          if git diff --staged --quiet; then
+            echo "📝 没有需要提交的更改"
+          else
+            git commit -m "发布: v${{ steps.version.outputs.version }} (版本代码: ${{ steps.version.outputs.versionCode }})"
+            git push
+            echo "✅ 已推送到远程仓库"
+          fi
+
+      - name: 创建 GitHub Release
+        if: steps.should_package.outputs.should_package == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.version.outputs.version }}.zip
+          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          body: |
+            ## 自动发布
+
+            ### 版本信息
+            - **版本号**: ${{ steps.version.outputs.version }}
+            - **版本代码**: ${{ steps.version.outputs.versionCode }}
+            - **发布时间**: ${{ steps.version.outputs.release_datetime }}
+
+            ### 更新内容
+            ${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}
+
+            ### 本次更新统计
+            - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
+            - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
+
+            ### 下载地址
+            ```bash
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.version }}.zip
