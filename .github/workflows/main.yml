@@ -349,24 +349,16 @@ jobs:
               TARGET_DIR=$(dirname "$TARGET")
               mkdir -pv "$TARGET_DIR" > /dev/null 2>&1
               
-              # ==================== pattern 类型处理 ====================
+              # ==================== pattern 类型处理（强制替换） ====================
               if [ "$TYPE" = "pattern" ]; then
                 cd "$SOURCE_BASE"
                 
-                # 判断 SOURCE 是否包含通配符
                 if [[ "$SOURCE" == *"*"* ]] || [[ "$SOURCE" == *"?"* ]]; then
                   # 有通配符，匹配文件
                   for file in $SOURCE; do
                     if [ -f "$file" ]; then
-                      # 检查文件是否真的不同
-                      if [ -f "$ORIGINAL_DIR/$TARGET" ]; then
-                        if cmp -s "$file" "$ORIGINAL_DIR/$TARGET"; then
-                          echo "  ℹ️ 文件内容相同，跳过: $file"
-                          break
-                        fi
-                      fi
-                      cp -v "$file" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
-                      echo "  ✅ 已复制: $file -> $ORIGINAL_DIR/$TARGET"
+                      cp -vf "$file" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
+                      echo "  ✅ 已强制替换: $file -> $ORIGINAL_DIR/$TARGET"
                       FILES_COPIED=$((FILES_COPIED + 1))
                       break
                     fi
@@ -375,37 +367,22 @@ jobs:
                   # 无通配符，直接查找文件或文件夹
                   if [ -f "$SOURCE" ]; then
                     # 是文件
-                    if [ -f "$ORIGINAL_DIR/$TARGET" ]; then
-                      if cmp -s "$SOURCE" "$ORIGINAL_DIR/$TARGET"; then
-                        echo "  ℹ️ 文件内容相同，跳过: $SOURCE"
-                      else
-                        cp -v "$SOURCE" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
-                        echo "  ✅ 已复制: $SOURCE -> $ORIGINAL_DIR/$TARGET"
-                        FILES_COPIED=$((FILES_COPIED + 1))
-                      fi
-                    else
-                      cp -v "$SOURCE" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
-                      echo "  ✅ 已复制: $SOURCE -> $ORIGINAL_DIR/$TARGET"
-                      FILES_COPIED=$((FILES_COPIED + 1))
-                    fi
+                    cp -vf "$SOURCE" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
+                    echo "  ✅ 已强制替换: $SOURCE -> $ORIGINAL_DIR/$TARGET"
+                    FILES_COPIED=$((FILES_COPIED + 1))
                   elif [ -d "$SOURCE" ]; then
                     # 是文件夹
                     if [ "$FLATTEN" = "true" ]; then
-                      # 扁平化复制：只复制文件夹内的文件，不保留结构
-                      find "$SOURCE" -type f -exec cp -v {} "$ORIGINAL_DIR/$TARGET_DIR/" \; 2>&1 | sed 's/^/    /'
-                      echo "  ✅ 已扁平化复制文件夹内容: $SOURCE -> $ORIGINAL_DIR/$TARGET_DIR/"
+                      # 扁平化复制
+                      find "$SOURCE" -type f -exec cp -vf {} "$ORIGINAL_DIR/$TARGET_DIR/" \; 2>&1 | sed 's/^/    /'
+                      echo "  ✅ 已强制扁平化复制: $SOURCE -> $ORIGINAL_DIR/$TARGET_DIR/"
                       FILES_COPIED=$((FILES_COPIED + 1))
                     else
                       # 保留结构复制
-                      if [ -d "$ORIGINAL_DIR/$TARGET" ]; then
-                        rsync -a "$SOURCE/" "$ORIGINAL_DIR/$TARGET/" 2>&1 | grep -v "^sent\|^total size" | sed 's/^/    /' || true
-                        echo "  ✅ 已同步文件夹: $SOURCE -> $ORIGINAL_DIR/$TARGET"
-                        FILES_COPIED=$((FILES_COPIED + 1))
-                      else
-                        cp -r "$SOURCE" "$ORIGINAL_DIR/$TARGET"
-                        echo "  ✅ 已复制文件夹: $SOURCE -> $ORIGINAL_DIR/$TARGET"
-                        FILES_COPIED=$((FILES_COPIED + 1))
-                      fi
+                      rm -rf "$ORIGINAL_DIR/$TARGET" 2>/dev/null
+                      cp -r "$SOURCE" "$ORIGINAL_DIR/$TARGET"
+                      echo "  ✅ 已强制替换文件夹: $SOURCE -> $ORIGINAL_DIR/$TARGET"
+                      FILES_COPIED=$((FILES_COPIED + 1))
                     fi
                   else
                     echo "  ❌ 源不存在: $SOURCE"
@@ -415,7 +392,7 @@ jobs:
                 
                 cd "$ORIGINAL_DIR"
               
-              # ==================== file 类型处理 ====================
+              # ==================== file 类型处理（强制替换） ====================
               elif [ "$TYPE" = "file" ]; then
                 FOUND_FILE=""
                 if [ -f "$SOURCE_BASE/$SOURCE" ]; then
@@ -425,31 +402,20 @@ jobs:
                 fi
                 
                 if [ -n "$FOUND_FILE" ] && [ -f "$FOUND_FILE" ]; then
-                  # 检查文件是否真的不同
-                  if [ -f "$TARGET" ]; then
-                    if cmp -s "$FOUND_FILE" "$TARGET"; then
-                      echo "  ℹ️ 文件内容相同，跳过: $FOUND_FILE"
-                    else
-                      cp -v "$FOUND_FILE" "$TARGET" 2>&1 | sed 's/^/    /'
-                      echo "  ✅ 已复制: $FOUND_FILE -> $TARGET"
-                      FILES_COPIED=$((FILES_COPIED + 1))
-                    fi
-                  else
-                    cp -v "$FOUND_FILE" "$TARGET" 2>&1 | sed 's/^/    /'
-                    echo "  ✅ 已复制: $FOUND_FILE -> $TARGET"
-                    FILES_COPIED=$((FILES_COPIED + 1))
-                  fi
+                  cp -vf "$FOUND_FILE" "$TARGET" 2>&1 | sed 's/^/    /'
+                  echo "  ✅ 已强制替换: $FOUND_FILE -> $TARGET"
+                  FILES_COPIED=$((FILES_COPIED + 1))
                 else
                   echo "  ❌ 源文件不存在: $SOURCE"
                   MAPPING_SUCCESS=false
                 fi
               
-              # ==================== folder 类型处理（新增） ====================
+              # ==================== folder 类型处理（强制替换） ====================
               elif [ "$TYPE" = "folder" ]; then
                 SOURCE_FOLDER="$SOURCE_BASE/$SOURCE"
                 TARGET_FOLDER="$TARGET"
                 
-                echo "  📁 同步文件夹: $SOURCE -> $TARGET"
+                echo "  📁 强制替换文件夹: $SOURCE -> $TARGET"
                 
                 if [ ! -d "$SOURCE_FOLDER" ]; then
                   echo "  ❌ 源文件夹不存在: $SOURCE_FOLDER"
@@ -457,40 +423,20 @@ jobs:
                   continue
                 fi
                 
-                # 创建目标目录
-                mkdir -p "$TARGET_FOLDER"
-                
-                # 检查是否有实际变化（使用 rsync dry-run）
-                if command -v rsync > /dev/null 2>&1; then
-                  # 检查是否有变化
-                  if rsync -n -a --delete "$SOURCE_FOLDER/" "$TARGET_FOLDER/" 2>/dev/null | grep -q "."; then
-                    rsync -a --delete "$SOURCE_FOLDER/" "$TARGET_FOLDER/" 2>&1 | grep -v "^sent\|^total size" | sed 's/^/    /' || true
-                    echo "  ✅ 文件夹已同步（rsync）"
-                    FILES_COPIED=$((FILES_COPIED + 1))
-                  else
-                    echo "  ℹ️ 文件夹内容无变化，跳过"
-                  fi
-                else
-                  # 没有 rsync 时使用 cp
-                  if [ -d "$TARGET_FOLDER" ]; then
-                    # 简单比较：检查文件数量和大小
-                    SOURCE_COUNT=$(find "$SOURCE_FOLDER" -type f 2>/dev/null | wc -l)
-                    TARGET_COUNT=$(find "$TARGET_FOLDER" -type f 2>/dev/null | wc -l)
-                    
-                    if [ "$SOURCE_COUNT" != "$TARGET_COUNT" ]; then
-                      rm -rf "$TARGET_FOLDER"
-                      cp -r "$SOURCE_FOLDER" "$TARGET_FOLDER"
-                      echo "  ✅ 文件夹已复制（文件数量变化）"
-                      FILES_COPIED=$((FILES_COPIED + 1))
-                    else
-                      echo "  ℹ️ 文件夹文件数量相同，跳过"
-                    fi
-                  else
-                    cp -r "$SOURCE_FOLDER" "$TARGET_FOLDER"
-                    echo "  ✅ 文件夹已复制"
-                    FILES_COPIED=$((FILES_COPIED + 1))
-                  fi
+                # 强制删除目标文件夹（如果存在）
+                if [ -d "$TARGET_FOLDER" ]; then
+                  rm -rf "$TARGET_FOLDER"
+                  echo "  🗑️ 已删除旧文件夹: $TARGET_FOLDER"
                 fi
+                
+                # 确保父目录存在
+                mkdir -p "$(dirname "$TARGET_FOLDER")"
+                
+                # 完整复制新文件夹
+                cp -r "$SOURCE_FOLDER" "$TARGET_FOLDER"
+                
+                echo "  ✅ 文件夹已强制替换: $SOURCE_FOLDER -> $TARGET_FOLDER"
+                FILES_COPIED=$((FILES_COPIED + 1))
               
               # ==================== 未知类型处理 ====================
               else
