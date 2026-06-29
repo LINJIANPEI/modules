@@ -67,7 +67,7 @@
         },
         {
           "source": "webui",
-          "target": "webui",
+          "target": "oxidnsData/webui",
           "type": "folder",
           "overwrite": true
         }

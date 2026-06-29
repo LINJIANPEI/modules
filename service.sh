@@ -90,6 +90,7 @@ if [ "${enable_adguardhome}" = "true" ]; then
     kill_by_name "AdGuardHome"
     (
     ulimit -n "$FD_ADGUARD"
+    cd ${module_dir}/adguardHomeData
     nohup busybox setuidgid ${uid}:${gid} \
         "${module_dir}/bin/AdGuardHome" \
         -c "${module_dir}/conf/AdGuardHome.yaml" \
@@ -105,6 +106,7 @@ if [ "${enable_oxidns}" = "true" ]; then
     kill_by_name "oxidns"
     (
     ulimit -n "$FD_OXIDNS"
+    cd ${module_dir}/oxidnsData
     nohup busybox setuidgid ${uid}:${gid} \
         "${module_dir}/bin/oxidns" \
         start \

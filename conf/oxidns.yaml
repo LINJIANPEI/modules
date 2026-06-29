@@ -6,7 +6,7 @@ api:
   http:
     listen: :9199
     webui:
-      root: ../webui
+      root: ./webui
 
 plugins:
   - tag: cn_domains
