@@ -83,6 +83,10 @@
       "asset_priority": [
         "aarch64-linux"
       ],
+      "exclude": [
+        "ld-linux.so*",
+        "ld-musl-aarch64.so.*"
+      ],
       "mappings": [
         {
           "source": "usr/local/lib/smartdns/smartdns",

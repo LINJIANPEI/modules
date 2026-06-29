@@ -321,7 +321,30 @@ jobs:
             else
               SOURCE_BASE="$EXTRACT_DIR"
             fi
-            
+                    
+            # ========== 新增：删除不需要的文件 ==========
+            EXCLUDE_PATTERNS=$(jq -r ".upstreams[$i].exclude // [] | join(\" \")" sync-mapping-config.json 2>/dev/null || echo "")
+                    
+            if [ -n "$EXCLUDE_PATTERNS" ]; then
+              echo "  🗑️ 删除不需要的文件/文件夹..."
+              cd "$SOURCE_BASE"
+                    
+              for pattern in $EXCLUDE_PATTERNS; do
+                # 使用 find 删除匹配的文件和文件夹
+                echo "    🔍 匹配: $pattern"
+                # 处理通配符和路径
+                find . \( -name "$pattern" -o -path "$pattern" \) 2>/dev/null | while read item; do
+                  if [ -e "$item" ]; then
+                    rm -rf "$item"
+                    echo "    ❌ 已删除: $item"
+                  fi
+                done
+              done
+                    
+              cd "$ORIGINAL_DIR"
+              echo "  ✅ 已删除不需要的文件"
+            fi
+                    
             echo "📁 源目录: $SOURCE_BASE"
             
             MAPPING_SUCCESS=true
