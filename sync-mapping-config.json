@@ -81,8 +81,7 @@
         "*.tar.gz"
       ],
       "asset_priority": [
-        "aarch64",
-        "linux"
+        "aarch64-linux"
       ],
       "mappings": [
         {
