@@ -188,7 +188,7 @@ case "$1" in
     enable)
         start_service
         ;;
-    display)
+    disable)
         stop_service
         ;;
     *)

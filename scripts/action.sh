@@ -3,7 +3,7 @@ source /data/adb/modules/Linlin/fun.conf
 
 if is_process_running "mihomo"; then
     echo "正在停止akashaProxy."
-    ${module_dir}/scripts/clash.sh display && ${module_dir}/scripts/iptables.sh switch_to_adguard
+    ${module_dir}/scripts/clash.sh disable && ${module_dir}/scripts/iptables.sh switch_to_adguard
 else
     echo "正在启动akashaProxy."
     ${module_dir}/scripts/clash.sh enable && ${module_dir}/scripts/iptables.sh switch_to_mihomo
