@@ -1,0 +1,76 @@
+# ============================================================
+# 警告：此操作不可逆！将永久删除所有发行版、附件、标签和提交历史！
+# ============================================================
+
+name: 彻底清理仓库（发行版 + 提交历史）
+on: workflow_dispatch
+
+# 授予删除所需的全部权限
+permissions:
+  contents: write
+
+jobs:
+  clean-everything:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 步骤1：检出代码
+      - name: 检出代码仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 获取完整历史（否则无法删除所有分支）
+
+      # 步骤2：删除所有发行版、附件和标签
+      - name: 删除所有发行版、附件及标签
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📦 步骤 1/2：删除所有发行版..."
+          
+          RELEASE_COUNT=$(gh release list --limit 500 | wc -l)
+          echo "找到 ${RELEASE_COUNT} 个发行版"
+          
+          if [ "$RELEASE_COUNT" -eq 0 ]; then
+            echo "✅ 没有发行版需要删除"
+          else
+            gh release list --limit 500 | cut -f3 | while read tag; do
+              echo "正在删除: $tag"
+              gh release delete -y "$tag" --cleanup-tag
+            done
+            echo "✅ 所有发行版已删除"
+          fi
+
+      # 步骤3：清除所有提交历史，重置为单次提交
+      - name: 清除所有提交历史
+        run: |
+          echo "📝 步骤 2/2：清除提交历史..."
+          
+          # 配置 Git 用户（解决提交者信息问题）
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 创建孤儿分支（无历史）
+          git checkout --orphan clean-history
+          
+          # 添加所有文件
+          git add -A
+          
+          # 创建新的初始提交
+          git commit -m "Initial commit: clean history"
+          
+          # 删除旧分支（假设是 main，如果是 master 则改为 master）
+          git branch -D main 2>/dev/null || true
+          
+          # 重命名当前分支为 main
+          git branch -m main
+          
+          # 强制推送到远程，覆盖所有历史
+          git push -f origin main
+          
+          echo "✅ 提交历史已重置为单次提交"
+
+      - name: 清理完成
+        run: |
+          echo "🎉 清理完成！"
+          echo "- ✅ 所有发行版、附件、标签已删除"
+          echo "- ✅ 所有提交历史已清除，仅保留当前代码的最新状态"

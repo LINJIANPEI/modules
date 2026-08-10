@@ -1,0 +1,173 @@
+{
+  "upstreams": [
+    {
+      "name": "mihomo",
+      "repo": "MetaCubeX/mihomo",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.gz"
+      ],
+      "asset_priority": [
+        "android-arm64",
+        "arm64",
+        "android"
+      ],
+      "mappings": [
+        {
+          "source": "mihomo*",
+          "target": "bin/mihomo",
+          "type": "pattern",
+          "flatten": true,
+          "overwrite": true,
+          "make_executable": true
+        }
+      ]
+    },
+    {
+      "name": "AdGuardHome",
+      "repo": "AdguardTeam/AdGuardHome",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.tar.gz"
+      ],
+      "asset_priority": [
+        "linux_arm64",
+        "arm64",
+        "linux"
+      ],
+      "mappings": [
+        {
+          "source": "AdGuardHome",
+          "target": "bin/AdGuardHome",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        }
+      ]
+    },
+    {
+      "name": "oxidns",
+      "repo": "svenshi/oxidns",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.tar.gz"
+      ],
+      "asset_priority": [
+        "linux-musl",
+        "unknown-linux",
+        "aarch64"
+      ],
+      "mappings": [
+        {
+          "source": "oxidns",
+          "target": "bin/oxidns",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "webui",
+          "target": "oxidnsData/webui",
+          "type": "folder",
+          "overwrite": true
+        }
+      ]
+    },
+    {
+      "name": "smartdns",
+      "repo": "pymumu/smartdns",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.tar.gz"
+      ],
+      "asset_priority": [
+        "aarch64-linux"
+      ],
+      "exclude": [
+        "ld-linux.so*",
+        "ld-musl-aarch64.so.*"
+      ],
+      "mappings": [
+        {
+          "source": "usr/local/lib/smartdns/smartdns",
+          "target": "smartdnsData/smartdns",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "usr/local/lib/smartdns/smartdns_ui.so",
+          "target": "smartdnsData/smartdns_ui.so",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "usr/share/smartdns/wwwroot",
+          "target": "smartdnsData/wwwroot",
+          "type": "folder",
+          "overwrite": true
+        },
+        {
+          "source": "usr/local/lib/smartdns/lib",
+          "target": "smartdnsData/lib",
+          "type": "folder",
+          "overwrite": true
+        }
+      ]
+    },
+    {
+      "name": "mosdnsRules",
+      "repo": "LINJIANPEI/mosdnsRules",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.zip"
+      ],
+      "asset_priority": [
+        "rule"
+      ],
+      "mappings": [
+        {
+          "source": "./",
+          "target": "oxidnsData/rules",
+          "type": "folder",
+          "overwrite": true
+        }
+      ]
+    },
+    {
+      "name": "AppOpt",
+      "repo": "LINJIANPEI/AppOpt",
+      "use_latest": true,
+      "asset_patterns": [
+        "*.tar.gz"
+      ],
+      "asset_priority": [
+        "aarch64"
+      ],
+      "mappings": [
+         {
+          "source": "AppOpt",
+          "target": "bin/AppOpt",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "AppOpt-ebpf",
+          "target": "bin/AppOpt-ebpf",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        }
+      ]
+    }
+  ],
+  "global": {
+    "backup_before_sync": true,
+    "auto_commit": true,
+    "clean_temp": true,
+    "retry_count": 3,
+    "max_backups": 5
+  }
+}

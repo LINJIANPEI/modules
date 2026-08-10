@@ -1,0 +1,13 @@
+exclude.txt
+temp_package
+.git
+.github
+update
+sync-mapping-config.json
+.version_*
+mihomoData/proxies/.gitkeep
+log/.gitkeep
+cache/.gitkeep
+.last_backup
+.back*
+README.md

@@ -1,0 +1,800 @@
+#---------Linlin---------
+# 林林的一加13专属线程优化
+
+#-----系统组件-----
+# Android图形显示组件
+surfaceflinger=0-5
+surfaceflinger{RenderEngine}=6-7
+# 系统界面
+com.android.systemui=0-5
+# 移动服务
+com.heytap.htms=0-5
+com.heytap.htms:cloudctrl=0-5
+# 全局搜索
+com.heytap.quicksearchbox=0-5
+# 电池进程
+com.oplus.battery=0-5
+# NFC服务
+com.android.nfc=0-5
+# 云服务
+com.heytap.cloud=0-5
+# 打印处理服务
+com.android.printspooler=0-5
+# Android 电话系统服务
+com.android.server.telecom=0-5
+# Android 日历数据提供程序
+com.android.providers.calendar=0-5
+# 下载管理服务
+com.android.providers.downloads=0-5
+# 系统桌面
+com.android.launcher=0-5
+com.android.launcher{RenderThread}=6-7
+com.android.launcher{*.launcher}=6-7
+# 媒体选择工具2
+com.android.providers.media.module=0-5
+# 设备直连
+com.heytap.accessory=0-5
+# shell
+com.android.shell=0-5
+#欧真加屏幕共享
+com.coloros.sharescreen=0-5
+# 内存管理优化
+lmkd=0-5
+lmkd{MemPressure}=6-7
+# 系统服务
+system_server{HeapTaskDaemon}=0-7
+# android.hardware.camera.provider@2.4-service_64
+android.hardware.camera.provider@2.4-service_64=0-5
+# 补充系统关键后台进程
+android.hardware.graphics.composer@2.4-service=0-5
+android.hardware.graphics.composer@2.4-service{VSYNC}=6-7
+# webview
+com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0=0-5
+com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:1=0-5
+com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:2=0-5
+# 电话服务
+com.android.phone=0-5
+com.android.phone{HeapTaskDaemon}=0-5
+com.android.phone{*.phone}=6-7
+# 蓝牙服务
+com.android.bluetooth=0-5
+#谷歌服务
+com.google.android.googlequicksearchbox:interactor=0-5
+com.google.android.googlequicksearchbox:search=0-5
+# com.google.android.gms.unstable
+com.google.android.gms.unstable=0-5
+# com.google.android.gms.persistent
+com.google.android.gms.persistent=0-5
+# 连接至 Windows
+com.microsoft.appmanager:pnsvc=0-5
+# 无线耳机
+com.oplus.melody=0-5
+com.oplus.melody:fg=0-5
+com.oplus.melody:fg{HeapTaskDaemon}=0-5
+com.oplus.melody:fg{*.melody:fg}=6-7
+# qti(高通渲染服务)
+vendor.qti.hardware.display.composer-service{RenderEngine}=6-7
+vendor.qti.hardware.display.composer-service{ReceiveThread}=6-7
+vendor.qti.hardware.display.composer-service=0-5
+# 系统消息
+com.heytap.mcs=0-5
+# 触摸守护进程
+touchDaemon=0-5
+# 官方调度
+vendor.oplus.hardware.gameopt-service=0-5
+# 官方线程
+oiface=0-5
+# 耗电监控模块
+com.oplus.powermonitor=0-5
+# 应用增强服务
+com.oplus.cosa=0-5
+# 系统诊断跟踪
+com.oplus.onetrace=0-5
+# 系统服务
+com.oplus.exsystemservice=6-7
+# 定位服务
+com.oplus.location=0-5
+# 智慧决策服务
+com.oplus.metis=0-5
+# 智慧能力服务
+com.oplus.deepthinker=0-5
+# 手势体感
+com.oplus.gesture=0-5
+# 网络服务
+com.oplus.nas=0-5
+# 网络健康服务
+com.oplus.nhs=0-5
+# 子系统服务框架
+com.oplus.subsys=0-5
+# 应用服务
+com.oplus.appplatform=0-5
+# mtio
+mtio=0-5
+# 百度输入法 OPPO 定制版
+com.baidu.input_oppo=0-5
+# 数据基础服务
+com.oplus.statistics.rom=0-5
+# 语音唤醒服务
+com.oplus.ovoicemanager.wakeup=0-5
+# 欧意
+com.okinc.okex.gp:remote=0-5
+com.okinc.okex.gp=0-5
+# 支付保护
+com.coloros.securepay=0-5
+# 密码本
+com.coloros.codebook=0-5
+# 电脑管家
+com.coloros.phonemanager=0-5
+# 加加电池
+com.example.plusplusbattery=0-5
+# 账号中心
+com.oplus.account=0-5
+# 智慧数据增强服务
+com.coloros.sceneservice=0-5
+# AI 服务引擎
+com.oplus.aiunit=0-5
+# 识屏服务
+com.coloros.colordirectservice=0-5
+# 服务治理框架
+com.oplus.pantanal.ums=0-5
+#Google 文件
+com.android.documentsui=0-5
+# 其他未知
+servicemanager=0-5
+logd=0-5
+sleep=0-5
+dex2oat64=0-7
+zygote64=0-7
+init=0-5
+netd=0-5
+ueventd=0-5
+sh=0-5
+media.hwcodec=0-5
+audiohalservice.qti=0-5
+audioserver=0-5
+poweropt-service=0-5
+com.heytap.colorfulengine=0-5
+com.oplus.athena=0-5
+com.tencent.wetype:play=0-5
+com.xiaomi.bluetooth=0-5
+com.baiyang.eet=0-5
+com.oplus.olc=0-5
+
+
+
+
+
+
+
+#-----系统应用-----
+# OPPO 文件管理器
+com.coloros.filemanager=0-5
+# OPPO 阅读
+com.heytap.reader=0-5
+# 我的一加
+com.oneplus.member=0-5
+# 手机搬家
+com.coloros.backuprestore=0-5
+# 主题商店
+com.heytap.themestore=0-5
+# 系统卡包
+com.heytap.tas:nfchost=0-5
+# 截图
+com.oplus.screenshot=0-5
+# 智能侧边栏
+com.coloros.smartsidebar:ui=0-5
+com.coloros.smartsidebar:ui{RenderThread}=6-7
+com.coloros.smartsidebar:ui{smartsidebar:ui}=0-5
+#进程
+com.coloros.smartsidebar:edgepanel=0-5
+# 搜狗输入法定制版
+com.sohu.inputmethod.sogouoem=0-5
+com.sohu.inputmethod.sogouoem{RenderThread}=0-5
+com.sohu.inputmethod.sogouoem{*.sogouoem}=0-5
+# 软件商店
+com.heytap.market=0-5
+com.heytap.market{hwui*}=6-7
+com.heytap.market{*.market}=6-7
+# 红外遥控
+com.oplus.consumerIRApp=0-5
+# 指南针
+com.coloros.compass2=0-5
+com.coloros.compass2{HeapTaskDaemon}=0-5
+com.coloros.compass2{*.compass2}=6-7
+# 录音
+com.coloros.soundrecorder=0-5
+# 计算器
+com.coloros.calculator=0-5
+com.coloros.calculator{HeapTaskDaemon}=0-5
+com.coloros.calculator{*.calculator}=6-7
+# 钱包
+com.finshell.wallet:nfchost=0-5
+com.finshell.wallet:plugin=0-5
+# 日历
+com.coloros.calendar=0-5
+com.coloros.calendar{HeapTaskDaemon}=0-5
+com.coloros.calendar{*.calendar}=6-7
+# 官方浏览器
+com.heytap.browser=0-5
+com.heytap.browser{HeapTaskDaemon}=0-5
+com.heytap.browser{*.browser}=6-7
+# 信息
+com.android.mms=0-5
+com.android.mms{HeapTaskDaemon}=0-5
+com.android.mms{*.mms}=6-7
+# Google Play 服务
+com.google.android.gms=0-5
+# 游戏中心
+com.nearme.gamecenter=0-5
+# 天气
+com.coloros.weather2=0-5
+# 时钟
+com.coloros.alarmclock=0-5
+com.coloros.alarmclock{HeapTaskDaemon}=0-5
+com.coloros.alarmclock{*.alarmclock}=6-7
+# 电话
+com.android.incallui=0-5
+com.android.incallui{HeapTaskDaemon}=0-5
+com.android.incallui{*.incallui}=6-7
+# 一加社区
+com.oneplus.bbs=0-5
+# 游戏助手
+com.oplus.games=0-5
+com.oplus.games{HeapTaskDaemon}=0-5
+com.oplus.games{*.games}=6-7
+# OPPO相机(一加相机)
+com.oplus.camera=0-5
+com.oplus.camera{RenderThread}=0-5
+com.oplus.camera{*camera}=0-5
+# 便签
+com.coloros.note=0-5
+com.coloros.note{HeapTaskDaemon}=0-5
+com.coloros.note{*.note}=6-7
+# OPPO 文档阅读器
+andes.oplus.documentsreader=0-5
+andes.oplus.documentsreader{HeapTaskDaemon}=0-5
+andes.oplus.documentsreader{*.documentsreader}=6-7
+# 相册
+com.coloros.gallery3d=0-5
+com.coloros.gallery3d{loros.gallery3d}=0-5
+com.coloros.gallery3d{HeapTaskDaemon}=0-5
+# OPPO 天气服务
+com.coloros.weather.service=0-5
+# 设置
+com.android.settings=0-5
+com.android.settings{HeapTaskDaemon}=0-5
+com.android.settings{*.settings}=6-7
+# 电话本
+com.android.contacts=0-5
+com.android.contacts{HeapTaskDaemon}=0-5
+com.android.contacts{*.contacts}=6-7
+# Google Play 商店
+com.android.vending=0-5
+com.android.vending{RenderThread}=6-7
+com.android.vending{Thread-*}=6-7
+com.android.vending{.*}=6-7
+# 速览
+com.coloros.assistantscreen:watch=0-5
+com.coloros.assistantscreen=0-5
+# 智慧语音
+com.coloros.accessibilityassistant=0-5
+# 应用安装器
+com.oplus.appdetail=0-5
+
+
+
+
+
+#-----社交应用-----
+# 微信
+com.tencent.mm{AudioRecord}=0-5
+com.tencent.mm{*voip*}=0-5
+com.tencent.mm{*raster}=0-5
+com.tencent.mm{com.tencent.mm}=0-5
+com.tencent.mm{default_matrix_}=0-3
+com.tencent.mm{binder:*}=0-3
+com.tencent.mm=0-3
+com.tencent.mm:push=0-1
+# QQ
+com.tencent.mobileqq{tencent.mobileqq}=4-5
+com.tencent.mobileqq{*Thread}=0-3
+com.tencent.mobileqq{MediaCodec_loop}=0-3
+com.tencent.mobileqq=0-5
+# 酷安
+com.coolapk.market=4-5
+com.coolapk.market{RenderThread}=0-5
+com.coolapk.market{.coolapk.market}=0-3
+com.coolapk.market{Thread-*}=4-5
+com.coolapk.market{binder:*}=4-5
+# 微博
+com.sina.weibo{com.sina.weibo}=4-5
+com.sina.weibo{*Thread}=0-3
+com.sina.weibo{Thread-*}=0-3
+com.sina.weibo=0-5 
+# 小红书
+com.xingin.xhs=0-5
+com.xingin.xhs{RenderThread}=4-5
+com.xingin.xhs{com.xingin.xhs}=0-5
+com.xingin.xhs{HeapTaskDaemon}=0-3
+com.xingin.xhs{videodec_*}=0-5
+# 钉钉
+com.alibaba.android.rimet{a.android.rimet}=4-5  
+com.alibaba.android.rimet{*Thread}=0-3
+com.alibaba.android.rimet{Doraemon-Proces}=4-5
+com.alibaba.android.rimet=0-3
+# soul
+cn.soulapp.android=0-5
+cn.soulapp.android{HeapTaskDaemon}=0-5
+cn.soulapp.android{*.android}=6-7
+# QQ邮箱
+com.tencent.androidqqmail{RenderThread}=0-5
+com.tencent.androidqqmail{t.androidqqmail}=4-5
+com.tencent.androidqqmail{*pool*}=4-5
+com.tencent.androidqqmail{ANR-Detector}=4-5
+com.tencent.androidqqmail=0-3
+com.tencent.androidqqmail:Tools=4-5
+com.tencent.androidqqmail:Push=0-1
+# Telegram
+org.telegram.messenger=0-5
+org.telegram.messenger{HeapTaskDaemon}=0-5
+org.telegram.messenger{*.messenger}=6-7
+# 企业微信
+com.tencent.wework=0-5
+# Github
+com.github.android=0-5
+# DIscord
+com.discord=0-5
+# 最右
+cn.xiaochuankeji.tieba{RenderThread}=4-5
+cn.xiaochuankeji.tieba{chuankeji.tieba}=4-5
+cn.xiaochuankeji.tieba{HeapTaskDaemon}=4-5
+cn.xiaochuankeji.tieba=0-3
+
+
+
+
+
+
+#-----消费应用-----
+# 淘宝
+com.taobao.taobao{m.taobao.taobao}=4-5
+com.taobao.taobao{UserActionHand*}=4-5
+com.taobao.taobao{NativeThread}=4-5
+com.taobao.taobao=0-3
+# 支付宝
+com.eg.android.AlipayGphone=4-5
+com.eg.android.AlipayGphone{NORMAL_ASYNC*}=0-5
+com.eg.android.AlipayGphone{DaemonThread*}=4-5
+com.eg.android.AlipayGphone{id.AlipayGphone}=0-5
+com.eg.android.AlipayGphone{LogAppendWorker}=3
+com.eg.android.AlipayGphone{Jit thread pool}=2
+com.eg.android.AlipayGphone{RenderThread}=1
+# 京东
+com.jingdong.app.mall{RunnerWrapper_8}=4-5
+com.jingdong.app.mall{ngdong.app.mall}=4-5 
+com.jingdong.app.mall{pool-15-thread-}=0-3
+com.jingdong.app.mall{JDFileDownloade}=4-5  
+com.jingdong.app.mall{*Thread}=0-3
+com.jingdong.app.mall=0-3
+# 闲鱼
+com.taobao.idlefish=0-5
+com.taobao.idlefish{RenderThread}=0-5
+com.taobao.idlefish{1.ui}=4-5
+com.taobao.idlefish{taobao.idlefish}=0-5
+com.taobao.idlefish{1.raster}=0-3
+# 得物
+com.shizhuang.duapp{shizhuang.duapp}=0-5
+com.shizhuang.duapp{RenderThread}=0-3
+com.shizhuang.duapp{HeapTaskDaemon}=0-3
+com.shizhuang.duapp=0-5
+com.shizhuang.duapp{MediaCodec_loop}=0-3
+com.shizhuang.duapp{Thread-31}=0-3
+com.shizhuang.duapp{skExecuteThread}=0-3
+com.shizhuang.duapp{HwBinder:19676_}=0-3
+# 拼多多
+com.xunmeng.pinduoduo{Chat#Single-Syn}=4-5  
+com.xunmeng.pinduoduo{Startup#RTDispa}=4-5
+com.xunmeng.pinduoduo{nmeng.pinduoduo}=4-5
+com.xunmeng.pinduoduo{*Thread}=0-3 
+com.xunmeng.pinduoduo{Jit thread pool}=0-3  
+com.xunmeng.pinduoduo=0-5
+# 美团
+com.sankuai.meituan{*Thread}=0-3 
+com.sankuai.meituan{sankuai.meituan}=4-5 
+com.sankuai.meituan{TTE-keyAgreemen}=4-5  
+com.sankuai.meituan=0-3
+# 数字人民币
+cn.gov.pbc.dcep{HeapTaskDaemon}=0-5
+cn.gov.pbc.dcep{*.dcep}=6-7
+cn.gov.pbc.dcep=0-5
+# 中国工商银行
+com.icbc=0-5
+com.icbc{*.icbc}=6-7
+com.icbc{HeapTaskDaemon}=0-5
+# 广州农商银行
+com.gzrcb.mobilebank=0-5
+# 铁路12306
+com.MobileTicket=0-5
+com.MobileTicket{HeapTaskDaemon}=0-5
+com.MobileTicket{*.MobileTicket}=6-7
+# 中国电信
+com.ct.client=0-5
+# 中国联通
+com.sinovatech.unicom.ui=0-5
+com.sinovatech.unicom.ui{HeapTaskDaemon}=0-5
+com.sinovatech.unicom.ui{*.unicom.ui}=6-7
+# 云闪付
+com.unionpay{RenderThread}=0-5
+com.unionpay{com.unionpay}=4-5
+com.unionpay{VizWebView}=4-5
+com.unionpay=2-5
+com.unionpay:pushservice=0-1
+# 交管12123
+com.tmri.app.main=0-5
+# 阿里巴巴
+com.alibaba.wireless=0-5
+com.alibaba.wireless{RenderThread}=6-7
+com.alibaba.wireless{HeapTaskDaemon}=6-7
+# 中国移动
+com.greenpoint.android.mc10086.activity=0-5
+com.greenpoint.android.mc10086.activity{HeapTaskDaemon}=0-5
+com.greenpoint.android.mc10086.activity{*.activity}=6-7
+# 饿了么
+me.ele=0-3
+me.ele{dp2ndk}=4-5
+me.ele{1.raster}=4-5
+me.ele{2.raster}=4-5
+me.ele{me.ele}=4-5
+me.ele{Xxdn-Worker}=0-3
+# 中国移动云服务
+com.chinamobile.mcloud{RenderThread}=4-5
+com.chinamobile.mcloud{namobile.mcloud}=0-3
+com.chinamobile.mcloud{glide-*}=4-5
+com.chinamobile.mcloud{Chrome_InProcGp}=4-5
+com.chinamobile.mcloud{NetworkService}=4-5
+com.chinamobile.mcloud:push=0-1
+com.chinamobile.mcloud:FinApp0=4-5
+com.chinamobile.mcloud=2-5
+# 灰太狼霸王餐
+top.szhsbwc.app=0-5
+# 歪麦霸王餐
+com.waimaiii.waimaiii=0-5
+# 京东金融
+com.jd.jrapp=0-5
+# 京粉
+com.jd.jxj=0-5
+# 广东农信
+com.csii.gdnx.mobilebank=0-5
+# 中国农业银行
+com.android.bankabc=0-5
+# 一淘
+com.taobao.etao=0-5
+
+
+
+
+
+#-----ROOT应用-----
+# mt管理器
+bin.mt.plus=0-5
+bin.mt.plus{HeapTaskDaemon}=0-5
+# 爱玩机工具箱
+com.byyoung.setting{RenderThread}=4-5
+com.byyoung.setting=0-3
+com.byyoung.setting{byyoung.setting}=4-5
+com.byyoung.setting{HeapTaskDaemon}=0-3
+com.byyoung.setting{binder:17668_7}=0-3
+# LuckyTool
+com.luckyzyx.luckytool=0-5
+# 降压
+xzr.konabess=0-5
+xzr.konabess{HeapTaskDaemon}=0-5
+xzr.konabess{*.konabess}=6-7
+# Thanox
+github.tornaco.android.thanos=0-5
+github.tornaco.android.thanos{HeapTaskDaemon}=0-5
+github.tornaco.android.thanos{*.thanos}=6-7
+# ColorOS 破解工具
+cc.csxcl.fkcoloros=0-5
+# scene
+com.omarea.vtools=0-5
+scene-daemon=0-5
+# 密钥认证
+io.github.vvb2060.keyattestation=0-5
+# hookvip
+top.hookvip.pro=0-5
+# 隐秘参数
+com.x1y9.probe=0-5
+#busybox
+busybox=0-7
+# shortx
+tornaco.apps.shortx=0-5
+# 通知滤盒
+com.catchingnow.np:Service=0-5
+com.catchingnow.np=0-5
+# Gkd
+li.songe.gkd=0-5
+# 黑域
+me.piebridge.brevent=0-5
+# AdGuardHome
+AdGuardHome=0-7
+# oxidns
+oxidns=0-7
+# smartdns
+smartdns=0-7
+# mihomo
+mihomo=0-7
+# ruleconverter
+ruleconverter=0-7
+# memorydetector
+io.github.huskydg.memorydetector=0-5
+# Native Test
+com.android.nativetest=0-5
+# freezer
+nep.timeline.freezer=0-5
+
+
+
+
+
+#-----视频地图应用-----
+# 抖音
+com.ss.android.ugc.aweme{*Thread}=0-3
+com.ss.android.ugc.aweme{HeapTaskDaemon}=0-3
+com.ss.android.ugc.aweme{danmaku-driver}=4-5
+com.ss.android.ugc.aweme{VDecod2-*}=4-5
+com.ss.android.ugc.aweme{droid.ugc.aweme}=0-3
+com.ss.android.ugc.aweme{#pty-wqp-*}=0-3
+com.ss.android.ugc.aweme=0-5
+# 抖音极速版
+com.ss.android.ugc.aweme.lite=0-5
+com.ss.android.ugc.aweme.lite{HeapTaskDaemon}=0-5
+com.ss.android.ugc.aweme.lite{*.aweme.lite}=6-7
+# 抖音商城
+com.ss.android.ugc.livelite{HeapTaskDaemon}=0-5
+com.ss.android.ugc.livelite{*.ugc.livelite}=6-7
+com.ss.android.ugc.livelite=0-5
+# 抖音精选
+com.ss.android.yumme.video{HeapTaskDaemon}=4-5
+com.ss.android.yumme.video{tp-scheduled-9}=4-5
+com.ss.android.yumme.video{tp-default-4}=4-5 
+com.ss.android.yumme.video=0-3
+# tiktok
+com.zhiliaoapp.musically{HeapTaskDaemon}=0-5
+com.zhiliaoapp.musically{*.musically}=6-7
+com.zhiliaoapp.musically=0-5
+# 高德地图
+com.autonavi.minimap{AJXBizCheck}=0-3
+com.autonavi.minimap{JavaScriptThrea}=4-5
+com.autonavi.minimap{Map-Logical-0}=4-5 
+com.autonavi.minimap{utonavi.minimap}=4-5 
+com.autonavi.minimap=0-3
+# 快手
+com.smile.gifmaker{*Thread}=0-3
+com.smile.gifmaker{smile.gifmaker}=4-5
+com.smile.gifmaker{MediaCodec_*}=4-5
+com.smile.gifmaker=0-5
+# 快手极速版
+com.kuaishou.nebula{*Thread}=0-3
+com.kuaishou.nebula{kuaishou.nebula}=4-5  
+com.kuaishou.nebula{MediaCodec_loop}=4-5
+com.kuaishou.nebula=0-5
+# 百度地图
+com.baidu.BaiduMap{31.1_0223536945}=4-5 
+com.baidu.BaiduMap{.31.1_062565145}=4-5
+com.baidu.BaiduMap{.baidu.BaiduMap}=4-5 
+com.baidu.BaiduMap{*Thread}=0-3
+com.baidu.BaiduMap=0-3
+# 哔哩哔哩
+tv.danmaku.bili=4-5
+tv.danmaku.bili{RenderThread}=0-5
+tv.danmaku.bili{tv.danmaku.bili}=0-5
+tv.danmaku.bili{Thread-*}=0-5
+tv.danmaku.bili{ModDownloadFact}=0-3
+tv.danmaku.bili{binder:*}=4-5
+tv.danmaku.bili{IJK_External_Re}=4-5
+# 番茄小说
+com.dragon.read{RenderThread}=4-5
+com.dragon.read{Reader}=4-5
+com.dragon.read{Reader-V*}=4-5
+com.dragon.read:push=0-1
+com.dragon.read:minigame0=4-5
+com.dragon.read:minigame1=4-5
+com.dragon.read=2-5
+# 7猫小说
+com.kmxs.reader{RenderThread}=4-5
+com.kmxs.reader{Binder:*}=4-5
+com.kmxs.reader{hwuiTask?}=4-5
+com.kmxs.reader{OkHttp*}=4-5
+com.kmxs.reader{Messages.Worker}=4-5
+com.kmxs.reader=0-3
+# 网易云音乐
+com.netease.cloudmusic=4-5
+com.netease.cloudmusic:play=0-1
+# Youtube
+com.google.android.youtube=0-5
+com.google.android.youtube{RenderThread}=6-7
+com.google.android.youtube{Thread-*}=6-7
+# 腾讯视频
+com.tencent.qqlive{RenderThread}=4-5
+com.tencent.qqlive{.tencent.qqlive}=4-5
+com.tencent.qqlive{HeapTaskDaemon}=4-5
+com.tencent.qqlive{*Child}=4-5
+com.tencent.qqlive=0-3
+# 红果免费短剧
+com.phoenix.read=0-5
+com.phoenix.read{HeapTaskDaemon}=0-5
+com.phoenix.read{RenderThread}=0-5
+com.phoenix.read{*phoenix.read}=6-7
+com.phoenix.read:push=0-5
+# 阅读
+io.legado.app.release{HeapTaskDaemon}=0-5
+io.legado.app.release{*.release}=6-7
+io.legado.app.release=0-5
+# 网飞猫
+com.catxk.n32=0-5
+com.catxk.n32{RenderThread}=6-7
+# 麦萌短剧
+com.maiyawx.playlet=0-5
+
+
+
+
+
+#-----其他应用-----
+# via浏览器
+mark.via{RenderThread}=4-5
+mark.via{mark.*}=4-5
+mark.via{Chrome_InProcGp}=4-5
+mark.via{Chrome_InProcRe}=4-5
+mark.via{Chrome_IOThread}=4-5
+mark.via=0-3
+# UC浏览器
+com.UCMobile{RenderThread}=4-5
+com.UCMobile{com.UCMobile}=4-5
+com.UCMobile{1.raster}=4-5
+com.UCMobile{1.ui}=4-5
+com.UCMobile{HeapTaskDaemon}=4-5
+com.UCMobile=0-3
+com.UCMobile:privileged_process0{CrRendererMain}=0-5
+com.UCMobile:privileged_process0=4-5
+com.UCMobile:privileged_process1{CrRendererMain}=0-5
+com.UCMobile:privileged_process1=0-3
+com.UCMobile:MediaPlayerService=0-3
+com.UCMobile:widgetProvider=0-3
+com.UCMobile:push=0-1
+com.UCMobile:DownloadService=0-5
+# Edge
+com.microsoft.emmx{HeapTaskDaemon}=0-5
+com.microsoft.emmx{.microsoft.emmx}=6-7
+com.microsoft.emmx=0-5
+# Google相机
+com.agc.gcam96{HeapTaskDaemon}=0-5
+com.agc.gcam96{*.gcam96}=6-7
+com.agc.gcam96=0-5
+# 豆包
+com.larus.nova{RenderThread}=4-5
+com.larus.nova{flow-audio-play}=0-1
+com.larus.nova=2-5
+com.larus.nova:push=0-1
+# 123网盘
+com.mfcloudcalculate.networkdisk{2.ui}=0-5
+com.mfcloudcalculate.networkdisk{2.raster}=4-5
+com.mfcloudcalculate.networkdisk{ate.networkdisk}=4-5
+com.mfcloudcalculate.networkdisk{HeapTaskDaemon}=0-3
+com.mfcloudcalculate.networkdisk=0-5
+# 1DM
+idm.internet.download.manager.plus{HeapTaskDaemon}=0-5
+idm.internet.download.manager.plus{*.manager.plus}=6-7
+idm.internet.download.manager.plus=0-5
+# 王者营地
+com.tencent.gamehelper.smoba=0-5
+com.tencent.gamehelper.smoba{HeapTaskDaemon}=0-5
+com.tencent.gamehelper.smoba{*.smoba}=6-7
+# 醒图
+com.xt.retouch=0-5
+com.xt.retouch{HeapTaskDaemon}=0-5
+com.xt.retouch{*.retouch}=6-7
+# Deepseek
+com.deepseek.chat{m.deepseek.chat}=4-5
+com.deepseek.chat{RenderThread}=4-5
+com.deepseek.chat=0-5
+com.deepseek.chat{Jit thread pool}=4-5
+# Boss直聘
+com.hpbr.bosszhipin=0-5
+# 迅雷
+com.xunlei.downloadprovider{RenderThread}=4-5
+com.xunlei.downloadprovider{ownloadprovider}=4-5
+com.xunlei.downloadprovider{Chrome_InProcGp}=4-5
+com.xunlei.downloadprovider{Chrome_InProcRe}=4-5
+com.xunlei.downloadprovider{*#*}=4-5
+com.xunlei.downloadprovider{et_net}=4-5
+com.xunlei.downloadprovider=0-3
+# 夸克
+com.quark.browser{RenderThread}=4-5
+com.quark.browser{m.quark.browser}=4-5
+com.quark.browser{HeapTaskDaemon}=4-5
+com.quark.browser{Compositor}=4-5
+com.quark.browser{1.raster}=4-5
+com.quark.browser{1.ui}=4-5
+com.quark.browser{Chrome_InProcRe}=0-3
+com.quark.browser{Chrome_InProcGp}=0-3
+com.quark.browser=0-5
+com.quark.browser:MediaPlayerService=4-5
+# 百度网盘
+com.baidu.netdisk{RenderThread}=0-5
+com.baidu.netdisk{m.baidu.netdisk}=4-5
+com.baidu.netdisk{HeapTaskDaemon}=4-5
+com.baidu.netdisk{netdisk-job*}=4-5
+com.baidu.netdisk{fin*thread*}=4-5
+com.baidu.netdisk{*pool*}=4-5
+com.baidu.netdisk{NetworkService}=4-5
+com.baidu.netdisk{Thread-*}=4-5
+com.baidu.netdisk:operator_thumbnail=0-3
+com.baidu.netdisk:p2p=4-5
+com.baidu.netdisk:swan0=4-5
+com.baidu.netdisk=0-5
+# 阿里云盘
+com.alicloud.databox=0-5
+# 通义千问
+com.aliyun.tongyi{HeapTaskDaemon}=0-5
+com.aliyun.tongyi{*.tongyi}=6-7
+com.aliyun.tongyi=0-5
+# 米家
+com.xiaomi.smarthome=0-5
+com.xiaomi.smarthome{RenderThread}=6-7
+com.xiaomi.smarthome{Measurement*}=6-7
+# 讯飞输入法
+com.iflytek.inputmethod=0-5
+# 一个木函
+com.One.WoodenLetter=0-5
+# Clash Meta
+com.github.metacubex.clash.meta:background=0-5
+com.github.metacubex.clash.meta=0-5
+
+
+
+
+#-----游戏应用-----
+# 王者荣耀
+com.tencent.tmgp.sgame{UnityMain}=6-7
+com.tencent.tmgp.sgame{UnityGfx*}=6-7
+com.tencent.tmgp.sgame{Job.worker*}=0-5
+com.tencent.tmgp.sgame{CoreThread}=0-5
+com.tencent.tmgp.sgame{NativeThread}=0-5
+com.tencent.tmgp.sgame=0-5
+# 和平精英
+com.tencent.tmgp.pubgmhd{Thread-[0-2][0-9]}=6-7
+com.tencent.tmgp.pubgmhd{RHIThread}=6-7
+com.tencent.tmgp.pubgmhd{RenderThread*}=0-5
+com.tencent.tmgp.pubgmhd{MainThread*}=0-5
+com.tencent.tmgp.pubgmhd{Task*}=0-5
+com.tencent.tmgp.pubgmhd{FAsyncLoading}=0-5
+com.tencent.tmgp.pubgmhd{NativeThread}=0-5
+com.tencent.tmgp.pubgmhd=0-5
+# 三角洲行动
+com.tencent.tmgp.dfm{GameThread}=6-7
+com.tencent.tmgp.dfm{RenderThread*}=6-7
+com.tencent.tmgp.dfm{Task*}=0-5
+com.tencent.tmgp.dfm{NativeThread}=0-5
+com.tencent.tmgp.dfm{MainThread*}=0-5
+com.tencent.tmgp.dfm=0-5
+# 第五人格
+com.netease.dwrg{Thread-*}=6-7
+com.netease.dwrg=0-5
+# 部落冲突
+com.tencent.tmgp.supercell.clashofclans{Mainloop}=6-7
+com.tencent.tmgp.supercell.clashofclans{Pool-2-thread-1}=0-5
+com.tencent.tmgp.supercell.clashofclans{Pool-2-thread-2}=0-5
+com.tencent.tmgp.supercell.clashofclans=0-5
+# 乱斗西游
+com.netease.ldxy=0-5
+# 三国杀
+com.bf.sgs.hdexp{GLThread*}=6-7
+com.bf.sgs.hdexp=0-5
+# 雀魂麻将
+com.soulgamechst.majsoul{UnityMain}=6-7
+com.soulgamechst.majsoul{Thread-*}=0-5
+com.soulgamechst.majsoul=0-5
+
+
