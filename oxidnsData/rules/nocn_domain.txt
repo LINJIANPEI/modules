@@ -997,6 +997,7 @@ disneyplus.com
 disp.cc
 disqus.com
 dit-inc.us
+divdyn.com
 diyin.org
 dizhuzhishang.com
 dl-laby.jp
@@ -5005,6 +5006,9 @@ activelearnprimary.com.au
 activelearnprimary.co.uk
 activematter.game
 activeteachonline.com
+activisionblizzard.com
+activisionblizzardmedia.com
+activision.com
 actualidad-rt.com
 ac.uk
 ad69.com
@@ -7332,6 +7336,7 @@ bellesa.co
 bellotube.com
 bellsouth.net
 benaughty.fun
+benefitsforeveryworld.com
 bengalisexvideos.com
 benliton.com
 bentobox.tv
@@ -8540,6 +8545,11 @@ callabitch.org
 callbackkiller.com
 callersbane.com
 callhulu.com
+callofduty.com
+callofdutyendowment.com
+callofdutyendowment.org
+callofdutyleague.com
+callofdutymobile.com
 cam4.com
 cam69.com
 cambaddies.com
@@ -8587,6 +8597,7 @@ camwhores.video
 camwhoria.com
 canada-beatsbydre.com
 candidforum-videos.com
+candycrush.com
 candycumcity.com
 candypleasure.com
 canny.io
@@ -9420,6 +9431,7 @@ cqcorea.com
 crabporn.com
 craigslist.org
 crankplayer.com
+crashbandicoot.com
 crates.io
 crazy-amateurs.com
 crazyav.xyz
@@ -9896,6 +9908,7 @@ delvenetworks.com
 demandware.com
 democracy.earth
 demonoid.is
+demonware.net
 demoprint.com
 denfaminicogamer.jp
 dengeamerika.com
@@ -10009,6 +10022,8 @@ dgwav.com
 dh44.lol
 dhlestudio.com.co
 diablo3.com
+diablo4.com
+diablo.com
 diabloimmortal.com
 diabrowser.com
 diabrowser.engineering
@@ -11267,6 +11282,7 @@ europeansustainabledesign.com
 europeansustainabledesigncouncil.com
 europeansustainabledesigncouncil.net
 europeansustainabledesign.net
+europeanwarzoneseries.com
 europepmc.org
 europornstar.com
 eurosexscene.com
@@ -13601,6 +13617,7 @@ hifixxx.fun
 hifuli.com
 highbolt.net
 highdefinitionbeatsbydre.com
+highmoonstudios.com
 highporn.net
 hightopnikes.com
 highwirepress.com
@@ -14565,6 +14582,7 @@ ind.sh
 industrialtoys.com
 infinitetoons.com
 infinitetube.com
+infinityward.com
 influencersgonewild.com
 infocert.digital
 infocert.it
@@ -15757,6 +15775,7 @@ kindleproject.com
 kindnudist.com
 kindteenporn.com
 kinescopecdn.net
+king.com
 kingcomix.com
 kingextre.me
 kingf-av.buzz
@@ -20508,6 +20527,7 @@ raspberrypi.org
 raspbian.org
 ratedgross.com
 rat.xxx
+ravensoftware.com
 ravm.tv
 rayark.download
 rayark.net
@@ -21261,6 +21281,7 @@ seiroganmania.com
 seiron-sankei.com
 sejie80.com
 sekai.colorfulpalette.org
+sekirothegame.com
 seksmet.nl
 sekswebsite.nl
 sekur1213.guru
@@ -21675,6 +21696,7 @@ shywifeswap.com
 siam.org
 sibreal.org
 siege-amazon.com
+sierragames.com
 sifangclub.com
 sigcomm.org
 sigmoidoscopeexam.com
@@ -21771,6 +21793,7 @@ sksarab.top
 skunkgirl.cc
 skyassets.com
 sky.com
+skylanders.com
 skymansion.net
 skymatter.com
 skyoceanrescue.com
@@ -21807,6 +21830,7 @@ slavicstar.com
 slc.tl
 sldolls.com
 sleazyneasy.com
+sledgehammergames.com
 slidesharecdn.com
 slideshare.com
 sling.com
@@ -21923,6 +21947,7 @@ sokuresu.ai
 solarcity.com
 solidifi.app
 solid.ru
+solidstate.com
 solostudioksale.com
 solutionstation.com
 solveforx.com
@@ -22133,6 +22158,7 @@ sputnikimages.com
 sputnikmediabank.com
 sputniknews.com
 spyjinx.com
+spyrothedragon.com
 sqlite.org
 sqlserveronlinux.com
 sqool.net
@@ -23113,6 +23139,8 @@ toncenter.com
 tonec.com
 tonicmovies.com
 ton.org
+tonyhawk.com
+tonyhawkthegame.com
 toolforge.org
 toolmaking-cadcam.com
 toomadporn.pro
@@ -23238,6 +23266,7 @@ trellocdn.com
 trello.com
 trendmicro.com
 trendyporn.com
+treyarch.com
 trezor.io
 triballo.net
 tribler.org
@@ -24973,6 +25002,7 @@ worldpornvideos.com
 worldscientific.com
 worldsecureemail.com
 worldsecuresystems.com
+worldseriesofwarzone.com
 worldsex.com
 worldsfastestgamer.net
 wotblitz.com
@@ -26340,7 +26370,6 @@ cisco
 dclk
 dell
 discussionsapple.com
-divdyn.com
 find-apple.com
 flickr
 fox
