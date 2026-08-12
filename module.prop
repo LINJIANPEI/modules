@@ -1,7 +1,7 @@
 id=Linlin
 name=Linlin
-version=2026.08.11.243
-versionCode=243
+version=2026.08.12.244
+versionCode=244
 author=Linlin
 updateJson=https://raw.githubusercontent.com/LINJIANPEI/modules/refs/heads/main/update/update.json
 description=重启设备
