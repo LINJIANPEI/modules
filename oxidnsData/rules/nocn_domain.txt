@@ -21005,6 +21005,7 @@ rutracker.cc
 rutracker.cr
 rutracker.me
 rutracker.nl
+rutracker.wiki
 rutrk.org
 rutubelist.ru
 rutube.ru
