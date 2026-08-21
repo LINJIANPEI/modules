@@ -44,6 +44,7 @@ ui_print "- 保留配置"
 ui_print "********************************************"
 
 preserve_existing_config "config.conf"
+preserve_existing_config "AppOpt.json"
 preserve_existing_config "conf/AdGuardHome.yaml"
 preserve_existing_config "conf/applist.prop"
 preserve_existing_config "conf/mihomo.yaml"
