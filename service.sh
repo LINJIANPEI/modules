@@ -81,6 +81,7 @@ if [ "${enable_AppOpt}" = "true" ]; then
     nohup "${module_dir}/bin/AppOpt" \
         -c "${module_dir}/conf/applist.prop" \
         -b "Linlin" \
+        -w \
         >"${log_dir}/AppOpt.log" 2>&1 &
     ) &
 fi
