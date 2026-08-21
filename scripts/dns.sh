@@ -33,6 +33,10 @@ log Info "当前DNS端口:${DNS_PORT}" "${logFile}"
 # IPv6 NAT能力检测
 # ================================
 check_ipv6_nat_support() {
+  if [ "${block_ipv6_dns}" = true ]; then
+    log Info "阻断IPv6" "${logFile}"
+    return 1
+  fi
   ip6tables -w 64 -t nat -L >/dev/null 2>&1
   if [ $? -ne 0 ]; then
     log Warn "IPv6 NAT不可用" "${logFile}"

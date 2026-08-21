@@ -306,6 +306,7 @@ start_service() {
     fi
     
     if [ "${enable_socks}" = "true" ];then
+        "${module_dir}/scripts/iptables.sh" disable &
         return 0
     else
         "${module_dir}/scripts/iptables.sh" enable &

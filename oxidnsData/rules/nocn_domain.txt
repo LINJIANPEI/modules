@@ -2312,6 +2312,7 @@ liveleak.com
 livemint.com
 livestream.com
 livevideo.com
+livingatlas.arcgis.com
 livingstream.com
 lmarena.ai
 localbitcoins.com
@@ -2728,6 +2729,7 @@ oklink.com
 okpool.me
 okx.com
 old.honeynet.org
+oldmapsonline.org
 olehdtv.com
 olelive.com
 olevod.com
@@ -3147,6 +3149,7 @@ rxhj.net
 s-cute.com
 s.yimg.com
 s3-ap-northeast-1.amazonaws.com
+s3.dualstack.us-west-2.amazonaws.com
 sacks.com
 sacom.hk
 sadistic-v.com
@@ -4092,6 +4095,7 @@ wiktionary.org
 willw.net
 wilsoncenter.org
 windscribe.com
+windy.com
 wingamestore.com
 wingy.site
 wionews.com
@@ -4739,6 +4743,7 @@ zzcloud.me
 59mvmv.com
 5axis-machining.com
 5beatsbydre.com
+5ch.io
 5ch.net
 5-d.com
 5fang.cc
@@ -5817,6 +5822,7 @@ amazonstudiosguilds.com
 amazontrust.com
 amazonvideo.cc
 amazonvideodirect.com
+amazonwebservices.com
 amazonworkdocs.com
 amc.com
 amcn.com
@@ -10434,6 +10440,7 @@ drdreprobeatssale.com
 dreamamateurs.com
 dreambmw.ca
 dreamforce.com
+dreamgen.com
 dreammovies.com
 dreamorder.com
 dreamteamfc.com
@@ -11658,6 +11665,7 @@ fans17.com
 fans66.tw
 fans-here.com
 fansking.tw
+fansly.com
 fansnudes.com
 fansone.co
 fanspot.jp
@@ -15753,6 +15761,7 @@ kikdirty.com
 killercb.ru
 kilmeadeandfriends.com
 kimchi.tv
+kimi.ai
 kimogirl.cc
 kimosex.com
 kindgirls.com
@@ -17529,6 +17538,7 @@ monstersexporn.net
 monstershopcheapbeats.net
 monthlyav.com
 moodstocks.com
+moonshot.ai
 moov.hk
 moozporn.com
 morazzia.com
@@ -18267,9 +18277,11 @@ nichepornsites.com
 nichost.ru
 nickscipio.com
 nicky.xxx
+nicochannel.jp
 nicodic.jp
 nicolepeters.com
 nicomanga.jp
+nico.ms
 niconico.com
 nicoseiga.jp
 nic.ru
@@ -18525,9 +18537,11 @@ nonlinearnastran.com
 nonstopfap.com
 noodlemagazine.com
 noosferabank.ru
+nordcdn.com
 nordstrommedia.com
 norsk.mobi
 norton.com
+notegpt.io
 noticias-rt.com
 notimundo.press
 notion.com
@@ -18537,6 +18551,7 @@ notion.so
 notion-static.com
 notion-status.com
 notionusercontent.com
+novelai.net
 noveltrove.com
 novids.com
 novinhabucetuda.com
@@ -20898,6 +20913,7 @@ rrtis.com
 rs1024.com
 rs2022.com
 rsc.org
+rsg.ms
 rsg.sc
 rshb.ru
 rsk.co
@@ -21004,6 +21020,7 @@ rutracker.cc
 rutracker.cr
 rutracker.me
 rutracker.nl
+rutracker.wiki
 rutrk.org
 rutubelist.ru
 rutube.ru
@@ -21199,6 +21216,7 @@ sc.com
 scdn.co
 scene7.com
 scenesource.me
+sc-gw.com
 scharferporno.com
 schemer.com
 schiffvitamins.com
@@ -21248,6 +21266,7 @@ screenwisetrendspanel.com
 screw-my-wife.com
 scripts-for-ucoz.ru
 scrolller.com
+sc-static.net
 sculpoly.com
 s-dc-msedge.net
 sdcountybmw.com
@@ -22650,6 +22669,7 @@ takporn.com
 talantix.ru
 talentlens.com
 taleofthenight.com
+talkai.info
 talkingkotlin.com
 talksport.com
 tamilsexvideos.cc
@@ -24914,7 +24934,6 @@ windowsuem.com
 windowsupdate.com
 windsurf.build
 windsurf.com
-windy.com
 wing.com
 winhec.com
 winhec.net

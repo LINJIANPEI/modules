@@ -1,3 +1,111 @@
+## [2026.08.21.254] - 2026-08-21
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 1 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.21.254/2026.08.21.254.zip)
+
+---
+
+## [2026.08.20.253] - 2026-08-20
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 1 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.20.253/2026.08.20.253.zip)
+
+---
+
+## [2026.08.19.252] - 2026-08-19
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 3 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.19.252/2026.08.19.252.zip)
+
+---
+
+## [2026.08.17.251] - 2026-08-17
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 2 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.17.251/2026.08.17.251.zip)
+
+---
+
+## [2026.08.16.250] - 2026-08-16
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 1 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.16.250/2026.08.16.250.zip)
+
+---
+
+## [2026.08.16.249] - 2026-08-16
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 6 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.16.249/2026.08.16.249.zip)
+
+---
+
+## [2026.08.15.248] - 2026-08-15
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 6 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.15.248/2026.08.15.248.zip)
+
+---
+
+## [2026.08.15.247] - 2026-08-15
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 1 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.15.247/2026.08.15.247.zip)
+
+---
+
+## [2026.08.14.246] - 2026-08-14
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 1 个组件到最新版本
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.08.14.246/2026.08.14.246.zip)
+
+---
+
 ## [2026.08.13.245] - 2026-08-13
 
 ### 上游同步更新
