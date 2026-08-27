@@ -26422,6 +26422,7 @@ goog
 google
 gucci
 guge
+h264.io
 hangout
 hbo
 hotmail
@@ -26440,6 +26441,7 @@ mit
 mr-apple.com.tw
 nextapple.com
 nexus
+ngfiles.com
 nhk
 nico
 nike
