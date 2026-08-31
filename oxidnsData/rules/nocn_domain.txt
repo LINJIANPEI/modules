@@ -12713,6 +12713,7 @@ getfappy.com
 getfedora.org
 getfiddler.com
 getfirebug.com
+getmonero.org
 get.new
 getnews.jp
 getpaint.net
