@@ -920,6 +920,7 @@ full:tj-pod3-smp-device.apple.com
 full:toolbarqueries.google.com
 full:tools.deploy.akamai.com
 full:tools.google.com
+full:tools.gss.akamai.com
 full:tools.l.google.com
 full:topics-cdn.dell.com
 full:translate.googleapis.com

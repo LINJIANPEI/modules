@@ -1452,6 +1452,7 @@ geti2p.net
 getlantern.org
 getmalus.com
 getmdl.io
+getmonero.org
 getoutline.org
 getsession.org
 getsync.com
@@ -2650,6 +2651,7 @@ nga.mil
 nhentai.net
 nic.cz.cc
 nic.gov
+nicoseiga.jp
 nicovideo.jp
 nightswatch.top
 nikke-en.com
@@ -12713,7 +12715,6 @@ getfappy.com
 getfedora.org
 getfiddler.com
 getfirebug.com
-getmonero.org
 get.new
 getnews.jp
 getpaint.net
@@ -18296,7 +18297,6 @@ nicolepeters.com
 nicomanga.jp
 nico.ms
 niconico.com
-nicoseiga.jp
 nic.ru
 nightclub.eu
 night.livedoor.biz
@@ -26404,6 +26404,7 @@ axm-usercontent-apple.com
 azure
 bbc
 bing
+blackedraw.com
 bloomberg
 bmw
 bridgestone
@@ -26418,6 +26419,8 @@ discussionsapple.com
 find-apple.com
 flickr
 fox
+gate.tv
+gateapi.io
 gbiz
 gle
 gmail
@@ -26440,6 +26443,7 @@ intuit
 java
 kindle
 microsoft
+milfy.com
 mini
 mit
 mr-apple.com.tw
@@ -26458,9 +26462,12 @@ reform-apple.com
 samsung
 sky
 skype
+slayed.com
 softbank
 sony
 target
+tushyraw.com
+vixengroup.com
 volvo
 walmart
 weather
