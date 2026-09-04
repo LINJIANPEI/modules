@@ -52,7 +52,7 @@ on:
       - ".github/**"
       - "conf/**"
       - "备份.json"
-      - "oxidnsData/rules/**"
+      - "oxidnsData/rules/**"   # 根据需求保留或删除
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -149,20 +149,18 @@ jobs:
           SPECIFIC_UPSTREAM="${{ github.event.inputs.upstream_name }}"
           MANUAL_ASSET="${{ github.event.inputs.select_asset }}"
 
-          # 保存原始目录
           ORIGINAL_DIR=$(pwd)
           echo "工作目录: $ORIGINAL_DIR"
 
-          # 确保 bin 目录存在
           mkdir -pv bin
 
-          UPDATED_COUNT=0      # 版本号更新的数量
-          TOTAL_COUNT=0        # 处理的总数量
-          SKIP_COUNT=0         # 跳过的数量
-          FAIL_COUNT=0         # 失败的数量
-          ACTUAL_UPDATES=0     # 实际有文件变化的更新数
+          UPDATED_COUNT=0
+          TOTAL_COUNT=0
+          SKIP_COUNT=0
+          FAIL_COUNT=0
+          ACTUAL_UPDATES=0
+          PUBLISHABLE_UPDATES=0   # 新增：需要发布的组件更新数
 
-          # 清空临时组件列表文件
           > .updated_components
 
           UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
@@ -176,24 +174,27 @@ jobs:
           for ((i=0; i<UPSTREAMS_LEN; i++)); do
             NAME=$(jq -r ".upstreams[$i].name" sync-mapping-config.json)
             REPO=$(jq -r ".upstreams[$i].repo" sync-mapping-config.json)
-            
+
             if [ -n "$SPECIFIC_UPSTREAM" ] && [ "$SPECIFIC_UPSTREAM" != "$NAME" ]; then
               echo "⏭️ 跳过: $NAME (未指定)"
               SKIP_COUNT=$((SKIP_COUNT + 1))
               continue
             fi
-            
+
             TOTAL_COUNT=$((TOTAL_COUNT + 1))
-            
+
             echo ""
             echo "=========================================="
             echo "📥 正在处理: $NAME"
             echo "仓库地址: $REPO"
             echo "=========================================="
-            
+
             USE_LATEST=$(jq -r ".upstreams[$i].use_latest" sync-mapping-config.json)
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
-            
+
+            # 读取是否可发布（默认为 true）
+            PUBLISH_ON_UPDATE=$(jq -r ".upstreams[$i].publish_on_update // true" sync-mapping-config.json)
+
             if [ "$USE_LATEST" = "true" ]; then
               RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
               echo "获取最新版本..."
@@ -201,22 +202,22 @@ jobs:
               RELEASE_URL="https://api.github.com/repos/$REPO/releases/tags/$SPECIFIC_TAG"
               echo "获取指定版本: $SPECIFIC_TAG"
             fi
-            
+
             RELEASE_DATA=$(curl -s "$RELEASE_URL")
-            
+
             if echo "$RELEASE_DATA" | jq -e '.message' > /dev/null 2>&1; then
               ERROR_MSG=$(echo "$RELEASE_DATA" | jq -r '.message')
               echo "❌ 获取版本信息失败: $ERROR_MSG"
               FAIL_COUNT=$((FAIL_COUNT + 1))
               continue
             fi
-            
+
             LATEST_TAG=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
             echo "✓ 当前版本: $LATEST_TAG"
-            
+
             VERSION_FILE=".version_$(echo "$NAME" | sed 's/[^a-zA-Z0-9]/_/g')"
             HAS_UPDATE=false
-            
+
             if [ -f "$VERSION_FILE" ] && [ "$FORCE_UPDATE" != "true" ]; then
               CURRENT_VERSION=$(cat "$VERSION_FILE")
               if [ "$CURRENT_VERSION" = "$LATEST_TAG" ]; then
@@ -230,21 +231,19 @@ jobs:
               echo "🔄 首次同步或强制更新: $LATEST_TAG"
               HAS_UPDATE=true
             fi
-            
-            # ========== 资产选择逻辑 ==========
+
+            # ========== 资产选择逻辑（保持不变） ==========
             SELECTED_URL=""
             SELECTED_NAME=""
-            
+
             echo "📦 查找匹配的资产文件..."
-            
-            # 1. 手动指定资产
+
             if [ -n "$MANUAL_ASSET" ]; then
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name == \"$MANUAL_ASSET\") | .browser_download_url" 2>/dev/null)
               SELECTED_NAME="$MANUAL_ASSET"
               echo "  📌 使用手动指定: $SELECTED_NAME"
             fi
-            
-            # 2. 使用 asset_patterns 匹配
+
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               PATTERNS=$(jq -r ".upstreams[$i].asset_patterns // [] | join(\" \")" sync-mapping-config.json)
               for pattern in $PATTERNS; do
@@ -257,8 +256,7 @@ jobs:
                 fi
               done
             fi
-            
-            # 3. 使用 asset_priority 匹配关键词
+
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [] | join(\" \")" sync-mapping-config.json)
               for keyword in $PRIORITY; do
@@ -270,18 +268,16 @@ jobs:
                 fi
               done
             fi
-            
-            # 4. 使用第一个资产
+
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r '.assets[0].browser_download_url')
               SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r '.assets[0].name')
               echo "  📄 使用默认第一个资产: $SELECTED_NAME"
             fi
-            
+
             echo "⬇️ 开始下载: $SELECTED_NAME"
-            
             wget -q -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
-            
+
             DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
             if [ ! -f "$DOWNLOAD_FILE" ]; then
               echo "❌ 下载失败"
@@ -289,11 +285,10 @@ jobs:
               continue
             fi
             echo "✓ 下载完成"
-            
+
             EXTRACT_DIR="temp_downloads/${NAME}_extract"
             mkdir -p "$EXTRACT_DIR"
-            
-            # ========== 解压逻辑 ==========
+
             echo "📂 解压文件中..."
             if [[ "$SELECTED_NAME" == *.tar.gz ]] || [[ "$SELECTED_NAME" == *.tgz ]]; then
               tar -xzf "$DOWNLOAD_FILE" -C "$EXTRACT_DIR"
@@ -306,26 +301,23 @@ jobs:
               unzip -q "$DOWNLOAD_FILE" -d "$EXTRACT_DIR"
               echo "  ✓ 解压 zip 完成"
             else
-              # 直接下载的二进制文件
               cp "$DOWNLOAD_FILE" "$EXTRACT_DIR/$SELECTED_NAME"
               chmod +x "$EXTRACT_DIR/$SELECTED_NAME"
               echo "  ✓ 二进制文件直接复制"
             fi
-            
+
             # 查找源目录
             if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
               SOURCE_BASE=$(ls -d "$EXTRACT_DIR"/*/)
             else
               SOURCE_BASE="$EXTRACT_DIR"
             fi
-                    
-            # ========== 新增：删除不需要的文件 ==========
+
+            # 删除不需要的文件
             EXCLUDE_PATTERNS=$(jq -r ".upstreams[$i].exclude // [] | join(\" \")" sync-mapping-config.json 2>/dev/null || echo "")
-                    
             if [ -n "$EXCLUDE_PATTERNS" ]; then
               echo "  🗑️ 删除不需要的文件/文件夹..."
               cd "$SOURCE_BASE"
-                    
               for pattern in $EXCLUDE_PATTERNS; do
                 echo "    🔍 匹配: $pattern"
                 find . \( -name "$pattern" -o -path "$pattern" \) 2>/dev/null | while read item; do
@@ -335,17 +327,16 @@ jobs:
                   fi
                 done
               done
-                    
               cd "$ORIGINAL_DIR"
               echo "  ✅ 已删除不需要的文件"
             fi
-                    
+
             echo "📁 源目录: $SOURCE_BASE"
-            
+
             MAPPING_SUCCESS=true
             MAPPINGS_LEN=$(jq ".upstreams[$i].mappings | length" sync-mapping-config.json)
             FILES_COPIED=0
-            
+
             echo "📋 开始文件映射..."
             for ((m=0; m<MAPPINGS_LEN; m++)); do
               SOURCE=$(jq -r ".upstreams[$i].mappings[$m].source" sync-mapping-config.json)
@@ -354,25 +345,21 @@ jobs:
               OVERWRITE=$(jq -r ".upstreams[$i].mappings[$m].overwrite // true" sync-mapping-config.json)
               MAKE_EXEC=$(jq -r ".upstreams[$i].mappings[$m].make_executable // false" sync-mapping-config.json)
               FLATTEN=$(jq -r ".upstreams[$i].mappings[$m].flatten // false" sync-mapping-config.json)
-              
+
               echo ""
               echo "  📍 映射: $SOURCE -> $TARGET (类型: $TYPE)"
-              
+
               if [ "$OVERWRITE" = "false" ] && [ -e "$TARGET" ]; then
                 echo "  ⏭️ 目标已存在且禁止覆盖，跳过"
                 continue
               fi
-              
-              # 确保目标目录存在
+
               TARGET_DIR=$(dirname "$TARGET")
               mkdir -pv "$TARGET_DIR" > /dev/null 2>&1
-              
-              # ==================== pattern 类型处理（强制替换） ====================
+
               if [ "$TYPE" = "pattern" ]; then
                 cd "$SOURCE_BASE"
-                
                 if [[ "$SOURCE" == *"*"* ]] || [[ "$SOURCE" == *"?"* ]]; then
-                  # 有通配符，匹配文件
                   for file in $SOURCE; do
                     if [ -f "$file" ]; then
                       cp -vf "$file" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
@@ -382,21 +369,16 @@ jobs:
                     fi
                   done
                 else
-                  # 无通配符，直接查找文件或文件夹
                   if [ -f "$SOURCE" ]; then
-                    # 是文件
                     cp -vf "$SOURCE" "$ORIGINAL_DIR/$TARGET" 2>&1 | sed 's/^/    /'
                     echo "  ✅ 已强制替换: $SOURCE -> $ORIGINAL_DIR/$TARGET"
                     FILES_COPIED=$((FILES_COPIED + 1))
                   elif [ -d "$SOURCE" ]; then
-                    # 是文件夹
                     if [ "$FLATTEN" = "true" ]; then
-                      # 扁平化复制
                       find "$SOURCE" -type f -exec cp -vf {} "$ORIGINAL_DIR/$TARGET_DIR/" \; 2>&1 | sed 's/^/    /'
                       echo "  ✅ 已强制扁平化复制: $SOURCE -> $ORIGINAL_DIR/$TARGET_DIR/"
                       FILES_COPIED=$((FILES_COPIED + 1))
                     else
-                      # 保留结构复制
                       rm -rf "$ORIGINAL_DIR/$TARGET" 2>/dev/null
                       cp -r "$SOURCE" "$ORIGINAL_DIR/$TARGET"
                       echo "  ✅ 已强制替换文件夹: $SOURCE -> $ORIGINAL_DIR/$TARGET"
@@ -407,10 +389,7 @@ jobs:
                     MAPPING_SUCCESS=false
                   fi
                 fi
-                
                 cd "$ORIGINAL_DIR"
-              
-              # ==================== file 类型处理（强制替换） ====================
               elif [ "$TYPE" = "file" ]; then
                 FOUND_FILE=""
                 if [ -f "$SOURCE_BASE/$SOURCE" ]; then
@@ -418,7 +397,6 @@ jobs:
                 else
                   FOUND_FILE=$(find "$SOURCE_BASE" -name "$SOURCE" -type f 2>/dev/null | head -1)
                 fi
-                
                 if [ -n "$FOUND_FILE" ] && [ -f "$FOUND_FILE" ]; then
                   cp -vf "$FOUND_FILE" "$TARGET" 2>&1 | sed 's/^/    /'
                   echo "  ✅ 已强制替换: $FOUND_FILE -> $TARGET"
@@ -427,57 +405,48 @@ jobs:
                   echo "  ❌ 源文件不存在: $SOURCE"
                   MAPPING_SUCCESS=false
                 fi
-              
-              # ==================== folder 类型处理（强制替换） ====================
               elif [ "$TYPE" = "folder" ]; then
                 SOURCE_FOLDER="$SOURCE_BASE/$SOURCE"
                 TARGET_FOLDER="$TARGET"
-                
                 echo "  📁 强制替换文件夹: $SOURCE -> $TARGET"
-                
                 if [ ! -d "$SOURCE_FOLDER" ]; then
                   echo "  ❌ 源文件夹不存在: $SOURCE_FOLDER"
                   MAPPING_SUCCESS=false
                   continue
                 fi
-                
-                # 强制删除目标文件夹（如果存在）
                 if [ -d "$TARGET_FOLDER" ]; then
                   rm -rf "$TARGET_FOLDER"
                   echo "  🗑️ 已删除旧文件夹: $TARGET_FOLDER"
                 fi
-                
-                # 确保父目录存在
                 mkdir -p "$(dirname "$TARGET_FOLDER")"
-                
-                # 完整复制新文件夹
                 cp -r "$SOURCE_FOLDER" "$TARGET_FOLDER"
-                
                 echo "  ✅ 文件夹已强制替换: $SOURCE_FOLDER -> $TARGET_FOLDER"
                 FILES_COPIED=$((FILES_COPIED + 1))
-              
-              # ==================== 未知类型处理 ====================
               else
                 echo "  ⚠️ 未知映射类型: $TYPE，跳过"
                 continue
               fi
-              
-              # 设置可执行权限
+
               if [ "$MAKE_EXEC" = "true" ] && [ -f "$TARGET" ]; then
                 chmod +x "$TARGET"
                 echo "  🔧 已设置可执行权限"
               fi
             done
-            
+
             if [ "$MAPPING_SUCCESS" = true ]; then
               echo "$LATEST_TAG" > "$VERSION_FILE"
               UPDATED_COUNT=$((UPDATED_COUNT + 1))
-              # 强制更新时也视为实际更新
               if [ $FILES_COPIED -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
-                # 记录更新的组件名称
                 echo "$NAME" >> .updated_components
+                # 判断是否可发布
+                if [ "$PUBLISH_ON_UPDATE" = "true" ]; then
+                  PUBLISHABLE_UPDATES=$((PUBLISHABLE_UPDATES + 1))
+                  echo "  📢 该组件需要发布"
+                else
+                  echo "  🔇 该组件不需要发布"
+                fi
               else
                 echo "⚠️ $NAME 版本已更新但无文件变化 (不触发打包)"
               fi
@@ -492,6 +461,7 @@ jobs:
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
           echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
           echo "actual_updates=$ACTUAL_UPDATES" >> $GITHUB_OUTPUT
+          echo "publishable_updates=$PUBLISHABLE_UPDATES" >> $GITHUB_OUTPUT
 
           rm -rf temp_downloads
 
@@ -502,41 +472,14 @@ jobs:
           echo "  总计处理: $TOTAL_COUNT 个上游"
           echo "  版本更新: $UPDATED_COUNT 个"
           echo "  实际文件变化: $ACTUAL_UPDATES 个"
+          echo "  其中可发布: $PUBLISHABLE_UPDATES 个"
           echo "  跳过处理: $SKIP_COUNT 个"
           echo "  失败: $FAIL_COUNT 个"
           echo "=========================================="
 
-      - name: 判断是否需要打包
-        id: should_package
-        run: |
-          ACTUAL_UPDATES="${{ steps.sync.outputs.actual_updates }}"
-          FORCE_UPDATE="${{ github.event.inputs.force_update }}"
-
-          # Push 事件强制更新
-          if [ "${{ github.event_name }}" = "push" ]; then
-            FORCE_UPDATE="true"
-          fi
-
-          if [ "$ACTUAL_UPDATES" -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
-            echo "should_package=true" >> $GITHUB_OUTPUT
-            echo "✅ 需要打包发布"
-            echo "   实际更新: $ACTUAL_UPDATES"
-            echo "   强制更新: $FORCE_UPDATE"
-          else
-            echo "should_package=false" >> $GITHUB_OUTPUT
-            echo "⏭️ 跳过打包发布"
-          fi
-
-      - name: 验证 bin 目录内容
-        if: steps.should_package.outputs.should_package == 'true'
-        run: |
-          echo ""
-          echo "📁 bin 目录内容:"
-          ls -la bin/
-          echo ""
-
+      # ========== 关键改动：提交同步更新（只要有实际更新就提交，不依赖发布判断） ==========
       - name: 提交并推送同步更新
-        if: steps.should_package.outputs.should_package == 'true'
+        if: steps.sync.outputs.actual_updates > 0
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -551,6 +494,33 @@ jobs:
             git push
             echo "✅ 已提交并推送同步更新"
           fi
+
+      # ========== 打包发布条件判断（使用 publishable_updates） ==========
+      - name: 判断是否需要打包
+        id: should_package
+        run: |
+          PUBLISHABLE_UPDATES="${{ steps.sync.outputs.publishable_updates }}"
+          FORCE_UPDATE="${{ github.event.inputs.force_update }}"
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            FORCE_UPDATE="true"
+          fi
+
+          if [ "$PUBLISHABLE_UPDATES" -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
+            echo "should_package=true" >> $GITHUB_OUTPUT
+            echo "✅ 需要打包发布（可发布组件更新数：$PUBLISHABLE_UPDATES）"
+          else
+            echo "should_package=false" >> $GITHUB_OUTPUT
+            echo "⏭️ 跳过打包发布（没有需要发布的组件更新）"
+          fi
+
+      - name: 验证 bin 目录内容
+        if: steps.should_package.outputs.should_package == 'true'
+        run: |
+          echo ""
+          echo "📁 bin 目录内容:"
+          ls -la bin/
+          echo ""
 
       - name: 生成版本号
         if: steps.should_package.outputs.should_package == 'true'
@@ -628,7 +598,6 @@ jobs:
             - 更新了 ${{ steps.sync.outputs.actual_updates }} 个组件到最新版本"
           fi
 
-          # 生成组件列表（如果有）
           COMPONENT_LIST=""
           if [ -f ".updated_components" ]; then
             COMPONENT_LIST="\n### 更新的组件\n"
@@ -642,7 +611,7 @@ jobs:
             echo ""
             echo "$CHANGELOG_MSG"
             echo ""
-            echo -e "$COMPONENT_LIST"   # 插入组件列表
+            echo -e "$COMPONENT_LIST"
             echo ""
             echo "### 下载"
             echo ""
@@ -711,6 +680,8 @@ jobs:
             exit 1
           fi
 
+      # ========== 提交打包生成的文件（module.prop, update/*, .version_code） ==========
+      # 注意：这个步骤只有在需要打包时才会运行，因为这些文件只有在发布时才会修改
       - name: 提交并推送打包更新
         if: steps.should_package.outputs.should_package == 'true'
         run: |
@@ -727,7 +698,7 @@ jobs:
             echo "✅ 已推送到远程仓库"
           fi
 
-      # ========== 修正：使用文件方式生成 Release body，避免转义问题 ==========
+      # ========== 生成 Release body 文件 ==========
       - name: 生成 Release 内容（写入文件）
         if: steps.should_package.outputs.should_package == 'true'
         run: |
@@ -745,9 +716,9 @@ jobs:
           ### 本次更新统计
           - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
           - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
+          - 其中需要发布的组件: ${{ steps.sync.outputs.publishable_updates }} 个
           EOF
 
-          # 如果有更新的组件，追加列表
           if [ -f ".updated_components" ]; then
             echo "" >> release_body.md
             echo "### 更新的组件" >> release_body.md
