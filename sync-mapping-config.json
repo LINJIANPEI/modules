@@ -120,6 +120,7 @@
       "name": "mosdnsRules",
       "repo": "LINJIANPEI/mosdnsRules",
       "use_latest": true,
+      "publish_on_update": false,
       "asset_patterns": [
         "*.zip"
       ],
