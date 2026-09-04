@@ -162,7 +162,7 @@ jobs:
           FAIL_COUNT=0         # 失败的数量
           ACTUAL_UPDATES=0     # 实际有文件变化的更新数
 
-          # <-- 新增：清空临时组件列表文件
+          # 清空临时组件列表文件
           > .updated_components
 
           UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
@@ -476,7 +476,7 @@ jobs:
               if [ $FILES_COPIED -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
-                # <-- 新增：记录更新的组件名称
+                # 记录更新的组件名称
                 echo "$NAME" >> .updated_components
               else
                 echo "⚠️ $NAME 版本已更新但无文件变化 (不触发打包)"
@@ -628,7 +628,7 @@ jobs:
             - 更新了 ${{ steps.sync.outputs.actual_updates }} 个组件到最新版本"
           fi
 
-          # <-- 修改：生成组件列表（如果有）
+          # 生成组件列表（如果有）
           COMPONENT_LIST=""
           if [ -f ".updated_components" ]; then
             COMPONENT_LIST="\n### 更新的组件\n"
@@ -642,7 +642,7 @@ jobs:
             echo ""
             echo "$CHANGELOG_MSG"
             echo ""
-            echo -e "$COMPONENT_LIST"   # <-- 插入组件列表
+            echo -e "$COMPONENT_LIST"   # 插入组件列表
             echo ""
             echo "### 下载"
             echo ""
@@ -727,28 +727,40 @@ jobs:
             echo "✅ 已推送到远程仓库"
           fi
 
-      # <-- 新增步骤：生成 Release Body（包含组件列表）
-      - name: 生成 Release 内容
+      # ========== 修正：使用文件方式生成 Release body，避免转义问题 ==========
+      - name: 生成 Release 内容（写入文件）
         if: steps.should_package.outputs.should_package == 'true'
-        id: release_body
         run: |
-          BODY="## 自动发布\n\n### 版本信息\n- **版本号**: ${{ steps.version.outputs.version }}\n- **版本代码**: ${{ steps.version.outputs.versionCode }}\n- **发布时间**: ${{ steps.version.outputs.release_datetime }}\n\n### 更新内容\n${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}\n\n### 本次更新统计\n- 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个\n- 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个\n"
+          cat > release_body.md <<EOF
+          ## 自动发布
 
+          ### 版本信息
+          - **版本号**: ${{ steps.version.outputs.version }}
+          - **版本代码**: ${{ steps.version.outputs.versionCode }}
+          - **发布时间**: ${{ steps.version.outputs.release_datetime }}
+
+          ### 更新内容
+          ${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}
+
+          ### 本次更新统计
+          - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
+          - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
+          EOF
+
+          # 如果有更新的组件，追加列表
           if [ -f ".updated_components" ]; then
-            BODY="${BODY}\n### 更新的组件\n"
+            echo "" >> release_body.md
+            echo "### 更新的组件" >> release_body.md
             while read -r comp; do
-              BODY="${BODY}\n- ${comp}"
+              echo "- $comp" >> release_body.md
             done < .updated_components
           fi
 
-          echo "body=${BODY}" >> $GITHUB_OUTPUT
-
-      # <-- 修改：引用生成的 body
-      - name: 创建 GitHub Release
+      - name: 创建 GitHub Release（使用 body_path）
         if: steps.should_package.outputs.should_package == 'true'
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.version.outputs.version }}.zip
           name: ${{ steps.version.outputs.tag }}
           tag_name: ${{ steps.version.outputs.tag }}
-          body: ${{ steps.release_body.outputs.body }}
+          body_path: release_body.md
