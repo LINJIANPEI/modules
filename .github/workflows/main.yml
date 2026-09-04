@@ -52,7 +52,6 @@ on:
       - ".github/**"
       - "conf/**"
       - "备份.json"
-      - "oxidnsData/rules/**"   # 根据需求保留或删除
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -159,7 +158,7 @@ jobs:
           SKIP_COUNT=0
           FAIL_COUNT=0
           ACTUAL_UPDATES=0
-          PUBLISHABLE_UPDATES=0   # 新增：需要发布的组件更新数
+          PUBLISHABLE_UPDATES=0
 
           > .updated_components
 
@@ -191,8 +190,6 @@ jobs:
 
             USE_LATEST=$(jq -r ".upstreams[$i].use_latest" sync-mapping-config.json)
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
-
-            # 读取是否可发布（默认为 true）
             PUBLISH_ON_UPDATE=$(jq -r ".upstreams[$i].publish_on_update // true" sync-mapping-config.json)
 
             if [ "$USE_LATEST" = "true" ]; then
@@ -232,7 +229,7 @@ jobs:
               HAS_UPDATE=true
             fi
 
-            # ========== 资产选择逻辑（保持不变） ==========
+            # ========== 资产选择逻辑 ==========
             SELECTED_URL=""
             SELECTED_NAME=""
 
@@ -440,7 +437,6 @@ jobs:
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
                 echo "$NAME" >> .updated_components
-                # 判断是否可发布
                 if [ "$PUBLISH_ON_UPDATE" = "true" ]; then
                   PUBLISHABLE_UPDATES=$((PUBLISHABLE_UPDATES + 1))
                   echo "  📢 该组件需要发布"
@@ -477,7 +473,7 @@ jobs:
           echo "  失败: $FAIL_COUNT 个"
           echo "=========================================="
 
-      # ========== 关键改动：提交同步更新（只要有实际更新就提交，不依赖发布判断） ==========
+      # ========== 步骤1：提交同步更新（只要有实际更新就提交） ==========
       - name: 提交并推送同步更新
         if: steps.sync.outputs.actual_updates > 0
         run: |
@@ -491,11 +487,13 @@ jobs:
           else
             COMMIT_MSG="同步上游更新 - $(date +'%Y-%m-%d %H:%M:%S')"
             git commit -m "$COMMIT_MSG"
+            # 合并远程最新更新，避免推送冲突
+            git pull --rebase
             git push
             echo "✅ 已提交并推送同步更新"
           fi
 
-      # ========== 打包发布条件判断（使用 publishable_updates） ==========
+      # ========== 判断是否需要打包（基于可发布组件更新数） ==========
       - name: 判断是否需要打包
         id: should_package
         run: |
@@ -680,8 +678,7 @@ jobs:
             exit 1
           fi
 
-      # ========== 提交打包生成的文件（module.prop, update/*, .version_code） ==========
-      # 注意：这个步骤只有在需要打包时才会运行，因为这些文件只有在发布时才会修改
+      # ========== 步骤2：提交打包生成的文件（只有发布时才提交） ==========
       - name: 提交并推送打包更新
         if: steps.should_package.outputs.should_package == 'true'
         run: |
@@ -694,6 +691,8 @@ jobs:
             echo "📝 没有需要提交的更改"
           else
             git commit -m "发布: v${{ steps.version.outputs.version }} (版本代码: ${{ steps.version.outputs.versionCode }})"
+            # 合并远程最新更新，避免推送冲突
+            git pull --rebase
             git push
             echo "✅ 已推送到远程仓库"
           fi
