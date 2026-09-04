@@ -11,3 +11,4 @@ cache/.gitkeep
 .last_backup
 .back*
 README.md
+.updated_components
