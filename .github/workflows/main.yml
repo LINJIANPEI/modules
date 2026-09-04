@@ -1,11 +1,8 @@
 name: 同步上游并打包更新
 
 on:
-  # 1. 定时触发 - 每24小时
   schedule:
     - cron: "0 */24 * * *"
-
-  # 2. 手动触发 - 支持各种参数
   workflow_dispatch:
     inputs:
       force_update:
@@ -43,8 +40,6 @@ on:
         required: false
         type: string
         default: ""
-
-  # 3. Push 触发 - 当推送到特定分支时自动触发（强制更新）
   push:
     branches:
       - main
@@ -59,14 +54,12 @@ on:
       - "备份.json"
       - "oxidnsData/rules/**"
 
-# 并发控制 - 避免多个 workflow 同时运行
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   sync-and-package:
-    # 添加条件避免无限循环
     if: |
       !contains(github.event.head_commit.message, '[skip-ci]') &&
       (github.event_name != 'pull_request' || github.event.pull_request.merged == true)
@@ -168,6 +161,9 @@ jobs:
           SKIP_COUNT=0         # 跳过的数量
           FAIL_COUNT=0         # 失败的数量
           ACTUAL_UPDATES=0     # 实际有文件变化的更新数
+
+          # <-- 新增：清空临时组件列表文件
+          > .updated_components
 
           UPSTREAMS_LEN=$(jq '.upstreams | length' sync-mapping-config.json)
           echo ""
@@ -331,9 +327,7 @@ jobs:
               cd "$SOURCE_BASE"
                     
               for pattern in $EXCLUDE_PATTERNS; do
-                # 使用 find 删除匹配的文件和文件夹
                 echo "    🔍 匹配: $pattern"
-                # 处理通配符和路径
                 find . \( -name "$pattern" -o -path "$pattern" \) 2>/dev/null | while read item; do
                   if [ -e "$item" ]; then
                     rm -rf "$item"
@@ -482,6 +476,8 @@ jobs:
               if [ $FILES_COPIED -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
+                # <-- 新增：记录更新的组件名称
+                echo "$NAME" >> .updated_components
               else
                 echo "⚠️ $NAME 版本已更新但无文件变化 (不触发打包)"
               fi
@@ -556,7 +552,6 @@ jobs:
             echo "✅ 已提交并推送同步更新"
           fi
 
-      # ========== 版本号生成（使用 .version_code 文件，支持重置）==========
       - name: 生成版本号
         if: steps.should_package.outputs.should_package == 'true'
         id: version
@@ -567,7 +562,6 @@ jobs:
           echo "📌 版本号管理"
           echo "=========================================="
 
-          # 处理重置请求
           if [ -n "$RESET_VALUE" ]; then
             if [[ "$RESET_VALUE" =~ ^[0-9]+$ ]]; then
               echo "🔄 重置版本号为: $RESET_VALUE"
@@ -578,10 +572,8 @@ jobs:
               exit 1
             fi
           else
-            # 正常读取当前版本号
             if [ -f ".version_code" ]; then
               CURRENT_VERSION_CODE=$(cat .version_code)
-              # 验证是否为数字
               if ! [[ "$CURRENT_VERSION_CODE" =~ ^[0-9]+$ ]]; then
                 echo "⚠️ .version_code 不是有效数字，重置为 100"
                 CURRENT_VERSION_CODE=100
@@ -594,17 +586,12 @@ jobs:
             fi
           fi
 
-          # 递增版本号
           NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
-
-          # 保存新版本号到文件
           echo "$NEW_VERSION_CODE" > .version_code
 
-          # 生成可读版本号
           DATE_VERSION=$(date +'%Y.%m.%d')
           VERSION="${DATE_VERSION}.${NEW_VERSION_CODE}"
 
-          # 输出到 GitHub Actions
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "versionCode=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
@@ -641,10 +628,21 @@ jobs:
             - 更新了 ${{ steps.sync.outputs.actual_updates }} 个组件到最新版本"
           fi
 
+          # <-- 修改：生成组件列表（如果有）
+          COMPONENT_LIST=""
+          if [ -f ".updated_components" ]; then
+            COMPONENT_LIST="\n### 更新的组件\n"
+            while read -r comp; do
+              COMPONENT_LIST="${COMPONENT_LIST}\n- $comp"
+            done < .updated_components
+          fi
+
           {
             echo "## [${{ steps.version.outputs.version }}] - ${{ steps.version.outputs.release_date }}"
             echo ""
             echo "$CHANGELOG_MSG"
+            echo ""
+            echo -e "$COMPONENT_LIST"   # <-- 插入组件列表
             echo ""
             echo "### 下载"
             echo ""
@@ -719,7 +717,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 添加所有修改的文件（包括 .version_code）
           git add module.prop update/update.json update/changelog.md .version_code
 
           if git diff --staged --quiet; then
@@ -730,6 +727,23 @@ jobs:
             echo "✅ 已推送到远程仓库"
           fi
 
+      # <-- 新增步骤：生成 Release Body（包含组件列表）
+      - name: 生成 Release 内容
+        if: steps.should_package.outputs.should_package == 'true'
+        id: release_body
+        run: |
+          BODY="## 自动发布\n\n### 版本信息\n- **版本号**: ${{ steps.version.outputs.version }}\n- **版本代码**: ${{ steps.version.outputs.versionCode }}\n- **发布时间**: ${{ steps.version.outputs.release_datetime }}\n\n### 更新内容\n${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}\n\n### 本次更新统计\n- 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个\n- 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个\n"
+
+          if [ -f ".updated_components" ]; then
+            BODY="${BODY}\n### 更新的组件\n"
+            while read -r comp; do
+              BODY="${BODY}\n- ${comp}"
+            done < .updated_components
+          fi
+
+          echo "body=${BODY}" >> $GITHUB_OUTPUT
+
+      # <-- 修改：引用生成的 body
       - name: 创建 GitHub Release
         if: steps.should_package.outputs.should_package == 'true'
         uses: softprops/action-gh-release@v1
@@ -737,21 +751,4 @@ jobs:
           files: ${{ steps.version.outputs.version }}.zip
           name: ${{ steps.version.outputs.tag }}
           tag_name: ${{ steps.version.outputs.tag }}
-          body: |
-            ## 自动发布
-
-            ### 版本信息
-            - **版本号**: ${{ steps.version.outputs.version }}
-            - **版本代码**: ${{ steps.version.outputs.versionCode }}
-            - **发布时间**: ${{ steps.version.outputs.release_datetime }}
-
-            ### 更新内容
-            ${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}
-
-            ### 本次更新统计
-            - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
-            - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
-
-            ### 下载地址
-            ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.version }}.zip
+          body: ${{ steps.release_body.outputs.body }}
