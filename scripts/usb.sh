@@ -2,6 +2,7 @@
 
 case "$1" in
     enable)
+        sh /data/data/me.piebridge.brevent/brevent.sh
         sleep 30
         settings put global adb_enabled 0
         setprop persist.sys.usb.config mtp
