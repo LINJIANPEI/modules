@@ -1,3 +1,25 @@
+## [2026.09.06.284] - 2026-09-06
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 6 个组件到最新版本
+
+
+### 更新的组件
+
+- mihomo
+- AdGuardHome
+- oxidns
+- smartdns
+- mosdnsRules
+- AppOpt
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.09.06.284/2026.09.06.284.zip)
+
+---
+
 ## [2026.09.05.283] - 2026-09-05
 
 ### 上游同步更新
