@@ -52,6 +52,7 @@ on:
       - ".github/**"
       - "conf/**"
       - "备份.json"
+      - "oxidnsData/rules/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -134,16 +135,14 @@ jobs:
       - name: 同步上游 Releases
         id: sync
         run: |
-          # 判断是否为 push 事件，如果是则强制启用 force_update
-          if [ "${{ github.event_name }}" = "push" ]; then
-            FORCE_UPDATE="true"
-            echo "🔧 Push 事件触发，已自动启用强制更新"
-          else
-            FORCE_UPDATE="${{ github.event.inputs.force_update }}"
-            if [ "${{ github.event_name }}" = "schedule" ]; then
-              FORCE_UPDATE="false"
-            fi
+          # 获取手动输入的强制更新标志（push 事件不自动启用）
+          FORCE_UPDATE="${{ github.event.inputs.force_update }}"
+          # 如果是定时任务，强制设为 false
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            FORCE_UPDATE="false"
           fi
+          # 注意：push 触发时，FORCE_UPDATE 保持用户输入（默认为 false），不会自动强制
+          # 这样 push 也会遵循 publish_on_update 配置
 
           SPECIFIC_UPSTREAM="${{ github.event.inputs.upstream_name }}"
           MANUAL_ASSET="${{ github.event.inputs.select_asset }}"
@@ -190,7 +189,11 @@ jobs:
 
             USE_LATEST=$(jq -r ".upstreams[$i].use_latest" sync-mapping-config.json)
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
+            # 读取是否可发布，默认 true
             PUBLISH_ON_UPDATE=$(jq -r ".upstreams[$i].publish_on_update // true" sync-mapping-config.json)
+
+            # 调试输出
+            echo "🔍 该组件 publish_on_update = '$PUBLISH_ON_UPDATE'"
 
             if [ "$USE_LATEST" = "true" ]; then
               RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
@@ -437,11 +440,12 @@ jobs:
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
                 echo "$NAME" >> .updated_components
+                # 判断是否可发布
                 if [ "$PUBLISH_ON_UPDATE" = "true" ]; then
                   PUBLISHABLE_UPDATES=$((PUBLISHABLE_UPDATES + 1))
                   echo "  📢 该组件需要发布"
                 else
-                  echo "  🔇 该组件不需要发布"
+                  echo "  🔇 该组件不需要发布 (publish_on_update='$PUBLISH_ON_UPDATE')"
                 fi
               else
                 echo "⚠️ $NAME 版本已更新但无文件变化 (不触发打包)"
@@ -487,7 +491,6 @@ jobs:
           else
             COMMIT_MSG="同步上游更新 - $(date +'%Y-%m-%d %H:%M:%S')"
             git commit -m "$COMMIT_MSG"
-            # 合并远程最新更新，避免推送冲突
             git pull --rebase
             git push
             echo "✅ 已提交并推送同步更新"
@@ -500,13 +503,10 @@ jobs:
           PUBLISHABLE_UPDATES="${{ steps.sync.outputs.publishable_updates }}"
           FORCE_UPDATE="${{ github.event.inputs.force_update }}"
 
-          if [ "${{ github.event_name }}" = "push" ]; then
-            FORCE_UPDATE="true"
-          fi
-
+          # 定时任务或普通 push 时，force_update 默认为 false，遵循 publishable_updates
           if [ "$PUBLISHABLE_UPDATES" -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
             echo "should_package=true" >> $GITHUB_OUTPUT
-            echo "✅ 需要打包发布（可发布组件更新数：$PUBLISHABLE_UPDATES）"
+            echo "✅ 需要打包发布（可发布组件更新数：$PUBLISHABLE_UPDATES，强制更新：$FORCE_UPDATE）"
           else
             echo "should_package=false" >> $GITHUB_OUTPUT
             echo "⏭️ 跳过打包发布（没有需要发布的组件更新）"
@@ -691,7 +691,6 @@ jobs:
             echo "📝 没有需要提交的更改"
           else
             git commit -m "发布: v${{ steps.version.outputs.version }} (版本代码: ${{ steps.version.outputs.versionCode }})"
-            # 合并远程最新更新，避免推送冲突
             git pull --rebase
             git push
             echo "✅ 已推送到远程仓库"
