@@ -189,8 +189,22 @@ jobs:
 
             USE_LATEST=$(jq -r ".upstreams[$i].use_latest" sync-mapping-config.json)
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
-            # 读取是否可发布，默认 true
-            PUBLISH_ON_UPDATE=$(jq -r ".upstreams[$i].publish_on_update // true" sync-mapping-config.json)
+
+            # ========================================================
+            # 使用 Python 读取 publish_on_update（替代 jq，增强兼容性）
+            # ========================================================
+            PUBLISH_ON_UPDATE=$(python3 -c "
+import json, sys
+try:
+    with open('sync-mapping-config.json') as f:
+        data = json.load(f)
+    upstream = data['upstreams'][$i]
+    val = upstream.get('publish_on_update', True)
+    print('true' if val else 'false')
+except Exception:
+    # 出错时默认为 true（保守行为）
+    print('true')
+")
 
             # 调试输出
             echo "🔍 该组件 publish_on_update = '$PUBLISH_ON_UPDATE'"
