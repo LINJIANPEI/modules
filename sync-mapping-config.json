@@ -147,7 +147,7 @@
         "aarch64"
       ],
       "mappings": [
-         {
+        {
           "source": "AppOpt",
           "target": "bin/AppOpt",
           "type": "file",
