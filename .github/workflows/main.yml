@@ -191,17 +191,16 @@ jobs:
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
 
             # ================================================================
-            # 使用临时 Python 脚本读取 publish_on_update（避免内联语法错误）
+            # 使用临时 Python 脚本读取 publish_on_update（避免 heredoc 的 YAML 问题）
             # ================================================================
-            cat > /tmp/get_pub.py <<'EOF'
-import json, sys
-index = int(sys.argv[1])
-with open("sync-mapping-config.json") as f:
-    data = json.load(f)
-upstream = data["upstreams"][index]
-val = upstream.get("publish_on_update", True)
-print("true" if val else "false")
-EOF
+            echo 'import json, sys' > /tmp/get_pub.py
+            echo 'index = int(sys.argv[1])' >> /tmp/get_pub.py
+            echo 'with open("sync-mapping-config.json") as f:' >> /tmp/get_pub.py
+            echo '    data = json.load(f)' >> /tmp/get_pub.py
+            echo 'upstream = data["upstreams"][index]' >> /tmp/get_pub.py
+            echo 'val = upstream.get("publish_on_update", True)' >> /tmp/get_pub.py
+            echo 'print("true" if val else "false")' >> /tmp/get_pub.py
+
             PUBLISH_ON_UPDATE=$(python3 /tmp/get_pub.py "$i")
             rm /tmp/get_pub.py
 
@@ -696,7 +695,7 @@ EOF
         if: steps.should_package.outputs.should_package == 'true'
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
 
           git add module.prop update/update.json update/changelog.md .version_code
 
