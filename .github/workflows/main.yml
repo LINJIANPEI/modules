@@ -52,6 +52,7 @@ on:
       - ".github/**"
       - "conf/**"
       - "备份.json"
+      - "oxidnsData/rules/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -190,9 +191,19 @@ jobs:
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
 
             # ================================================================
-            # 使用内联 Python 读取 publish_on_update（无外部文件，避免 YAML 语法错误）
+            # 使用临时 Python 脚本读取 publish_on_update（避免内联语法错误）
             # ================================================================
-            PUBLISH_ON_UPDATE=$(python3 -c 'import json, sys; index = int(sys.argv[1]); with open("sync-mapping-config.json") as f: data = json.load(f); upstream = data["upstreams"][index]; val = upstream.get("publish_on_update", True); print("true" if val else "false")' "$i")
+            cat > /tmp/get_pub.py <<'EOF'
+import json, sys
+index = int(sys.argv[1])
+with open("sync-mapping-config.json") as f:
+    data = json.load(f)
+upstream = data["upstreams"][index]
+val = upstream.get("publish_on_update", True)
+print("true" if val else "false")
+EOF
+            PUBLISH_ON_UPDATE=$(python3 /tmp/get_pub.py "$i")
+            rm /tmp/get_pub.py
 
             # 调试输出
             echo "🔍 该组件 publish_on_update = '$PUBLISH_ON_UPDATE'"
