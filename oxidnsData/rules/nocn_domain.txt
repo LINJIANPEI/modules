@@ -9258,6 +9258,7 @@ cocktailsandcocktalk.com
 cockyboys.com
 codeberg.org
 codeberg.page
+codebuff.com
 codecademy.com
 code-class.ru
 codeforaliving.io
@@ -11950,11 +11951,13 @@ finlitsummit.org
 fiotolia.com
 firebaseapp.com
 firebase.com
+firebase.dev
 firebase.io
 fireemblemawakening.com
 fire-emblem-heroes.com
 firefox.com
 firefox.hu
+firefox-portal-detection.com
 firefoxtweetmachine.com
 firefoxusercontent.com
 fireside.fm
@@ -12311,6 +12314,7 @@ freebdsmxxx.org
 freebigmovies.com
 freebs.com
 freebsd.org
+freebuff.com
 freecamsfan.com
 freecartoons.biz
 freechatnow.com
@@ -22874,6 +22878,7 @@ tettediferro.it
 tex-talk.net
 texttobuy.org
 texture.com
+tfbnw.net
 tferwq.com
 t.finance
 t-finance.group
@@ -26688,9 +26693,10 @@ full:fandom.zendesk.com
 full:faronics.kayako.com
 full:favoritescc-hamivideo2.cdn.hinet.net
 full:fbcdn-a.akamaihd.net
-full:firebase.google.com
 full:firebase.googleapis.com
 full:firebaseappcheck.googleapis.com
+full:firebaseappdistribution.googleapis.com
+full:firebaseapptesters.googleapis.com
 full:firebasedynamiclinks-ipv4.googleapis.com
 full:firebasedynamiclinks-ipv6.googleapis.com
 full:firebasedynamiclinks.googleapis.com
