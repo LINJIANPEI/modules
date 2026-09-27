@@ -128,21 +128,16 @@ jobs:
           echo "$BACKUP_DIR" > .last_backup
           echo "✅ 备份完成: $BACKUP_DIR"
 
-          # 清理旧备份，只保留最近5个
           ls -dt .backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
           echo "🗑️ 已清理旧备份（保留最近5个）"
 
       - name: 同步上游 Releases
         id: sync
         run: |
-          # 获取手动输入的强制更新标志（push 事件不自动启用）
           FORCE_UPDATE="${{ github.event.inputs.force_update }}"
-          # 如果是定时任务，强制设为 false
           if [ "${{ github.event_name }}" = "schedule" ]; then
             FORCE_UPDATE="false"
           fi
-          # 注意：push 触发时，FORCE_UPDATE 保持用户输入（默认为 false），不会自动强制
-          # 这样 push 也会遵循 publish_on_update 配置
 
           SPECIFIC_UPSTREAM="${{ github.event.inputs.upstream_name }}"
           MANUAL_ASSET="${{ github.event.inputs.select_asset }}"
@@ -191,7 +186,7 @@ jobs:
             SPECIFIC_TAG=$(jq -r ".upstreams[$i].specific_tag // \"\"" sync-mapping-config.json)
 
             # ================================================================
-            # 使用临时 Python 脚本读取 publish_on_update（避免 heredoc 的 YAML 问题）
+            # 使用临时 Python 脚本读取 publish_on_update
             # ================================================================
             echo 'import json, sys' > /tmp/get_pub.py
             echo 'index = int(sys.argv[1])' >> /tmp/get_pub.py
@@ -204,7 +199,6 @@ jobs:
             PUBLISH_ON_UPDATE=$(python3 /tmp/get_pub.py "$i")
             rm /tmp/get_pub.py
 
-            # 调试输出
             echo "🔍 该组件 publish_on_update = '$PUBLISH_ON_UPDATE'"
 
             if [ "$USE_LATEST" = "true" ]; then
@@ -259,10 +253,11 @@ jobs:
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               PATTERNS=$(jq -r ".upstreams[$i].asset_patterns // [] | join(\" \")" sync-mapping-config.json)
               for pattern in $PATTERNS; do
-                regex=$(echo "$pattern" | sed 's/\./\\./g' | sed 's/\*/.*/g' | sed 's/\?/./g')
-                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"^$regex$\")) | .browser_download_url" 2>/dev/null | head -1)
+                # 转义正则：先转义反斜杠，再转义点号，再处理通配符
+                regex=$(printf '%s' "$pattern" | sed 's/\\/\\\\/g; s/\./\\\\./g; s/\*/.*/g; s/?/./g')
+                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r --arg re "^${regex}$" '.assets[] | select(.name | test($re)) | .browser_download_url' 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
-                  SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
+                  SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r --arg url "$SELECTED_URL" '.assets[] | select(.browser_download_url == $url) | .name' 2>/dev/null)
                   echo "  🎯 匹配模式 '$pattern': $SELECTED_NAME"
                   break
                 fi
@@ -272,9 +267,9 @@ jobs:
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               PRIORITY=$(jq -r ".upstreams[$i].asset_priority // [] | join(\" \")" sync-mapping-config.json)
               for keyword in $PRIORITY; do
-                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.name | test(\"$keyword\"; \"i\")) | .browser_download_url" 2>/dev/null | head -1)
+                SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r --arg kw "$keyword" '.assets[] | select(.name | test($kw; "i")) | .browser_download_url' 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
-                  SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r ".assets[] | select(.browser_download_url == \"$SELECTED_URL\") | .name" 2>/dev/null)
+                  SELECTED_NAME=$(echo "$RELEASE_DATA" | jq -r --arg url "$SELECTED_URL" '.assets[] | select(.browser_download_url == $url) | .name' 2>/dev/null)
                   echo "  🔑 匹配关键词 '$keyword': $SELECTED_NAME"
                   break
                 fi
@@ -318,14 +313,12 @@ jobs:
               echo "  ✓ 二进制文件直接复制"
             fi
 
-            # 查找源目录
             if [ $(ls -1 "$EXTRACT_DIR" | wc -l) -eq 1 ] && [ -d "$EXTRACT_DIR"/*/ ]; then
               SOURCE_BASE=$(ls -d "$EXTRACT_DIR"/*/)
             else
               SOURCE_BASE="$EXTRACT_DIR"
             fi
 
-            # 删除不需要的文件
             EXCLUDE_PATTERNS=$(jq -r ".upstreams[$i].exclude // [] | join(\" \")" sync-mapping-config.json 2>/dev/null || echo "")
             if [ -n "$EXCLUDE_PATTERNS" ]; then
               echo "  🗑️ 删除不需要的文件/文件夹..."
@@ -452,7 +445,6 @@ jobs:
                 ACTUAL_UPDATES=$((ACTUAL_UPDATES + 1))
                 echo "✅ $NAME 更新成功 (实际更新文件数: $FILES_COPIED)"
                 echo "$NAME" >> .updated_components
-                # 判断是否可发布
                 if [ "$PUBLISH_ON_UPDATE" = "true" ]; then
                   PUBLISHABLE_UPDATES=$((PUBLISHABLE_UPDATES + 1))
                   echo "  📢 该组件需要发布"
@@ -489,7 +481,7 @@ jobs:
           echo "  失败: $FAIL_COUNT 个"
           echo "=========================================="
 
-      # ========== 步骤1：提交同步更新（只要有实际更新就提交） ==========
+      # ========== 步骤1：提交同步更新 ==========
       - name: 提交并推送同步更新
         if: steps.sync.outputs.actual_updates > 0
         run: |
@@ -508,14 +500,15 @@ jobs:
             echo "✅ 已提交并推送同步更新"
           fi
 
-      # ========== 判断是否需要打包（基于可发布组件更新数） ==========
+      # ========== 判断是否需要打包 ==========
       - name: 判断是否需要打包
         id: should_package
         run: |
           PUBLISHABLE_UPDATES="${{ steps.sync.outputs.publishable_updates }}"
+          PUBLISHABLE_UPDATES="${PUBLISHABLE_UPDATES:-0}"
           FORCE_UPDATE="${{ github.event.inputs.force_update }}"
+          FORCE_UPDATE="${FORCE_UPDATE:-false}"
 
-          # 定时任务或普通 push 时，force_update 默认为 false，遵循 publishable_updates
           if [ "$PUBLISHABLE_UPDATES" -gt 0 ] || [ "$FORCE_UPDATE" = "true" ]; then
             echo "should_package=true" >> $GITHUB_OUTPUT
             echo "✅ 需要打包发布（可发布组件更新数：$PUBLISHABLE_UPDATES，强制更新：$FORCE_UPDATE）"
@@ -599,13 +592,16 @@ jobs:
 
       - name: 更新更新日志
         if: steps.should_package.outputs.should_package == 'true'
+        env:
+          CHANGELOG_INPUT: ${{ github.event.inputs.changelog }}
+          ACTUAL_UPDATES: ${{ steps.sync.outputs.actual_updates }}
         run: |
           mkdir -p update
-          CHANGELOG_MSG="${{ github.event.inputs.changelog }}"
+          CHANGELOG_MSG="$CHANGELOG_INPUT"
           if [ -z "$CHANGELOG_MSG" ]; then
             CHANGELOG_MSG="### 上游同步更新
             - 同步了上游最新 Releases
-            - 更新了 ${{ steps.sync.outputs.actual_updates }} 个组件到最新版本"
+            - 更新了 ${ACTUAL_UPDATES} 个组件到最新版本"
           fi
 
           COMPONENT_LIST=""
@@ -690,12 +686,12 @@ jobs:
             exit 1
           fi
 
-      # ========== 步骤2：提交打包生成的文件（只有发布时才提交） ==========
+      # ========== 步骤2：提交打包生成的文件 ==========
       - name: 提交并推送打包更新
         if: steps.should_package.outputs.should_package == 'true'
         run: |
           git config user.name "github-actions[bot]"
-          git config.user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add module.prop update/update.json update/changelog.md .version_code
 
@@ -711,6 +707,8 @@ jobs:
       # ========== 生成 Release body 文件 ==========
       - name: 生成 Release 内容（写入文件）
         if: steps.should_package.outputs.should_package == 'true'
+        env:
+          CHANGELOG_INPUT: ${{ github.event.inputs.changelog }}
         run: |
           cat > release_body.md <<EOF
           ## 自动发布
@@ -721,7 +719,7 @@ jobs:
           - **发布时间**: ${{ steps.version.outputs.release_datetime }}
 
           ### 更新内容
-          ${{ github.event.inputs.changelog || '同步上游 Releases 更新' }}
+          ${CHANGELOG_INPUT:-同步上游 Releases 更新}
 
           ### 本次更新统计
           - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
