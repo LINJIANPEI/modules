@@ -130,6 +130,7 @@ agoogleaday.com
 agro.hk
 ai.dev
 ai.studio
+aidc.com.tw
 aihub.top
 aiosearch.com
 aiph.net
@@ -528,6 +529,7 @@ bloomberg.de
 bloombergview.com
 bloomfortune.com
 blubrry.com
+blue-plus.net
 bmdru.com
 bnbstatic.com
 bnext.com.tw
@@ -550,6 +552,7 @@ bowenpress.com
 boxpn.com
 boxun.com
 boxun.tv
+boylove.cc
 boysmaster.com
 br.st
 braumeister.org
@@ -626,6 +629,7 @@ camfrog.com
 campaign-archive.com
 campaignforuyghurs.org
 cams.com
+cangku.moe
 canva.com
 canyu.org
 caobian.info
@@ -869,6 +873,7 @@ counter.social
 coursehero.com
 covenantswatch.org.tw
 coze.com
+cpc.com.tw
 cpj.org
 cpu-monkey.com
 cq99.us
@@ -891,6 +896,7 @@ crrev.com
 crucial.com
 crunchyroll.com
 cruxpool.com
+csc.com.tw
 csdparty.com
 csis.org
 csmonitor.com
@@ -980,6 +986,7 @@ deviantart.net
 devio.us
 devpn.com
 devv.ai
+dh.net
 diaoyuislands.org
 digiland.tw
 digisfera.com
@@ -1166,6 +1173,7 @@ everipedia.org
 evschool.net
 exchristian.hk
 exhentai.org
+eximbank.com.tw
 exmo.com
 exmormon.org
 expatshield.com
@@ -1819,7 +1827,9 @@ haiwaikan.com
 hakkatv.org.tw
 halktv.com.tr
 hanime.tv
+hanime1.com
 hanime1.me
+hanimeone.me
 hardsextube.com
 hautelook.com
 hautelookcdn.com
@@ -1842,6 +1852,7 @@ helpeachpeople.com
 helpster.de
 hembed.com
 hentai.tv
+hentaiclub.net
 heqinglian.net
 heritage.org
 herokuapp.com
@@ -1987,6 +1998,7 @@ iam.soy
 iask.ca
 iavian.net
 ibvpn.com
+icdf.org.tw
 icedrive.net
 icij.org
 icl-fi.org
@@ -2044,6 +2056,7 @@ indianarrative.com
 indiandefensenews.in
 indiatoday.in
 indiemerch.com
+indsr.org.tw
 inews-api.tvb.com
 info-graf.fr
 infosec.exchange
@@ -2070,6 +2083,7 @@ investigating.wordpress.com
 investing.com
 invidio.us
 inxian.com
+ipac.global
 ipdefenseforum.com
 ipfire.org
 ipfs.4everland.io
@@ -2128,9 +2142,11 @@ japantimes.co.jp
 jav321.com
 javakiba.org
 javbus.com
+javchu.com
 javdb.com
 javfinder.ai
 javfor.me
+javfree.me
 javhub.net
 javhuge.com
 javlibrary.com
@@ -2152,6 +2168,7 @@ jintian.net
 jinx.com
 jitouch.com
 jkb.cc
+jkforum.net
 jma.go.jp
 jmsc.hku.hk
 jmscult.com
@@ -2199,6 +2216,7 @@ kex.com
 keycdn.com
 kfor.com
 khatrimaza.org
+khc.edu.tw
 kichiku-doujinko.com
 kik.com
 killwall.com
@@ -2244,6 +2262,7 @@ lala.im
 lama.com.tw
 lamayeshe.com
 lamnia.co.uk
+landbank.com.tw
 landofhope.tv
 lantern.io
 laogai.org
@@ -2397,6 +2416,7 @@ mastodon.social
 mastodon.xyz
 matainja.com
 material.io
+matichon.co.th
 matome-plus.com
 matome-plus.net
 matrix.org
@@ -2482,11 +2502,14 @@ miningpoolhub.com
 ministrybooks.org
 minzhuzhongguo.org
 miraheze.org
+mirdc.org.tw
 miroguide.com
 mirror.xyz
 mirrorbooks.com
 mirrormedia.mg
+missav.ai
 missav.com
+missav.live
 missav.ws
 mistral.ai
 mitbbs.com
@@ -2510,6 +2533,7 @@ moby.to
 mod.io
 modernchinastudies.org
 moeerolibrary.com
+moeli-desu.com
 moeshare.cc
 mog.com
 mohu.club
@@ -2589,6 +2613,7 @@ national-lottery.co.uk
 nationalawakening.org
 nationalinterest.org
 nationalreview.com
+nationthailand.com
 nationwide.com
 naughtyamerica.com
 naver.com
@@ -2600,6 +2625,7 @@ nbyy.tv
 nchrd.org
 ncn.org
 ndi.org
+ned.org
 nekoslovakia.net
 neo-miracle.com
 neodb.social
@@ -2691,6 +2717,7 @@ npnt.me
 npsboost.com
 nradio.me
 nrk.no
+nstc.org.tw
 ntd.tv
 ntdtv.com
 ntdtv.com.tw
@@ -2929,6 +2956,7 @@ poe.com
 points-media.com
 pokerstars.com
 pokerstars.net
+poland.tw
 politicalchina.org
 poloniex.com
 polymarket.com
@@ -3024,6 +3052,7 @@ qianglie.com
 qiangwaikan.com
 qiangyou.org
 qianmo.tw
+qingse.one
 qiwen.lu
 qmp4.com
 qobuz.com
@@ -3126,6 +3155,7 @@ roc-taiwan.org
 rocket-inc.net
 rocket.chat
 rocksdb.org
+rocmgov.org
 rojo.com
 rolfoundation.org
 rolia.net
@@ -3524,6 +3554,7 @@ tew.org
 textnow.com
 textnow.me
 tfc-taiwan.org.tw
+tfd.org.tw
 tfhub.dev
 tfiflve.com
 tg-me.com
@@ -3717,6 +3748,7 @@ tryai.dev
 tryheart.jp
 tsdr.uspto.gov
 tt1069.com
+ttl.com.tw
 tttan.com
 ttv.com.tw
 ttvnw.net
@@ -3769,6 +3801,7 @@ tweetwally.com
 tweez.net
 twelve.today
 twerkingbutt.com
+twfhcsec.com.tw
 twftp.org
 twgov.tw
 twgreatdaily.com
@@ -3811,6 +3844,7 @@ twt.tl
 twtkr.com
 twttr.com
 tx.me
+tybio.com.tw
 tycool.com
 typepad.com
 typeset.io
@@ -4000,6 +4034,7 @@ vpsxb.net
 vrchat.com
 vrporn.com
 vrsmash.com
+vscc.org.tw
 vtunnel.com
 vultryhw.com
 w-pool.com
@@ -4259,6 +4294,7 @@ xvideos-cdn.com
 xvideos.com
 xvideos.es
 xvinlink.com
+xx.net
 xxx.com
 xxx.xxx
 xxxx.com.au
@@ -5324,7 +5360,6 @@ ai7995.site
 ai91porn.cc
 aiaa.org
 aiasahi.jp
-aidc.com.tw
 aimei133.com
 aimsciences.org
 aipa553.com
@@ -7738,7 +7773,6 @@ bluehatil.com
 bluehatnights.com
 bluemix.com
 bluemix.net
-blue-plus.net
 bluestacks.com
 bluffyporn.com
 blurams.app
@@ -8246,7 +8280,6 @@ boycall.com
 boyfriendtv.com
 boylabs.net
 boylove1.cc
-boylove.cc
 boylove.com
 boylove.live
 boyloves.cc
@@ -8628,7 +8661,6 @@ candidforum-videos.com
 candycrush.com
 candycumcity.com
 candypleasure.com
-cangku.moe
 canny.io
 canon.am
 canon.at
@@ -9454,7 +9486,6 @@ cowboom.com
 cozydrdrebeats.com
 cp44.net
 cpan.org
-cpc.com.tw
 cpedge.com
 cplsb.ru
 cpz.to
@@ -9520,7 +9551,6 @@ crystalgunnsworld.com
 crystalmiss.com
 cs4hs.com
 csakporno.hu
-csc.com.tw
 cs.co
 cshive.com
 csifund.org
@@ -10052,7 +10082,6 @@ dgg.gg
 dgwav.com
 dh44.lol
 dhlestudio.com.co
-dh.net
 diablo3.com
 diablo4.com
 diablo.com
@@ -11345,7 +11374,6 @@ exec-appointments.com
 exeporn.net
 exgfvideos.xxx
 exgirlfriendmarket.com
-eximbank.com.tw
 exiporn.com
 exoav.com
 exotic-ghana.com
@@ -13276,9 +13304,7 @@ handbags-nike.com
 handbagsoutletebay.com
 handjobhub.com
 handjobtube4free.com
-hanime1.com
 hanime.me
-hanimeone.me
 hanime.xxx
 hanime.xyz
 hanr-bao.mom
@@ -13486,7 +13512,6 @@ hentaichan.live
 hentaichan.me
 hentaicity.com
 hentaicloud.com
-hentaiclub.net
 hentaicomic.ru
 hentaicomics.asia
 hentaicomics.life
@@ -14226,7 +14251,6 @@ i-cable.com
 i-cablecomm.com
 icashpassport.com.mx
 iccf.com
-icdf.org.tw
 icegaytube.tv
 icegay.tv
 iceporncasting.com
@@ -14623,7 +14647,6 @@ indienudes.com
 indies-av.co.jp
 indonesiaporn.name
 ind.sh
-indsr.org.tw
 industrialtoys.com
 infinitetoons.com
 infinitetube.com
@@ -14980,7 +15003,6 @@ iosinthecar.com
 iotinactionevents.com
 i-o-u.info
 ip73.com
-ipac.global
 ipad3.com
 ipadair.cl
 ipadair.cm
@@ -15277,7 +15299,6 @@ javbuz.com
 javcc.cc
 javcc.com
 javcdn.cc
-javchu.com
 javcl.com
 jav.com.co
 javct.net
@@ -15295,7 +15316,6 @@ javfc2.xyz
 javfilms.com
 javforme.ninja
 javfree.la
-javfree.me
 javfree.sh
 javfuck.net
 javfull.net
@@ -15493,7 +15513,6 @@ jjsuo.sbs
 jkbeats.com
 jkface.net
 jkf.net
-jkforum.net
 jkycjk.mom
 jkzvz.shop
 jkzw.shop
@@ -15774,7 +15793,6 @@ kgisystems.com
 kgslb.com
 khanacademy.org
 khangar.net
-khc.edu.tw
 khotruyentranhx.com
 kichikuou.com
 kick.com
@@ -15971,7 +15989,6 @@ ladyboygold.eu
 ladyboypornonly.com
 la-mama.ru
 lanasbigboobs.com
-landbank.com.tw
 langchain.com
 langsuirs.com
 languagetool.org
@@ -16708,7 +16725,6 @@ mat6tube.com
 matchmover.com
 mate-desktop.org
 mathoverflow.net
-matichon.co.th
 matrix.to
 matters.one
 mattersprotocol.io
@@ -16845,6 +16861,7 @@ meetfasttrack.com
 meet.new
 meetsmartbook.com
 meetyourdevices.com
+megaad.nz
 megacamz.com
 megaeth.com
 megafilmporno.com
@@ -16854,10 +16871,12 @@ megafon.ru
 megamarket.ru
 megamarket.tech
 megamon.co.kr
+megapay.nz
 megaphone.fm
 megapornfreehd.com
 megaporno.com.br
 megapornpics.com
+megas4.com
 megasrv.de
 megatitsminka.com
 me-gay.com
@@ -17368,7 +17387,6 @@ miohentai.com
 mirabilis.com
 mirailab.tech
 mirandaicq.com
-mirdc.org.tw
 mirrormedia.com.tw
 mirrorsedge2.com
 mirrorsedge2d.com
@@ -17376,8 +17394,6 @@ mirrorsedge.com
 mirrorsedge.jp
 mirrorsedge.net
 missav123.com
-missav.ai
-missav.live
 missav.uno
 missav.vip
 misshotgirls.com
@@ -17463,7 +17479,6 @@ moedigi.com
 moeero-library.com
 moefuns.co
 moeimg.net
-moeli-desu.com
 moepedia.net
 moez-m.com
 mof.kemomi.me
@@ -18052,7 +18067,6 @@ natgeokidsbooks.co.uk
 natgeomaps.com
 nationalgeographic.com
 nationalgeographicpartners.com
-nationthailand.com
 nativeincolour.com.au
 naturalvoices.com
 nature.com
@@ -18096,7 +18110,6 @@ ncloud.com
 near.by
 nebay.net
 neborder.com
-ned.org
 nee4you.com
 needforspeedboost.com
 needforspeed.com
@@ -18628,7 +18641,6 @@ nsfw.xxx
 nsimg.net
 nsloon.com
 nspk.ru
-nstc.org.tw
 ntc.party
 ntdca.com
 ntd.com
@@ -19832,7 +19844,6 @@ pokemonultrasunmoon.com
 pokemon-unitepgame.com
 pokemonvgc.com
 pokemonwifi.net
-poland.tw
 polygon.com
 polymerproject.org
 polyu.hk
@@ -20441,7 +20452,6 @@ qctconnect.com
 qdiehzz7.me
 qiao-cn.com
 qinav.com
-qingse.one
 qise100.com
 qlink.to
 qmap.pub
@@ -20918,7 +20928,6 @@ rocksextube.com
 rockstargames.com
 rockstarnorth.com
 rockylinux.org
-rocmgov.org
 roku.com
 rokutime.com
 rolls-roycecullinan.com
@@ -22914,7 +22923,6 @@ tex-talk.net
 texttobuy.org
 texture.com
 tfbnw.net
-tfd.org.tw
 tferwq.com
 t.finance
 t-finance.group
@@ -23317,6 +23325,7 @@ trans500.com
 transangels.com
 transarmuito.com
 transcamslive.com
+transfer.it
 transferwise.com
 translatetheweb.com
 translatewiki.net
@@ -23438,7 +23447,6 @@ t-technologies.ru
 t-tech.ru
 t-tech.team
 tteshop.com
-ttl.com.tw
 ttlivecdn.com
 t-tolk.ru
 ttoverseaus.net
@@ -23533,7 +23541,6 @@ twcstorage.ru
 tweakadmin.com
 tweakfilms.com
 tweaksoftware.com
-twfhcsec.com.tw
 twgreatnews.com
 twhentai.com
 twidouga.net
@@ -23574,7 +23581,6 @@ txvia.com
 txvlog.com
 txxx1.com
 txxx.com
-tybio.com.tw
 tyler-brown.com
 tyms2022.com
 typeisbeautiful.com
@@ -24626,7 +24632,6 @@ vsassets.io
 vscale.blog
 vscale.io
 vscale.ru
-vscc.org.tw
 vscode-cdn.net
 vscode.dev
 vscodeedu.app
@@ -25571,7 +25576,6 @@ xxindianporn.com
 xxiqiyiavxx.buzz
 xx-map.com
 xxmovz.com
-xx.net
 xxnx.rest
 xxnxx-porn.com
 xxnxx-sex.com
