@@ -60,11 +60,43 @@ plugins:
           bootstrap: "127.0.0.1:5555"
           idle_timeout: 120
 
+  # ---------- ECS 保留插件（国内用） ----------
+  - tag: ecs_keep
+    type: ecs_handler
+    args:
+      forward: true    # 转发客户端传来的 ECS
+      send: false      # 不主动生成 ECS
+
+  # ---------- ECS 剥离插件（国外用） ----------
+  - tag: ecs_strip
+    type: ecs_handler
+    args:
+      forward: false   # 不转发客户端传来的 ECS
+      send: false      # 也不主动生成 ECS
+
+  # ---------- 国内专用子链（保留 ECS） ----------
+  - tag: seq_local_keep
+    type: sequence
+    args:
+      - exec: $ecs_keep           # 保留 ECS
+      - exec: $forward_local      # 转发到 home 组
+      - matches: has_resp
+        exec: accept
+
+  # ---------- 国外专用子链（剥离 ECS） ----------
+  - tag: seq_remote_strip
+    type: sequence
+    args:
+      - exec: $ecs_strip          # 剥离 ECS
+      - exec: $forward_remote     # 转发到 office 组
+      - matches: has_resp
+        exec: accept
+
   - tag: fallback_main
     type: fallback
     args:
-      primary: forward_remote
-      secondary: forward_local
+      primary: seq_remote_strip   # 主路径：剥离 ECS 后走国外
+      secondary: seq_local_keep   # 备路径：保留 ECS 走国内
       threshold: 50
       always_standby: true
    
@@ -95,7 +127,7 @@ plugins:
 
       # ---------- 中国域名 ----------
       - matches: "qname $cn_domains"
-        exec: $forward_local
+        exec: $seq_local_keep
         
 #      - matches: "resp_ip $cn_ips"
 #        exec: drop_resp
@@ -106,7 +138,7 @@ plugins:
 
       # ---------- CDN ----------
       - matches: "qname $cdn_domains"
-        exec: $forward_local
+        exec: $seq_local_keep
         
 #      - matches: "resp_ip $cn_ips"
 #        exec: drop_resp
@@ -117,7 +149,7 @@ plugins:
 
       # ---------- 国外域名 ----------
       - matches: "qname $nocn_domains"
-        exec: $forward_remote
+        exec: $seq_remote_strip
         
 #      - matches: "resp_ip $nocn_ips"
 #        exec: drop_resp
@@ -132,6 +164,9 @@ plugins:
       - exec: prefer_ipv4
       - matches: has_resp
         exec: accept
+
+      # 兜底：fallback 也失败时返回 SERVFAIL 并终止
+      - exec: reject SERVFAIL
 
   - tag: tcp_in
     type: tcp_server
