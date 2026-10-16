@@ -19829,6 +19829,7 @@ playshow.io
 playshowtv.com
 playstation.com
 playstation.net
+playstationnetwork.com
 playvalorant.com
 playvids.com
 playwarcraft3.com
@@ -21315,6 +21316,7 @@ scb.ru
 sc-cdn.net
 sc.com
 scdn.co
+scea.com
 scene7.com
 scenesource.me
 sc-gw.com
@@ -22136,6 +22138,7 @@ sony.com.ni
 sony.com.pa
 sony.com.pe
 sony.com.ph
+sony.com.py
 sony.com.sg
 sony.com.sv
 sony.com.tr
@@ -22162,6 +22165,7 @@ sony-hes.co.jp
 sony.hr
 sony.hu
 sony.ie
+sonyinteractive.com
 sony.it
 sonykigyo.jp
 sony.kz
@@ -22171,6 +22175,7 @@ sony.lt
 sony.lu
 sony.lv
 sony-mea.com
+sonymusic.com.hk
 sony.net
 sonynetwork.co.jp
 sony.nl
