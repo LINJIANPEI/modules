@@ -58,6 +58,7 @@
 6parker.com
 6parknews.com
 7capture.com
+7x24hrs.com
 8-d.com
 85cc.us
 881903.com
@@ -2460,7 +2461,9 @@ meridian-trust.org
 meripet.com
 merit-times.com.tw
 messenger.com
+meta.ai
 meta.com
+metaaivm.com
 metafilter.com
 metamask.io
 metart.com
@@ -4857,7 +4860,6 @@ zzcloud.me
 7tb.cc
 7tv.app
 7tv.io
-7x24hrs.com
 8008206616.com
 8111y.top
 81jia.tv
@@ -9630,6 +9632,7 @@ cursorapi.com
 cursor-cdn.com
 cursor.com
 cursor.sh
+cursorvm.com
 cu.ru
 curve.fi
 curvybbwwives.com
@@ -16949,8 +16952,6 @@ meshmixerforum.com
 messengerdevelopers.com
 messybrainz.org
 messytube.com
-meta.ai
-metaaivm.com
 metabora.io
 metabrainz.org
 metacloud.com
@@ -19105,6 +19106,7 @@ onxxxvideo.com
 ootbstudio.co.kr
 op7979.com
 opac-project.eu
+openai.org
 openamt.com
 openapiplatform.com
 openapiservice.com
@@ -21326,6 +21328,7 @@ schemer.com
 schiffvitamins.com
 scholarpedia.org
 schwabassetmanagement.com
+schwabcdn.com
 schwab.com.sg
 schwabplan.com
 science.com
@@ -23225,7 +23228,9 @@ timerbank.ru
 timesmembership.com
 timestalks.com
 timeweb.cloud
+timewebcloud.kz
 timeweb.com
+timeweb.tech
 timi1.me
 timo0.com
 ting53.xyz
@@ -23655,6 +23660,7 @@ typeisbeautiful.com
 typekit.com
 typekit.net
 typenetwork.com
+typesafe.ai
 typesquare.com
 typography.com
 tyre-cadcam.com
