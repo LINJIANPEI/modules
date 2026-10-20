@@ -16532,6 +16532,7 @@ magento.net
 magestic.com
 magicalmirai.com
 magicmovies.com
+magnific.com
 mahajantech.com
 maidonanews.jp
 mail-carrotquest.io
@@ -17824,6 +17825,7 @@ mtao.fun
 mt.lv
 mtsbank.ru
 mtsdengi.ru
+mts-link.ru
 mtsmedia.ru
 mts.ru
 mts-ws.net
@@ -20264,6 +20266,7 @@ postgresql.org
 postimages.org
 postimg.cc
 postini.com
+postman.com
 posty.kr
 postyourgirls.ws
 potenza.jp
@@ -26911,6 +26914,8 @@ full:impala-media-production.s3.amazonaws.com
 full:imperial.insendi.com
 full:incoming-telemetry.thunderbird.net
 full:incoming.telemetry.mozilla.org
+full:kp-config-smart-tv.akamaized.net
+full:kp-configs-smart-tv.s3.eu-central-1.amazonaws.com
 full:lastfm-img.freetls.fastly.net
 full:lastfm.freetls.fastly.net
 full:lazer.ppy.sh
