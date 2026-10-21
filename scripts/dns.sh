@@ -1,39 +1,38 @@
 #!/system/bin/sh
-
 # ============================================================================
 # /data/adb/modules/Linlin/scripts/dns.sh
 #
-# DNS 劫持 + DoT/DoQ 封锁 + SNI 嗅探（不常驻）
+# DNS 劫持 + DoT/DoQ/DoH3 封锁（不常驻，无 SNI）
 #
 # 用法: sh dns.sh {enable|disable|status} [DNS_PORT]
 #
-# IPv6 策略：
-#   block_ipv6_dns=false + nat 可用  → IPv6 劫持，与 IPv4 同步
-#   block_ipv6_dns=true              → IPv6 DNS 阻断（DROP 53）
-#   nat 不可用（无论变量）           → IPv6 DNS 阻断兜底（DROP 53）
-#   ip6tables 不存在                 → 禁用 IPv6 网络栈（disable_ipv6=1）全断
+# IPv6 DNS 53 三档：
+#   block_ipv6_dns=false + nat 可用   → IPv6 同步 REDIRECT
+#   block_ipv6_dns=false + nat 不可用 → 不碰 IPv6 DNS，保留原生解析
+#   block_ipv6_dns=true               → IPv6 DNS 53 DROP
+#
+# ip6tables 命令不存在：
+#   → 禁用 IPv6 网络栈（disable_ipv6=1），全部 IPv6 流量中断
+#   → 跳过所有 IPv6 规则（DNS / DoT / DoQ）
+#   → 原值存文件，disable 时恢复
+#
+# 853(tcp/udp) + udp443：与 IPv4 无条件同步（ip6tables 可用时）
 # ============================================================================
 
-# ---------- 加载配置（含 log 函数） ----------
 source /data/adb/modules/Linlin/fun.conf
-
-# ---------- 确保日志目录存在 ----------
 mkdir -p "${log_dir}" 2>/dev/null
+
+# ---------- 统一日志文件 ----------
+LOG_FILE="${log_dir}/dns.log"
+
+# 脚本自身 stderr 也进 dns.log（fun.conf 的 log 函数仍显式传参，双保险）
+exec 2>>"$LOG_FILE" 2>/dev/null || true
 
 # ---------- 变量兜底 ----------
 : "${uid:=root}"
 : "${gid:=net_raw}"
 : "${redir_port:=5591}"
-: "${sni_ports:=443,8443}"
-: "${sni_queue:=0}"
 : "${block_ipv6_dns:=false}"
-
-# ---------- IPv6 能力标志 ----------
-IPV6_CMD_OK=false      # ip6tables 命令是否存在
-IPV6_NAT_OK=false      # IPv6 nat 表 + REDIRECT 是否可用
-IPV6_STACK_OFF=false   # 是否由本脚本禁用了 IPv6 网络栈
-IPV6_PREV_ALL=""
-IPV6_PREV_DEFAULT=""
 
 # ---------- DNS 端口 ----------
 if [ -n "$2" ]; then
@@ -48,17 +47,27 @@ fi
 CHAIN4="REDIRECT_DNS"
 CHAIN6="REDIRECT_DNS6"
 CHAIN_BLK6="BLOCK_DNS6"
-CHAIN_DOT="AGH_DOT"
-CHAIN_DOT6="AGH_DOT6"
-CHAIN_SNI="AGH_SNI"
+CHAIN_BLK="BLOCK_ENC_DNS"
+
+# ---------- IPv6 能力 ----------
+IPV6_CMD_OK=false
+IPV6_NAT_OK=false
+IPV6_PREV_FILE="${log_dir}/ipv6_prev.conf"
 
 # ============================================================================
 # IPv6 网络栈禁用 / 恢复
 # ============================================================================
 block_ipv6_stack() {
-    log Warn "尝试禁用 IPv6 网络栈，阻断所有 IPv6 流量" "${log_dir}/dns.log"
-    IPV6_PREV_ALL=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
-    IPV6_PREV_DEFAULT=$(cat /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null)
+    log Warn "ip6tables 不可用 → 禁用 IPv6 网络栈兜底" "$LOG_FILE"
+
+    if [ ! -f "$IPV6_PREV_FILE" ]; then
+        _a=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
+        _d=$(cat /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null)
+        {
+            [ -n "$_a" ] && echo "ALL=$_a"
+            [ -n "$_d" ] && echo "DEFAULT=$_d"
+        } > "$IPV6_PREV_FILE" 2>/dev/null
+    fi
 
     _ok=false
     if [ -w /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
@@ -71,74 +80,62 @@ block_ipv6_stack() {
     fi
 
     if [ "$_ok" = "true" ]; then
-        IPV6_STACK_OFF=true
-        log Warn "IPv6 网络栈已禁用（重启后自动恢复，或 disable 脚本恢复）" "${log_dir}/dns.log"
-        log Warn "注意：可能影响 VoLTE/VoWiFi 等依赖 IPv6 的业务" "${log_dir}/dns.log"
+        log Warn "IPv6 网络栈已禁用（disable_ipv6=1）" "$LOG_FILE"
+        log Warn "所有 IPv6 流量中断：DNS/DoT/DoQ/网页；可能影响 VoLTE/VoWiFi" "$LOG_FILE"
+        log Warn "重启或 sh dns.sh disable 恢复" "$LOG_FILE"
     else
-        log Warn "禁用 IPv6 网络栈失败，IPv6 流量仍可能绕过 DNS 劫持" "${log_dir}/dns.log"
+        log Warn "禁用 IPv6 网络栈失败，IPv6 流量仍可能绕过 DNS 劫持" "$LOG_FILE"
     fi
 }
 
 unblock_ipv6_stack() {
-    [ "$IPV6_STACK_OFF" = "true" ] || return 0
+    if [ -f "$IPV6_PREV_FILE" ]; then
+        _a=$(grep '^ALL=' "$IPV6_PREV_FILE" 2>/dev/null | cut -d= -f2)
+        _d=$(grep '^DEFAULT=' "$IPV6_PREV_FILE" 2>/dev/null | cut -d= -f2)
+        [ -z "$_a" ] && _a=0
+        [ -z "$_d" ] && _d=0
 
-    log Info "恢复 IPv6 网络栈（还原为部署前的值）" "${log_dir}/dns.log"
-    if [ -n "$IPV6_PREV_ALL" ]; then
-        echo "$IPV6_PREV_ALL" > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+        echo "$_a" > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+        echo "$_d" > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+        rm -f "$IPV6_PREV_FILE"
+        log Info "IPv6 网络栈已恢复（all=$_a, default=$_d）" "$LOG_FILE"
+        return 0
     fi
-    if [ -n "$IPV6_PREV_DEFAULT" ]; then
-        echo "$IPV6_PREV_DEFAULT" > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+
+    _cur=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
+    if [ "$_cur" = "1" ]; then
+        echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+        echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+        log Info "IPv6 网络栈已恢复为默认（0）" "$LOG_FILE"
     fi
-    IPV6_STACK_OFF=false
 }
 
 # ============================================================================
-# IPv6 能力检测（带打印）
+# IPv6 能力探测
 # ============================================================================
 detect_ipv6() {
     IPV6_CMD_OK=false
     IPV6_NAT_OK=false
 
-    # ---- 命令都不存在 → 只能全断 ----
     if ! command -v ip6tables >/dev/null 2>&1; then
-        log Warn "ip6tables 命令不存在 → 无法建立 IPv6 规则，禁用 IPv6 网络栈兜底" "${log_dir}/dns.log"
         block_ipv6_stack
         return 1
     fi
     IPV6_CMD_OK=true
 
-    # ---- 用户显式要求阻断 DNS ----
-    if [ "$block_ipv6_dns" = "true" ]; then
-        log Info "block_ipv6_dns=true → IPv6 DNS 走 DROP 阻断" "${log_dir}/dns.log"
-        return 0
-    fi
+    ip6tables -w 2 -t nat -L >/dev/null 2>&1 || return 0
 
-    # ---- nat 表不可用 → 想劫持也劫持不了，DROP 兜底 ----
-    if ! ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
-        log Warn "IPv6 nat 不可用（block_ipv6_dns=false 但无法劫持）→ IPv6 DNS 走 DROP 阻断兜底" "${log_dir}/dns.log"
-        return 0
-    fi
-
-    # ---- REDIRECT 写入测试 ----
-    if ! ip6tables -w 2 -t nat -A PREROUTING -p tcp --dport 65534 \
+    if ip6tables -w 2 -t nat -A PREROUTING -p tcp --dport 65534 \
             -j REDIRECT --to-port 65534 >/dev/null 2>&1; then
-        log Warn "IPv6 nat REDIRECT 写入失败 → IPv6 DNS 走 DROP 阻断兜底" "${log_dir}/dns.log"
-        return 0
+        IPV6_NAT_OK=true
+        ip6tables -w 2 -t nat -D PREROUTING -p tcp --dport 65534 \
+            -j REDIRECT --to-port 65534 2>/dev/null
     fi
-    IPV6_NAT_OK=true
-
-    if ! ip6tables -w 2 -t nat -D PREROUTING -p tcp --dport 65534 \
-            -j REDIRECT --to-port 65534 >/dev/null 2>&1; then
-        log Warn "IPv6 nat 测试规则删除失败，请手动执行:" "${log_dir}/dns.log"
-        log Warn "  ip6tables -t nat -D PREROUTING -p tcp --dport 65534 -j REDIRECT --to-port 65534" "${log_dir}/dns.log"
-    fi
-
-    log Info "IPv6 nat REDIRECT 可用 → IPv6 DNS 劫持（与 IPv4 同步）" "${log_dir}/dns.log"
     return 0
 }
 
 # ============================================================================
-# DNS 劫持链
+# DNS 53：IPv4 劫持
 # ============================================================================
 rebuild_dns4() {
     iptables -w 2 -t nat -N "$CHAIN4" 2>/dev/null
@@ -162,6 +159,9 @@ rebuild_dns4() {
     iptables -w 2 -t nat -A "$CHAIN4" -p tcp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
 }
 
+# ============================================================================
+# DNS 53：IPv6 劫持（同步模式）
+# ============================================================================
 rebuild_dns6() {
     ip6tables -w 2 -t nat -N "$CHAIN6" 2>/dev/null
     ip6tables -w 2 -t nat -F "$CHAIN6"
@@ -182,6 +182,9 @@ rebuild_dns6() {
     ip6tables -w 2 -t nat -A "$CHAIN6" -p tcp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
 }
 
+# ============================================================================
+# DNS 53：IPv6 DROP（block_ipv6_dns=true）
+# ============================================================================
 rebuild_dns6_block() {
     ip6tables -w 2 -t filter -N "$CHAIN_BLK6" 2>/dev/null
     ip6tables -w 2 -t filter -F "$CHAIN_BLK6"
@@ -194,117 +197,96 @@ rebuild_dns6_block() {
     ip6tables -w 2 -t filter -A "$CHAIN_BLK6" -p tcp --dport 53 -j DROP
 }
 
-# ============================================================================
-# DoT / DoQ 封锁
-# ============================================================================
-rebuild_dot4() {
-    iptables -w 2 -N "$CHAIN_DOT" 2>/dev/null
-    iptables -w 2 -F "$CHAIN_DOT"
-    iptables -w 2 -C OUTPUT -j "$CHAIN_DOT" 2>/dev/null || \
-        iptables -w 2 -I OUTPUT 1 -j "$CHAIN_DOT"
-
-    iptables -w 2 -A "$CHAIN_DOT" \
-        -m owner --uid-owner "${uid}" --gid-owner "${gid}" -j RETURN
-
-    iptables -w 2 -A "$CHAIN_DOT" -p tcp --dport 853 -j REJECT
-    iptables -w 2 -A "$CHAIN_DOT" -p udp --dport 853 \
-        -j REJECT --reject-with icmp-port-unreachable
-    iptables -w 2 -A "$CHAIN_DOT" -p udp --dport 443 \
-        -j REJECT --reject-with icmp-port-unreachable
+# ---------- 内部清理助手 ----------
+_clear_dns6() {
+    ip6tables -w 2 -t nat -D OUTPUT -j "$CHAIN6" 2>/dev/null
+    ip6tables -w 2 -t nat -F "$CHAIN6" 2>/dev/null
+    ip6tables -w 2 -t nat -X "$CHAIN6" 2>/dev/null
 }
-
-rebuild_dot6() {
-    ip6tables -w 2 -t filter -N "$CHAIN_DOT6" 2>/dev/null
-    ip6tables -w 2 -t filter -F "$CHAIN_DOT6"
-    ip6tables -w 2 -t filter -C OUTPUT -j "$CHAIN_DOT6" 2>/dev/null || \
-        ip6tables -w 2 -t filter -I OUTPUT 1 -j "$CHAIN_DOT6"
-
-    ip6tables -w 2 -t filter -A "$CHAIN_DOT6" \
-        -m owner --uid-owner "${uid}" --gid-owner "${gid}" -j RETURN
-    ip6tables -w 2 -t filter -A "$CHAIN_DOT6" -p tcp --dport 853 -j REJECT
-    ip6tables -w 2 -t filter -A "$CHAIN_DOT6" -p udp --dport 853 \
-        -j REJECT --reject-with icmp6-port-unreachable
-    ip6tables -w 2 -t filter -A "$CHAIN_DOT6" -p udp --dport 443 \
-        -j REJECT --reject-with icmp6-port-unreachable
+_clear_dns6_blk() {
+    ip6tables -w 2 -t filter -D OUTPUT -j "$CHAIN_BLK6" 2>/dev/null
+    ip6tables -w 2 -t filter -F "$CHAIN_BLK6" 2>/dev/null
+    ip6tables -w 2 -t filter -X "$CHAIN_BLK6" 2>/dev/null
 }
 
 # ============================================================================
-# SNI NFQUEUE（IPv4 总建，IPv6 按命令能力）
+# 853(tcp/udp) + udp443：v4/v6 同步
 # ============================================================================
-rebuild_sni() {
-    # ---- IPv4 ----
-    iptables -w 2 -t filter -N "$CHAIN_SNI" 2>/dev/null
-    iptables -w 2 -t filter -F "$CHAIN_SNI"
-    iptables -w 2 -t filter -A "$CHAIN_SNI" -o lo -j RETURN
-    iptables -w 2 -t filter -A "$CHAIN_SNI" \
-        -p tcp -m multiport --dports "$sni_ports" --tcp-flags ALL ACK -j RETURN
-    iptables -w 2 -t filter -A "$CHAIN_SNI" \
-        -p tcp -m multiport --dports "$sni_ports" \
-        --tcp-flags SYN,FIN,RST NONE \
-        -j NFQUEUE --queue-num "$sni_queue" --queue-bypass
-    iptables -w 2 -t filter -C OUTPUT -j "$CHAIN_SNI" 2>/dev/null || \
-        iptables -w 2 -t filter -I OUTPUT 1 -j "$CHAIN_SNI"
+rebuild_block4() {
+    iptables -w 2 -t filter -N "$CHAIN_BLK" 2>/dev/null
+    iptables -w 2 -t filter -F "$CHAIN_BLK"
+    iptables -w 2 -t filter -C OUTPUT -j "$CHAIN_BLK" 2>/dev/null || \
+        iptables -w 2 -t filter -I OUTPUT 1 -j "$CHAIN_BLK"
 
-    # ---- IPv6 ----
-    if [ "$IPV6_CMD_OK" != "true" ]; then
-        log Warn "跳过 SNI IPv6 规则（ip6tables 不可用）" "${log_dir}/dns.log"
-        return
-    fi
-    ip6tables -w 2 -t filter -N "$CHAIN_SNI" 2>/dev/null
-    ip6tables -w 2 -t filter -F "$CHAIN_SNI"
-    ip6tables -w 2 -t filter -A "$CHAIN_SNI" -o lo -j RETURN
-    ip6tables -w 2 -t filter -A "$CHAIN_SNI" \
-        -p tcp -m multiport --dports "$sni_ports" --tcp-flags ALL ACK -j RETURN
-    ip6tables -w 2 -t filter -A "$CHAIN_SNI" \
-        -p tcp -m multiport --dports "$sni_ports" \
-        --tcp-flags SYN,FIN,RST NONE \
-        -j NFQUEUE --queue-num "$sni_queue" --queue-bypass
-    ip6tables -w 2 -t filter -C OUTPUT -j "$CHAIN_SNI" 2>/dev/null || \
-        ip6tables -w 2 -t filter -I OUTPUT 1 -j "$CHAIN_SNI"
+    iptables -w 2 -t filter -A "$CHAIN_BLK" \
+        -m owner --uid-owner "${uid}" --gid-owner "${gid}" -j RETURN
+
+    iptables -w 2 -t filter -A "$CHAIN_BLK" -p tcp --dport 853 -j REJECT
+    iptables -w 2 -t filter -A "$CHAIN_BLK" -p udp --dport 853 \
+        -j REJECT --reject-with icmp-port-unreachable
+    iptables -w 2 -t filter -A "$CHAIN_BLK" -p udp --dport 443 \
+        -j REJECT --reject-with icmp-port-unreachable
+}
+
+rebuild_block6() {
+    ip6tables -w 2 -t filter -N "$CHAIN_BLK" 2>/dev/null
+    ip6tables -w 2 -t filter -F "$CHAIN_BLK"
+    ip6tables -w 2 -t filter -C OUTPUT -j "$CHAIN_BLK" 2>/dev/null || \
+        ip6tables -w 2 -t filter -I OUTPUT 1 -j "$CHAIN_BLK"
+
+    ip6tables -w 2 -t filter -A "$CHAIN_BLK" \
+        -m owner --uid-owner "${uid}" --gid-owner "${gid}" -j RETURN
+
+    ip6tables -w 2 -t filter -A "$CHAIN_BLK" -p tcp --dport 853 -j REJECT
+    ip6tables -w 2 -t filter -A "$CHAIN_BLK" -p udp --dport 853 \
+        -j REJECT --reject-with icmp6-port-unreachable
+    ip6tables -w 2 -t filter -A "$CHAIN_BLK" -p udp --dport 443 \
+        -j REJECT --reject-with icmp6-port-unreachable
 }
 
 # ============================================================================
 # 全量重建
 # ============================================================================
 rebuild_all() {
-    log Info "重建所有规则 (DNS_PORT=$DNS_PORT, block_ipv6_dns=$block_ipv6_dns)" "${log_dir}/dns.log"
+    log Info "重建规则 (DNS_PORT=$DNS_PORT, block_ipv6_dns=$block_ipv6_dns)" "$LOG_FILE"
     detect_ipv6
 
-    # ---- DNS IPv4 ----
     rebuild_dns4
 
-    # ---- DNS IPv6 ----
     if [ "$IPV6_CMD_OK" != "true" ]; then
-        log Warn "跳过 DNS IPv6 规则（已禁用 IPv6 栈，无 IPv6 流量）" "${log_dir}/dns.log"
-    elif [ "$IPV6_NAT_OK" = "true" ]; then
-        rebuild_dns6
-        ip6tables -w 2 -t filter -D OUTPUT -j "$CHAIN_BLK6" 2>/dev/null
-        ip6tables -w 2 -t filter -F "$CHAIN_BLK6" 2>/dev/null
-        ip6tables -w 2 -t filter -X "$CHAIN_BLK6" 2>/dev/null
+        log Warn "IPv6 网络栈已禁用 → 跳过全部 IPv6 规则（DNS/DoT/DoQ）" "$LOG_FILE"
     else
-        rebuild_dns6_block
-        ip6tables -w 2 -t nat -D OUTPUT -j "$CHAIN6" 2>/dev/null
-        ip6tables -w 2 -t nat -F "$CHAIN6" 2>/dev/null
-        ip6tables -w 2 -t nat -X "$CHAIN6" 2>/dev/null
+        if [ "$block_ipv6_dns" = "true" ]; then
+            log Info "block_ipv6_dns=true → IPv6 DNS 走 DROP" "$LOG_FILE"
+            rebuild_dns6_block
+            _clear_dns6
+        elif [ "$IPV6_NAT_OK" = "true" ]; then
+            log Info "block_ipv6_dns=false + nat 可用 → IPv6 DNS 同步劫持" "$LOG_FILE"
+            rebuild_dns6
+            _clear_dns6_blk
+        else
+            log Warn "block_ipv6_dns=false 但 nat 不可用 → 不碰 IPv6 DNS" "$LOG_FILE"
+            _clear_dns6
+            _clear_dns6_blk
+        fi
+
+        rebuild_block6
     fi
 
-    # ---- DoT ----
-    rebuild_dot4
+    rebuild_block4
+
     if [ "$IPV6_CMD_OK" = "true" ]; then
-        rebuild_dot6
+        log Info "853/udp443 已封锁（IPv4 + IPv6）" "$LOG_FILE"
     else
-        log Warn "跳过 DoT IPv6 规则（ip6tables 不可用）" "${log_dir}/dns.log"
+        log Warn "853/udp443 仅封锁 IPv4（IPv6 已整栈禁用）" "$LOG_FILE"
     fi
-
-    # ---- SNI ----
-    rebuild_sni
 }
 
 # ============================================================================
-# 首次部署
+# 部署
 # ============================================================================
 first_setup() {
-    log Info "开始部署 DNS 劫持 (DNS_PORT=$DNS_PORT)" "${log_dir}/dns.log"
+    log Info "开始部署 (DNS_PORT=$DNS_PORT)" "$LOG_FILE"
 
     [ "$(settings get global private_dns_mode)" != "off" ] && \
         settings put global private_dns_mode off
@@ -318,123 +300,97 @@ first_setup() {
         am broadcast -a android.intent.action.AIRPLANE_MODE >/dev/null 2>&1
     done
 
-    log Info "DNS 劫持部署完成" "${log_dir}/dns.log"
+    log Info "部署完成" "$LOG_FILE"
 }
 
 # ============================================================================
-# stop
+# 清理
 # ============================================================================
 stop_all() {
-    log Info "清理 DNS 规则" "${log_dir}/dns.log"
+    log Info "清理规则" "$LOG_FILE"
 
-    # 先恢复 IPv6 网络栈
     unblock_ipv6_stack
-
-    _v6cmd=false
-    command -v ip6tables >/dev/null 2>&1 && _v6cmd=true
 
     # ---- IPv4 ----
     iptables -w 2 -t nat -D OUTPUT -j "$CHAIN4" 2>/dev/null
     iptables -w 2 -t nat -F "$CHAIN4" 2>/dev/null
     iptables -w 2 -t nat -X "$CHAIN4" 2>/dev/null
-    iptables -w 2 -D OUTPUT -j "$CHAIN_DOT" 2>/dev/null
-    iptables -w 2 -F "$CHAIN_DOT" 2>/dev/null
-    iptables -w 2 -X "$CHAIN_DOT" 2>/dev/null
-    iptables -w 2 -t filter -D OUTPUT -j "$CHAIN_SNI" 2>/dev/null
-    iptables -w 2 -t filter -F "$CHAIN_SNI" 2>/dev/null
-    iptables -w 2 -t filter -X "$CHAIN_SNI" 2>/dev/null
+    iptables -w 2 -t filter -D OUTPUT -j "$CHAIN_BLK" 2>/dev/null
+    iptables -w 2 -t filter -F "$CHAIN_BLK" 2>/dev/null
+    iptables -w 2 -t filter -X "$CHAIN_BLK" 2>/dev/null
 
     # ---- IPv6 ----
-    if [ "$_v6cmd" = "true" ]; then
-        ip6tables -w 2 -t nat -D OUTPUT -j "$CHAIN6" 2>/dev/null
-        ip6tables -w 2 -t nat -F "$CHAIN6" 2>/dev/null
-        ip6tables -w 2 -t nat -X "$CHAIN6" 2>/dev/null
-        ip6tables -w 2 -t filter -D OUTPUT -j "$CHAIN_BLK6" 2>/dev/null
-        ip6tables -w 2 -t filter -F "$CHAIN_BLK6" 2>/dev/null
-        ip6tables -w 2 -t filter -X "$CHAIN_BLK6" 2>/dev/null
-        ip6tables -w 2 -t filter -D OUTPUT -j "$CHAIN_DOT6" 2>/dev/null
-        ip6tables -w 2 -t filter -F "$CHAIN_DOT6" 2>/dev/null
-        ip6tables -w 2 -t filter -X "$CHAIN_DOT6" 2>/dev/null
-        ip6tables -w 2 -t filter -D OUTPUT -j "$CHAIN_SNI" 2>/dev/null
-        ip6tables -w 2 -t filter -F "$CHAIN_SNI" 2>/dev/null
-        ip6tables -w 2 -t filter -X "$CHAIN_SNI" 2>/dev/null
+    if command -v ip6tables >/dev/null 2>&1; then
+        _clear_dns6
+        _clear_dns6_blk
+        ip6tables -w 2 -t filter -D OUTPUT -j "$CHAIN_BLK" 2>/dev/null
+        ip6tables -w 2 -t filter -F "$CHAIN_BLK" 2>/dev/null
+        ip6tables -w 2 -t filter -X "$CHAIN_BLK" 2>/dev/null
+        ip6tables -w 2 -t filter -D OUTPUT -j AGH_SNI 2>/dev/null
+        ip6tables -w 2 -t filter -F AGH_SNI 2>/dev/null
+        ip6tables -w 2 -t filter -X AGH_SNI 2>/dev/null
     else
-        log Warn "跳过 IPv6 规则清理（ip6tables 不可用）" "${log_dir}/dns.log"
+        log Warn "ip6tables 不存在 → 跳过 IPv6 规则清理（栈已恢复）" "$LOG_FILE"
     fi
 
-    log Info "DNS 规则清理完成" "${log_dir}/dns.log"
+    # ---- 旧版 SNI 残留（IPv4）----
+    iptables -w 2 -t filter -D OUTPUT -j AGH_SNI 2>/dev/null
+    iptables -w 2 -t filter -F AGH_SNI 2>/dev/null
+    iptables -w 2 -t filter -X AGH_SNI 2>/dev/null
+
+    log Info "清理完成" "$LOG_FILE"
 }
 
 # ============================================================================
-# status（IPv4 / IPv6 全部显示）
+# status（人类可读输出走 stdout，不写日志）
 # ============================================================================
 show_status() {
     echo "=== IPv6 能力 ==="
     if command -v ip6tables >/dev/null 2>&1; then
-        echo "  ip6tables 命令 : 存在"
-        if ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
-            echo "  IPv6 nat 表    : 可用（DNS 可劫持）"
-        else
-            echo "  IPv6 nat 表    : 不可用（DNS 走 DROP 模式）"
-        fi
+        echo "  ip6tables      : 存在"
+        ip6tables -w 2 -t nat -L >/dev/null 2>&1 \
+            && echo "  IPv6 nat       : 可用" \
+            || echo "  IPv6 nat       : 不可用"
     else
-        echo "  ip6tables 命令 : 不存在（IPv6 规则全部跳过）"
+        echo "  ip6tables      : 不存在（栈被禁用中）"
     fi
-
-    _stack=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
-    case "$_stack" in
-        1) echo "  IPv6 网络栈    : 已禁用（disable_ipv6=1，全阻断）" ;;
-        0) echo "  IPv6 网络栈    : 启用中（disable_ipv6=0）" ;;
-        *) echo "  IPv6 网络栈    : /proc 入口不存在，无法判断" ;;
-    esac
+    echo "  disable_ipv6   : $(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)"
     echo "  block_ipv6_dns : ${block_ipv6_dns}"
+    [ -f "$IPV6_PREV_FILE" ] && echo "  栈原值文件     : $(tr '\n' ' ' < "$IPV6_PREV_FILE")"
+    echo "  日志文件       : $LOG_FILE"
     echo
 
-    echo "=== DNS (IPv4) ==="
+    echo "=== DNS IPv4 ==="
     iptables -t nat -S "$CHAIN4" 2>/dev/null || echo "  不存在"
     echo
-    echo "=== DNS (IPv6) ==="
+    echo "=== DNS IPv6 ==="
     if command -v ip6tables >/dev/null 2>&1; then
-        _found=0
-        if ip6tables -t nat -S "$CHAIN6" 2>/dev/null; then
-            echo "  [REDIRECT 模式]"
-            _found=1
-        fi
-        if ip6tables -t filter -S "$CHAIN_BLK6" 2>/dev/null; then
-            echo "  [DROP 模式]"
-            _found=1
-        fi
-        [ "$_found" = "0" ] && echo "  不存在"
+        _f=0
+        ip6tables -t nat -S "$CHAIN6" 2>/dev/null && { echo "  [REDIRECT]"; _f=1; }
+        ip6tables -t filter -S "$CHAIN_BLK6" 2>/dev/null && { echo "  [DROP]"; _f=1; }
+        [ "$_f" = "0" ] && echo "  不存在（保留原生解析）"
     else
-        echo "  跳过（ip6tables 不存在）"
+        echo "  跳过（IPv6 栈已禁用）"
     fi
     echo
 
-    echo "=== DoT (IPv4) ==="
-    iptables -S "$CHAIN_DOT" 2>/dev/null || echo "  不存在"
+    echo "=== 853/udp443 IPv4 ==="
+    iptables -S "$CHAIN_BLK" 2>/dev/null || echo "  不存在"
     echo
-    echo "=== DoT (IPv6) ==="
+    echo "=== 853/udp443 IPv6 ==="
     if command -v ip6tables >/dev/null 2>&1; then
-        ip6tables -t filter -S "$CHAIN_DOT6" 2>/dev/null || echo "  不存在"
+        ip6tables -t filter -S "$CHAIN_BLK" 2>/dev/null || echo "  不存在"
     else
-        echo "  跳过（ip6tables 不存在）"
-    fi
-    echo
-
-    echo "=== SNI (IPv4) ==="
-    iptables -t filter -S "$CHAIN_SNI" 2>/dev/null || echo "  不存在"
-    echo
-    echo "=== SNI (IPv6) ==="
-    if command -v ip6tables >/dev/null 2>&1; then
-        ip6tables -t filter -S "$CHAIN_SNI" 2>/dev/null || echo "  不存在"
-    else
-        echo "  跳过（ip6tables 不存在）"
+        echo "  跳过（IPv6 栈已禁用）"
     fi
     echo
 
     echo "=== 计数器 ==="
-    iptables -t nat -L "$CHAIN4" -n -v --line-numbers 2>/dev/null
+    iptables -t nat -L "$CHAIN4" -n -v 2>/dev/null
+    command -v ip6tables >/dev/null 2>&1 && \
+        ip6tables -t nat -L "$CHAIN6" -n -v 2>/dev/null
     echo
+
     echo "=== 端口监听 ==="
     ss -lunp 2>/dev/null | grep -E ":${DNS_PORT}(\s|$)" || echo "  ${DNS_PORT} 未监听"
 }
@@ -443,17 +399,8 @@ show_status() {
 # 入口
 # ============================================================================
 case "$1" in
-    enable|"")
-        first_setup
-        ;;
-    disable)
-        stop_all
-        ;;
-    status)
-        show_status
-        ;;
-    *)
-        echo "用法: $0 {enable|disable|status} [DNS_PORT]"
-        exit 1
-        ;;
+    enable|"") first_setup ;;
+    disable)   stop_all ;;
+    status)    show_status ;;
+    *) echo "用法: $0 {enable|disable|status} [DNS_PORT]"; exit 1 ;;
 esac
