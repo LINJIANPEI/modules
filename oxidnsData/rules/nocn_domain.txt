@@ -4624,6 +4624,7 @@ zzcloud.me
 2371tom.com
 24hjav.com
 24h.tv
+24.place
 24porn.com
 24porn.pro
 265.com
@@ -7729,6 +7730,8 @@ blizzak-juken.jp
 blizzard.com
 blizzardgearstore.com
 blockchain.com
+blockchair.com
+blockchair.net
 blockfrost.io
 blog.descargasgay.com
 blogebay.com
@@ -9535,6 +9538,7 @@ cplsb.ru
 cpz.to
 cqcorea.com
 crabporn.com
+craftifyx.com
 craigslist.org
 crankplayer.com
 crashbandicoot.com
@@ -9590,6 +9594,7 @@ cruel-furies.com
 crustwebsites.net
 crypto.com
 cryptocompare.com
+cryptoid.info
 cryptomus.com
 crypton.co.jp
 crysis.jp
@@ -9855,6 +9860,7 @@ delcamuniversity.com
 delcamusa.com
 del.com
 del.com.br
+delets.cash
 delets.online
 delicious.com.au
 delivery-club.ru
@@ -11766,6 +11772,7 @@ fanaken.com
 fanatical.com
 fandango.com
 fanfictionero.com
+fanfiction.net
 fanfox.net
 fangsung.com
 fanhaodian.com
@@ -12580,6 +12587,7 @@ fundpaypal.com
 fundraisingwithfacebook.com
 fundsupermart.com
 funimation.com
+funko.com
 funnyfacebook.org
 funnyordie.com
 funpay.com
@@ -12635,6 +12643,7 @@ gallery-dump.club
 gamboporn.com
 gamcore.com
 gameapps.hk
+gamebanana.com
 gamebase.com.tw
 gamebeforethegame.com
 gamebiz.jp
@@ -12844,6 +12853,7 @@ getpocket.com
 getporn.tv
 getprintersupports.com
 get.rsvp
+getsafety.com
 getscorecash.com
 getsentry.com
 getsexgames.com
@@ -12979,6 +12989,8 @@ glam0ur.com
 glamourtits.com
 glasamerike.net
 gleline.com
+glitchprod.com
+glitchproductions.store
 glitchwave.com
 globaledu.org
 globalriskregulator.com
@@ -16035,6 +16047,7 @@ kum.com
 kumo.com
 kun66.xyz
 kundun1069.com
+kurs.expert
 kusugurizanmai.com
 kutjeporno.com
 kuzbank.ru
@@ -16585,6 +16598,7 @@ makeitopen.com
 makeitrealcontest.com
 makerepeater.jp
 makesenseofdata.com
+makeship.com
 makeshop.jp
 makingstartshere.com
 maktoob.com
@@ -19263,6 +19277,7 @@ over18arcade.com
 overleaf.com
 overthumbs.com
 ovid.com
+ownaj.com
 owxd.xyz
 oxfordaasc.com
 oxfordartonline.com
@@ -20527,6 +20542,7 @@ pypl.tv
 pyrobot.org
 pythonhosted.org
 python.org
+pyup.io
 pzforever01.homes
 pzforever.skin
 pzhanfor.today
@@ -20646,6 +20662,7 @@ r18.clickme.net
 r18lu-avi.shop
 r18lu.com
 r2.dev
+r2modman.com
 r34porn.net
 rabbitcounter.com
 rabbitscams.com
@@ -21212,6 +21229,7 @@ saerock.com
 safebooru.org
 safeliner.tech
 safepal.com
+safetycli.com
 saffrontech.com
 sagabank.co.jp
 sage-observability.tech
@@ -22538,6 +22556,7 @@ steamgames.com
 steaminventoryhelper.com
 steam.naeu.qtlglb.com
 steamofporn.com
+steamos.cloud
 steampowered.com
 steam.ru.qtlglb.com
 steamserver.net
@@ -23032,6 +23051,7 @@ tgdaily.co.kr
 tgirlcentral.com
 tgirlpostop.com
 tgp6.com
+tgtime.store
 tgtube.com
 tgutube.com
 thai69.com
@@ -23220,6 +23240,8 @@ thumbzilla.com
 thunderbird.net
 thunderbolttechnology.net
 thundermail.com
+thunderstore.io
+thunderstore.org
 thz7.net
 thzu.cc
 tiantang.today
@@ -23306,6 +23328,7 @@ tktube.com
 tmdb.org
 tmei-taoyuan.com
 tmiaf.ru
+tmimgcdn.com
 t-msedge.net
 tmsnrt.rs
 tnatryouts.com
@@ -25215,6 +25238,7 @@ worldoftanks.com
 worldoftanks.eu
 worldofwarcraft.com
 worldofwarplanes.com
+worldofwarships.asia
 worldofwarships.com
 worldpornvideos.com
 worldscientific.com
@@ -26196,6 +26220,7 @@ yourvserver.net
 yourwifemymeat.com
 yourxxxvideos.pro
 youskbe.com
+youtooz.com
 youtrack.cloud
 youtrannytube.com
 youtube.ae
@@ -26893,6 +26918,7 @@ full:firebaseremoteconfig.googleapis.com
 full:firstsearch.oclc.org
 full:fontshop-prod-responsive-images.s3.amazonaws.com
 full:foxnewsplayer-a.akamaihd.net
+full:funko.my.site.com
 full:gamedownloads-rockstargames-com.akamaized.net
 full:gamer-cds.cdn.hinet.net
 full:gamer2-cds.cdn.hinet.net
