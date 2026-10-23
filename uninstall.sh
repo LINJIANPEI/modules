@@ -14,4 +14,5 @@ kill_by_names "crond -c ${module_dir}/cron"
 kill_by_name "oxidns"
 kill_by_name "AppOpt"
 kill_by_name "AdGuardHome"
+kill_by_name "AdguardHomeReport"
    
