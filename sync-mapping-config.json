@@ -46,6 +46,24 @@
       ]
     },
     {
+      "name": "AdguardHomeReport",
+      "repo": "LINJIANPEI/AdguardHomeReport",
+      "use_latest": true,
+      "asset_patterns": [
+        "AdguardHomeReport"
+      ],
+      "asset_priority": [],
+      "mappings": [
+        {
+          "source": "AdguardHomeReport",
+          "target": "bin/AdguardHomeReport",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        }
+      ]
+    },
+    {
       "name": "oxidns",
       "repo": "svenshi/oxidns",
       "use_latest": true,
