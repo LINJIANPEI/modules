@@ -6,6 +6,7 @@
 10musume.com
 123av.com
 123av.me
+123av.org
 12bet.com
 12vpn.com
 12vpn.net
@@ -2223,6 +2224,7 @@ khc.edu.tw
 kichiku-doujinko.com
 kik.com
 killwall.com
+kimootoko.net
 kindle4rss.com
 kindleren.com
 kingdomsalvation.org
@@ -2505,6 +2507,7 @@ mingshengbao.com
 minhhue.net
 miningpoolhub.com
 ministrybooks.org
+minkch.com
 minzhuzhongguo.org
 miraheze.org
 mirdc.org.tw
@@ -2566,6 +2569,7 @@ mos.ru
 mosavi.io
 motherless.com
 movements.org
+movie.eroterest.net
 moviefap.com
 mpettis.com
 mpfinance.com
@@ -2699,6 +2703,9 @@ nitter.net
 niu.moe
 niusnews.com
 njactb.org
+njav.com
+njav.tv
+njavtv.com
 nlfreevpn.com
 nmsl.website
 nnews.eu
@@ -2952,6 +2959,7 @@ plexvpn.pro
 plurk.com
 plus.codes
 pmatehunter.com
+po-kaki-to.com
 po2b.com
 podbean.com
 podcast.co
@@ -4423,6 +4431,7 @@ zootool.com
 zophar.net
 zorrovpn.com
 zozotown.com
+zozovideo.com
 zpn.im
 zspeeder.me
 zuo.la
@@ -4460,7 +4469,6 @@ zzcloud.me
 114bank.co.jp
 119474.xyz
 11jav.com
-123av.org
 123bin.cc
 123dapp.com
 123dappipad.com
@@ -15906,7 +15914,6 @@ kilmeadeandfriends.com
 kimchi.tv
 kimi.ai
 kimogirl.cc
-kimootoko.net
 kimosex.com
 kindgirls.com
 kindindianporn.com
@@ -17473,7 +17480,6 @@ mini-windsor.com
 miniwindsor.com
 miniworkshop.com
 miniyaletown.ca
-minkch.com
 minnano-av.com
 minneapolisbmw.com
 minneapolisbmw.net
@@ -17763,7 +17769,6 @@ movidius.net
 movidius.org
 movie1000.xyz
 movie-erog.com
-movie.eroterest.net
 moviepost.com
 moviesanywhere.com
 moviesarena.com
@@ -18671,9 +18676,6 @@ nixos.wiki
 nixpkgs.org
 nix.store
 niziero.info
-njav.com
-njav.tv
-njavtv.com
 njpw1972.com
 njpw.co.jp
 nkcbank.ru
@@ -19940,7 +19942,6 @@ pojbayj1030.top
 pojie7.com
 pojiefuli20033.xyz
 pojiefuli9113.xyz
-po-kaki-to.com
 pokedex3d.com
 pokemonbank.com
 pokemonblackwhite.com
@@ -26547,7 +26548,6 @@ zoozhamster.com
 zopim.com
 zorglist.com
 zotero.org
-zozovideo.com
 zpagov.net
 zpath.com
 zqqpwz.com
