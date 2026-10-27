@@ -15,4 +15,4 @@ kill_by_name "oxidns"
 kill_by_name "AppOpt"
 kill_by_name "AdGuardHome"
 kill_by_name "AdguardHomeReport"
-   
+
