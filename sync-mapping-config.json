@@ -155,6 +155,26 @@
       ]
     },
     {
+      "name": "smartdnsRules",
+      "repo": "LINJIANPEI/mosdnsRules",
+      "use_latest": true,
+      "publish_on_update": false,
+      "asset_patterns": [
+        "*.zip"
+      ],
+      "asset_priority": [
+        "rule"
+      ],
+      "mappings": [
+        {
+          "source": "./",
+          "target": "smartdnsData/rules",
+          "type": "folder",
+          "overwrite": true
+        }
+      ]
+    },
+    {
       "name": "AppOpt",
       "repo": "LINJIANPEI/AppOpt",
       "use_latest": true,
