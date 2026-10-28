@@ -25,12 +25,17 @@
 #   带 IPv6 栈自愈，绝不切飞行模式。连续失败退避 15→30→45→60s 封顶。
 #   单实例靠 pgrep（fallback /proc 遍历），零新文件。
 #
-# IPv6 DNS 53：
-#   block_ipv6_dns=true  → 首选 filter DROP，失败回退 nat REDIRECT，都失败禁栈
-#   block_ipv6_dns=false → 首选 nat REDIRECT，失败回退 filter DROP，都失败禁栈
+# IPv6 DNS 53（语义严格分离，禁栈的唯一触发源）：
+#   block_ipv6_dns=true  → 只走 filter DROP 阻断；filter 不可用或建立/校验
+#                          失败 → 直接禁栈兜底（不降级 REDIRECT）
+#   block_ipv6_dns=false → 首选 nat REDIRECT 劫持；REDIRECT 不可用或失败 →
+#                          降级 filter DROP 阻断；再失败 → 禁栈兜底
 #   ip6tables 不存在     → 禁栈
 #
-# 853(tcp/udp) + udp443：首选 filter DROP，失败降级 REJECT，都失败按配置决定是否禁栈
+# 853(tcp/udp) + udp443：无条件尝试封锁，首选 filter DROP，失败降级 REJECT。
+#   都失败时【只告警、永不禁栈】——853/443 封锁失败仅代表 DoT/DoQ/DoH3 可能
+#   经该协议绕过，不代表 DNS 泄漏，不应切断整个 IPv6 栈。
+#   （旧配置 ipv6_block_fail_disable_stack 已废弃，读取但不再生效）
 # ============================================================================
 
 source /data/adb/modules/Linlin/fun.conf
@@ -45,11 +50,12 @@ exec 2>>"$LOG_FILE" 2>/dev/null || true
 : "${gid:=net_raw}"
 : "${redir_port:=5591}"
 : "${block_ipv6_dns:=false}"
-: "${ipv6_block_fail_disable_stack:=false}"
 : "${daemon_interval:=15}"
 : "${dns_state_port:=}"
 : "${dns_state_ipv6_blocked:=}"
 : "${DNS_PORT_ENV:=}"
+# 已废弃：读取以兼容旧 fun.conf，代码不再引用
+: "${ipv6_block_fail_disable_stack:=false}"
 
 # ============================================================================
 # fun.conf 状态读写
@@ -190,7 +196,9 @@ unblock_ipv6_stack() {
 }
 
 # ============================================================================
-# IPv6 能力探测
+# IPv6 能力探测（决策与配置语义严格分离）
+#   true  ：只认 filter DROP，filter 不可用直接禁栈，不降级 REDIRECT
+#   false ：首选 nat REDIRECT，nat 不可用降级 filter DROP，两者皆废禁栈
 # ============================================================================
 detect_ipv6() {
     IPV6_CMD_OK=false
@@ -217,34 +225,32 @@ detect_ipv6() {
     fi
 
     if [ "$block_ipv6_dns" = "true" ]; then
+        # true：只走 DROP；filter 不可用直接禁栈（不回退 REDIRECT）
         if [ "$IPV6_FILTER_OK" = "true" ]; then
             IPV6_MODE="drop"
             IPV6_CMD_OK=true
-            log Info "block_ipv6_dns=true → 首选 filter DROP（栈保留）" "$LOG_FILE"
-        elif [ "$IPV6_NAT_OK" = "true" ]; then
-            IPV6_MODE="redirect"
-            IPV6_CMD_OK=true
-            log Warn "block_ipv6_dns=true 但 filter 不可用 → 降级 REDIRECT（栈保留）" "$LOG_FILE"
+            log Info "block_ipv6_dns=true → filter DROP 阻断（栈保留）" "$LOG_FILE"
         else
-            block_ipv6_stack "filter 与 nat 均不可用，无法封 IPv6 DNS"
+            block_ipv6_stack "block_ipv6_dns=true 但 filter 不可用，无法阻断 IPv6 DNS"
             return 1
         fi
     else
+        # false：首选 REDIRECT；nat 不可用降级 DROP；两者皆废禁栈
         if [ "$IPV6_NAT_OK" = "true" ]; then
             IPV6_MODE="redirect"
             IPV6_CMD_OK=true
-            log Info "block_ipv6_dns=false → 首选 nat REDIRECT（栈保留）" "$LOG_FILE"
+            log Info "block_ipv6_dns=false → nat REDIRECT 劫持（栈保留）" "$LOG_FILE"
         elif [ "$IPV6_FILTER_OK" = "true" ]; then
             IPV6_MODE="drop"
             IPV6_CMD_OK=true
-            log Warn "block_ipv6_dns=false 但 nat 不可用 → 降级 filter DROP（栈保留）" "$LOG_FILE"
+            log Warn "block_ipv6_dns=false 但 nat 不可用 → 降级 filter DROP 阻断（栈保留）" "$LOG_FILE"
         else
             block_ipv6_stack "nat 与 filter 均不可用，无法处理 IPv6 DNS"
             return 1
         fi
     fi
 
-    if [ "$IPV6_MODE" = "redirect" ] && [ "$block_ipv6_dns" = "true" ]; then
+    if [ "$IPV6_MODE" = "redirect" ]; then
         if ! ss -lunp 2>/dev/null | grep -qE "(\[::\]|:::):${DNS_PORT}([[:space:]]|$)"; then
             log Warn "DNS_PORT=$DNS_PORT 未监听 IPv6，REDIRECT 后 DNS 将失败（不出网，不泄漏）" "$LOG_FILE"
         fi
@@ -337,6 +343,12 @@ _clear_dns6_blk() {
     ip6tables -w 2 -t filter -X "$CHAIN_BLK6" 2>/dev/null
 }
 
+# ============================================================================
+# 应用 IPv6 DNS 规则（严格回退策略）
+#   drop     ：失败不再降级 REDIRECT，直接禁栈
+#   redirect ：失败可降级 DROP（仅 detect 阶段判定 nat 可用时才会进 redirect，
+#              因此只会在“建立/校验瞬间失败”时降级）；再失败禁栈
+# ============================================================================
 apply_ipv6_dns() {
     case "$IPV6_MODE" in
         drop)
@@ -345,17 +357,10 @@ apply_ipv6_dns() {
                 log Info "IPv6 DNS 已 filter DROP（校验通过，栈保留）" "$LOG_FILE"
                 return 0
             fi
-            log Warn "filter DROP 建立或校验失败" "$LOG_FILE"
-            if [ "$IPV6_NAT_OK" = "true" ]; then
-                if rebuild_dns6; then
-                    IPV6_MODE="redirect"
-                    _clear_dns6_blk
-                    log Warn "已回退到 nat REDIRECT（校验通过，栈保留）" "$LOG_FILE"
-                    return 0
-                fi
-                log Warn "nat REDIRECT 回退也失败" "$LOG_FILE"
+            if [ "$block_ipv6_dns" = "true" ]; then
+                log Warn "filter DROP 建立或校验失败 → block_ipv6_dns=true 不降级 REDIRECT，直接禁栈" "$LOG_FILE"
             else
-                log Warn "nat 不可用，无法回退 REDIRECT" "$LOG_FILE"
+                log Warn "filter DROP 建立或校验失败 → 降级路径已尽，禁栈兜底" "$LOG_FILE"
             fi
             ;;
         redirect)
@@ -364,17 +369,17 @@ apply_ipv6_dns() {
                 log Info "IPv6 DNS 已 nat REDIRECT（校验通过，栈保留）" "$LOG_FILE"
                 return 0
             fi
-            log Warn "nat REDIRECT 建立或校验失败" "$LOG_FILE"
+            log Warn "nat REDIRECT 建立或校验失败，尝试降级 filter DROP" "$LOG_FILE"
             if [ "$IPV6_FILTER_OK" = "true" ]; then
                 if rebuild_dns6_block; then
                     IPV6_MODE="drop"
                     _clear_dns6
-                    log Warn "已回退到 filter DROP（校验通过，栈保留）" "$LOG_FILE"
+                    log Warn "已降级 filter DROP（校验通过，栈保留）" "$LOG_FILE"
                     return 0
                 fi
-                log Warn "filter DROP 回退也失败" "$LOG_FILE"
+                log Warn "filter DROP 降级也失败" "$LOG_FILE"
             else
-                log Warn "filter 不可用，无法回退 DROP" "$LOG_FILE"
+                log Warn "filter 不可用，无法降级 DROP" "$LOG_FILE"
             fi
             ;;
         *)
@@ -384,7 +389,7 @@ apply_ipv6_dns() {
 
     _clear_dns6
     _clear_dns6_blk
-    block_ipv6_stack "IPv6 DNS 所有封锁通道均失败，禁用栈防止泄漏"
+    block_ipv6_stack "IPv6 DNS 处理失败，禁用栈防止泄漏"
     IPV6_MODE=""
     return 1
 }
@@ -498,12 +503,10 @@ rebuild_all() {
             if rebuild_block6; then
                 log Info "IPv6 DNS 模式=$IPV6_MODE，853/udp443=$BLOCK6_ACT（校验通过）" "$LOG_FILE"
             else
+                # 853/443 是无条件尝试封锁的附加层，失败不代表 DNS 泄漏，
+                # 永远只告警、不禁栈（禁栈只由 IPv6 DNS 53 处理失败触发）
                 log Warn "IPv6 853/udp443 规则建立或校验失败，DoT/DoQ/DoH3 可经 IPv6 绕过" "$LOG_FILE"
-                if [ "$ipv6_block_fail_disable_stack" = "true" ]; then
-                    block_ipv6_stack "IPv6 853/udp443 封锁失败"
-                    IPV6_CMD_OK=false
-                    IPV6_MODE=""
-                fi
+                log Warn "853/443 封锁失败不触发禁栈（DNS 已受控：模式=$IPV6_MODE），IPv6 栈保留" "$LOG_FILE"
             fi
         else
             _cur=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
@@ -645,7 +648,7 @@ run_daemon() {
         if [ -f "$CONF_FILE" ]; then
             . "$CONF_FILE" 2>/dev/null
             : "${uid:=root}"; : "${gid:=net_raw}"; : "${redir_port:=5591}"
-            : "${block_ipv6_dns:=false}"; : "${ipv6_block_fail_disable_stack:=false}"
+            : "${block_ipv6_dns:=false}"
             : "${daemon_interval:=15}"
             case "$daemon_interval" in
                 ''|*[!0-9]*) daemon_interval=15 ;;
@@ -823,9 +826,9 @@ show_status() {
 
     echo "=== IPv6 能力 ==="
     if [ "$block_ipv6_dns" = "true" ]; then
-        echo "  IPv6 策略      : true（首选 filter DROP，失败回退 nat REDIRECT）"
+        echo "  IPv6 策略      : true（filter DROP 阻断；filter 不可用或失败直接禁栈，不降级 REDIRECT）"
     else
-        echo "  IPv6 策略      : false（首选 nat REDIRECT，失败回退 filter DROP）"
+        echo "  IPv6 策略      : false（nat REDIRECT 劫持；失败降级 filter DROP；再失败禁栈）"
     fi
     if command -v ip6tables >/dev/null 2>&1; then
         echo "  ip6tables      : 存在"
@@ -840,7 +843,7 @@ show_status() {
     fi
     echo "  disable_ipv6   : $(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)"
     echo "  block_ipv6_dns : ${block_ipv6_dns}"
-    echo "  853/443 失败禁栈: ${ipv6_block_fail_disable_stack}"
+    echo "  853/443 失败   : 只告警，永不禁栈（不影响 DNS 受控判定）"
     [ -n "$IPV6_MODE" ] && echo "  当前模式       : $IPV6_MODE"
     echo "  日志文件       : $LOG_FILE"
     echo
