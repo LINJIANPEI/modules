@@ -131,6 +131,7 @@ if [ "${enable_smartdns}" = "true" ]; then
         -f \
        >"${log_dir}/smartdns.log" 2>&1 &
     ) 
+    "${module_dir}/scripts/updateSmartdnsRules.sh" &
 fi
 
 # -------------------- 其他脚本 --------------------
@@ -160,6 +161,7 @@ if [ $? -eq 0 ]; then
     fi 
     
     "${module_dir}/scripts/clearLog.sh" &
+    
     if [ "${enable_oiface}" = "true" ]; then    
       "${module_dir}/scripts/oiface.sh" enable &
     elif [ "${enable_oiface}" = "false" ]; then 
