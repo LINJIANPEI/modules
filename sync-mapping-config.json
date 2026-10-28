@@ -46,17 +46,17 @@
       ]
     },
     {
-      "name": "AdguardHomeReport",
+      "name": "AghReport",
       "repo": "LINJIANPEI/AdguardHomeReport",
       "use_latest": true,
       "asset_patterns": [
-        "AdguardHomeReport"
+        "AghReport"
       ],
       "asset_priority": [],
       "mappings": [
         {
-          "source": "AdguardHomeReport",
-          "target": "bin/AdguardHomeReport",
+          "source": "AghReport",
+          "target": "bin/AghReport",
           "type": "file",
           "overwrite": true,
           "make_executable": true
