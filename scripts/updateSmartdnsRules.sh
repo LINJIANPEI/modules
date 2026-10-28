@@ -12,7 +12,7 @@ cron_dir="${module_dir}/cron"
 cron_file="${cron_dir}/root"
 update_cmd="30 5 * * * /system/bin/sh ${SCRIPT_PATH} update"
 
-RULE_DIR="/data/adb/modules/Linlin/oxidnsData/rules"
+RULE_DIR="/data/adb/modules/Linlin/smartdnsData/rules"
 LOG_FILE="${log_dir}/smartdns_rules_update.log"
 BASE_URL="https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule"
 
