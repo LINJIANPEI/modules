@@ -2,9 +2,6 @@
 
 source /data/adb/modules/Linlin/fun.conf
 
-# ---------- 变量兜底 ----------
-: "${block_ipv6_mihomo:=false}"
-
 app_package(){
     # ==========================================
     # 1. 参数检查 - 全局模式
@@ -210,165 +207,15 @@ app_package(){
 }
 
 
-# ============================================================================
-# IPv6 可用性检测（参考 dns.sh 的四层探测思路）
-#
-# 分层判断：
-#   1) 栈状态：/proc/sys/net/ipv6/conf/all/disable_ipv6
-#   2) ip6tables filter 表可用性（仅作日志参考）
-#   3) ip6tables nat + REDIRECT 实弹测试（仅作日志参考）
-#   4) 是否有全局 IPv6 地址（关键判定）
-#
-# 综合判定：栈正常 AND 有全局地址 → 可用
-# 输出变量：
-#   IPV6_STACK_OK / IPV6_HAS_ADDR / IPV6_CMD_OK / IPV6_NAT_OK / IPV6_AVAILABLE
-# ============================================================================
-detect_ipv6_for_mihomo() {
-    IPV6_STACK_OK=false
-    IPV6_HAS_ADDR=false
-    IPV6_CMD_OK=false
-    IPV6_NAT_OK=false
-    IPV6_AVAILABLE=false
-
-    # 第 1 层：栈状态
-    _dis=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
-    [ "$_dis" != "1" ] && IPV6_STACK_OK=true
-
-    # 第 2/3 层：ip6tables 能力（仅作日志参考，不参与最终判定）
-    if command -v ip6tables >/dev/null 2>&1; then
-        ip6tables -w 2 -t filter -L >/dev/null 2>&1 && IPV6_CMD_OK=true
-        if ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
-            if ip6tables -w 2 -t nat -A PREROUTING -p tcp --dport 65534 \
-                    -j REDIRECT --to-port 65534 >/dev/null 2>&1; then
-                IPV6_NAT_OK=true
-                ip6tables -w 2 -t nat -D PREROUTING -p tcp --dport 65534 \
-                    -j REDIRECT --to-port 65534 2>/dev/null
-            fi
-        fi
-    fi
-
-    # 第 4 层：是否有全局 IPv6 地址（排除 ::1 与 fe80::/10）
-    if command -v ip >/dev/null 2>&1; then
-        ip -6 addr show scope global 2>/dev/null | grep -q 'inet6' \
-            && IPV6_HAS_ADDR=true
-    elif [ -s /proc/net/if_inet6 ]; then
-        while read -r _addr _rest; do
-            case "$_addr" in
-                00000000000000000000000000000001) continue ;;
-                fe8*|fe9*|fea*|feb*) continue ;;
-                *) IPV6_HAS_ADDR=true; break ;;
-            esac
-        done < /proc/net/if_inet6
-    fi
-
-    # 综合判定
-    if [ "$IPV6_STACK_OK" = "true" ] && [ "$IPV6_HAS_ADDR" = "true" ]; then
-        IPV6_AVAILABLE=true
-        log Info "IPv6 可用（栈正常 + 有全局地址；filter=$IPV6_CMD_OK nat=$IPV6_NAT_OK）" \
-            "${log_dir}/mihomo.log"
-    else
-        _r=""
-        [ "$IPV6_STACK_OK" != "true" ] && _r="${_r}[disable_ipv6=1]"
-        [ "$IPV6_HAS_ADDR" != "true" ] && _r="${_r}[无全局IPv6地址]"
-        log Warn "IPv6 不可用 ${_r}" "${log_dir}/mihomo.log"
-    fi
-
-    [ "$IPV6_AVAILABLE" = "true" ]
-}
-
-
-# ============================================================================
-# 按检测结果同步 mihomo 的 ipv6 / dns.ipv6
-#
-#   参数 $1: true=恢复原值  false=强制关闭
-#
-# 原值持久化到 fun.conf：
-#   mihomo_orig_ipv6
-#   mihomo_orig_dns_ipv6
-#   字段原不存在时记 __unset__，恢复时用 del 删除，不污染用户配置
-# ============================================================================
-sync_mihomo_ipv6() {
-    _want="$1"
-    _conf="${module_dir}/fun.conf"
-
-    _conf_write() {
-        _k="$1"; _v="$2"
-        [ -f "$_conf" ] || return 0
-        [ -n "$(tail -c 1 "$_conf" 2>/dev/null)" ] && echo "" >> "$_conf"
-        sed -i "/^${_k}=/d" "$_conf" 2>/dev/null
-        printf '%s=%s\n' "$_k" "$_v" >> "$_conf"
-    }
-    _conf_del() {
-        [ -f "$_conf" ] && sed -i "/^$1=/d" "$_conf" 2>/dev/null
-    }
-
-    if [ "$_want" = "false" ]; then
-        # ---- 首次记录原值（只记一次，防止把上次的 false 误当原值）----
-        if [ -z "${mihomo_orig_ipv6:-}" ]; then
-            _o_ipv6=$(yamlcli -f "${YAML_FILE}" get "ipv6" 2>/dev/null)
-            [ -z "$_o_ipv6" ] && _o_ipv6="__unset__"
-            _o_dns=$(yamlcli -f "${YAML_FILE}" get "dns.ipv6" 2>/dev/null)
-            [ -z "$_o_dns" ] && _o_dns="__unset__"
-
-            _conf_write mihomo_orig_ipv6     "$_o_ipv6"
-            _conf_write mihomo_orig_dns_ipv6 "$_o_dns"
-            mihomo_orig_ipv6="$_o_ipv6"
-            mihomo_orig_dns_ipv6="$_o_dns"
-            log Info "记录原值 ipv6=${_o_ipv6} dns.ipv6=${_o_dns}" "${log_dir}/mihomo.log"
-        fi
-        # ---- 强制关闭 ----
-        yamlcli -f "${YAML_FILE}" set "ipv6"     false 2>/dev/null
-        yamlcli -f "${YAML_FILE}" set "dns.ipv6" false 2>/dev/null
-        log Info "已强制关闭 ipv6 / dns.ipv6" "${log_dir}/mihomo.log"
-
-    else
-        # ---- 恢复原值 ----
-        if [ -n "${mihomo_orig_ipv6:-}" ]; then
-            if [ "${mihomo_orig_ipv6}" = "__unset__" ]; then
-                yamlcli -f "${YAML_FILE}" del "ipv6" 2>/dev/null
-            else
-                yamlcli -f "${YAML_FILE}" set "ipv6" "${mihomo_orig_ipv6}" 2>/dev/null
-            fi
-
-            case "${mihomo_orig_dns_ipv6:-}" in
-                ""|__unset__)
-                    yamlcli -f "${YAML_FILE}" del "dns.ipv6" 2>/dev/null
-                    ;;
-                *)
-                    yamlcli -f "${YAML_FILE}" set "dns.ipv6" "${mihomo_orig_dns_ipv6}" 2>/dev/null
-                    ;;
-            esac
-
-            log Info "已恢复 ipv6=${mihomo_orig_ipv6} dns.ipv6=${mihomo_orig_dns_ipv6:-未记录}" \
-                "${log_dir}/mihomo.log"
-
-            _conf_del mihomo_orig_ipv6
-            _conf_del mihomo_orig_dns_ipv6
-            mihomo_orig_ipv6=""
-            mihomo_orig_dns_ipv6=""
-        fi
-    fi
-}
-
 
 # ======================== 主服务函数 ========================
 
-# 参数 $1: 传 "true" 表示跳过 IPv6 配置恢复
-#          （start_service 重启内核时用，避免连续 enable 抖动）
 stop_service() {
-    local _skip_restore="${1:-false}"
-
     log Info "================停止代理=================" "${log_dir}/mihomo.log"
     kill_by_name mihomo
     log Info "已停止mihomo内核" "${log_dir}/mihomo.log"
     kill_by_name ruleconverter
     log Info "已停止ruleconverter插件" "${log_dir}/mihomo.log"
-
-    # 恢复 ipv6 / dns.ipv6 用户原值（重启内核时跳过）
-    if [ "$_skip_restore" != "true" ]; then
-        sync_mihomo_ipv6 true
-    fi
-
     "${module_dir}/scripts/iptables.sh" disable &
 }
 
@@ -376,9 +223,9 @@ start_service() {
     local enable_socks="${1:-${enable_socks:-false}}"
     log Info "================开启代理=================" "${log_dir}/mihomo.log"
 
-    # 检查是否已运行（重启时跳过 IPv6 配置恢复，交给后面重新检测）
+    # 检查是否已运行
     if is_process_running "mihomo"; then
-        stop_service "true"
+        stop_service
     fi
     
     if [ "${enable_socks}" = "true" ];then
@@ -406,20 +253,6 @@ start_service() {
         elif [ ${mode} = "whitelist" ]; then
             log Info "使用白名单模式" "${log_dir}/mihomo.log"
             app_package "${WHITE_LIST_FILE}" "白名单" "include-package" "true"
-    fi
-    
-    # ---------- IPv6 同步（受 block_ipv6_mihomo 控制） ----------
-    # block_ipv6_mihomo=true  → 强制关闭 mihomo 的 ipv6/dns.ipv6
-    # block_ipv6_mihomo=false → 按系统 IPv6 可用性自动判断
-    if [ "${block_ipv6_mihomo}" = "true" ]; then
-        log Info "block_ipv6_mihomo=true → 强制关闭 mihomo IPv6 配置" "${log_dir}/mihomo.log"
-        sync_mihomo_ipv6 false
-    else
-        if detect_ipv6_for_mihomo; then
-            sync_mihomo_ipv6 true
-        else
-            sync_mihomo_ipv6 false
-        fi
     fi
     
     # ---------- 测试配置 ----------
