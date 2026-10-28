@@ -70,7 +70,7 @@ set_perm $MODPATH/uninstall.sh 0 0 0755
 set_perm $MODPATH/bin/AppOpt 0 0 0755
 set_perm $MODPATH/bin/AppOpt-ebpf 0 0 0755
 set_perm $MODPATH/bin/AdGuardHome 0 0 0755
-set_perm $MODPATH/bin/AdguardHomeReport 0 0 0755
+set_perm $MODPATH/bin/AghReport 0 0 0755
 set_perm $MODPATH/bin/oxidns 0 0 0755
 set_perm $MODPATH/bin/curl 0 0 0755
 set_perm $MODPATH/bin/mihomo 0 0 0755
