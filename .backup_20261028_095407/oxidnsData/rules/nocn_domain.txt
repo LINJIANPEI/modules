@@ -6,6 +6,7 @@
 10musume.com
 123av.com
 123av.me
+123av.org
 12bet.com
 12vpn.com
 12vpn.net
@@ -859,6 +860,7 @@ comparitech.com
 compileheart.com
 connect.facebook.net
 conoha.jp
+console.typesafe.ai
 contests.twilio.com
 cool18.com
 coolaler.com
@@ -1414,6 +1416,7 @@ g.ai
 g.co
 g0v.social
 g6hentai.com
+ga.jspm.io
 gab.com
 gabocorp.com
 gagaoolala.com
@@ -2221,6 +2224,7 @@ khc.edu.tw
 kichiku-doujinko.com
 kik.com
 killwall.com
+kimootoko.net
 kindle4rss.com
 kindleren.com
 kingdomsalvation.org
@@ -2503,6 +2507,7 @@ mingshengbao.com
 minhhue.net
 miningpoolhub.com
 ministrybooks.org
+minkch.com
 minzhuzhongguo.org
 miraheze.org
 mirdc.org.tw
@@ -2564,6 +2569,7 @@ mos.ru
 mosavi.io
 motherless.com
 movements.org
+movie.eroterest.net
 moviefap.com
 mpettis.com
 mpfinance.com
@@ -2697,6 +2703,9 @@ nitter.net
 niu.moe
 niusnews.com
 njactb.org
+njav.com
+njav.tv
+njavtv.com
 nlfreevpn.com
 nmsl.website
 nnews.eu
@@ -2950,6 +2959,7 @@ plexvpn.pro
 plurk.com
 plus.codes
 pmatehunter.com
+po-kaki-to.com
 po2b.com
 podbean.com
 podcast.co
@@ -4421,6 +4431,7 @@ zootool.com
 zophar.net
 zorrovpn.com
 zozotown.com
+zozovideo.com
 zpn.im
 zspeeder.me
 zuo.la
@@ -4584,6 +4595,7 @@ zzcloud.me
 1password.co
 1password.com
 1password.community
+1password.dev
 1password.eu
 1password.io
 1passwordservices.com
@@ -5084,6 +5096,7 @@ addthiscdn.com
 addthis.com
 addthisedge.com
 addtoany.com
+addtodropbox.com
 adelaidenow.com.au
 adgoogle.net
 adguardaccount.com
@@ -8901,6 +8914,10 @@ cdn-vk.net
 cdn-vk.ru
 cdnxxx-proxy.co
 cdnxxx-proxy.xyz
+cdpred.services
+cdprojekt.com
+cdprojekt.red
+cdprojektred.com
 cebay.com
 ceicdata.com
 celebforum.co
@@ -9685,6 +9702,7 @@ cyber-bay.info
 cyber-bay.org
 cybercrimecon.com
 cybermondaybeats4sale.com
+cyberpunk.net
 cybersport.ru
 cybertrust.co.jp
 cybertrust.ne.jp
@@ -9764,6 +9782,7 @@ darwinsourcecode.com
 darwinsource.com
 darwinsource.org
 dasaob.online
+dash.ai
 dashly.app
 dashly.help
 dashly.io
@@ -10438,6 +10457,7 @@ docleradn.com
 doclercdn.com
 do.co
 docs.com
+docsend.com
 docs.rs
 docs.rw
 doctor-videos.com
@@ -10602,12 +10622,15 @@ dronedj.com
 dropboxbusiness.com
 dropboxcaptcha.com
 dropbox-dns.com
+dropboxexperiment.com
 dropboxforum.com
 dropboxforums.com
 dropboxinsiders.com
+dropboxlegal.com
 dropboxmail.com
 dropboxpartners.com
 dropboxstatic.com
+dropboxteam.com
 dropbox.tech
 drpc.org
 drtuber.com
@@ -13556,8 +13579,10 @@ heinonline.org
 heise360181.buzz
 heise360182.buzz
 helloavgirls.com
+hellofax.com
 hellokittybeats.com
 hellomoto.com
+hellosign.com
 hellosmartbook.com
 hellporno.com
 hellven.net
@@ -16198,6 +16223,7 @@ liboggirls.net
 library.lol
 librarylovefest.com
 libraryofthumbs.com
+librewolf.dev
 librewolf.net
 libsolutions.app
 libsolutions.domains
@@ -18659,8 +18685,6 @@ nixos.wiki
 nixpkgs.org
 nix.store
 niziero.info
-njav.tv
-njavtv.com
 njpw1972.com
 njpw.co.jp
 nkcbank.ru
@@ -19864,6 +19888,7 @@ playfabapi.com
 playfab.com
 playfamily.ru
 playforceone.com
+playgwent.com
 playhearthstone.com
 playmation.com
 playmeow.com
@@ -21964,7 +21989,6 @@ siteripz.com
 siteripz.net
 situero.com
 six9dy.pw
-sixte.st
 sjcollect.com
 sjhsp1.buzz
 skate2.com
@@ -23012,29 +23036,6 @@ teslaenergy.services
 teslamotors.com
 tesla.services
 teslazta.net
-test-ipv6.alpinedc.ch
-test-ipv6.arauc.br
-test-ipv6.belwue.net
-test-ipv6.carnet.hr
-test-ipv6.cl
-test-ipv6.com
-test-ipv6.csclub.uwaterloo.ca
-test-ipv6.cs.umd.edu
-test-ipv6.cz
-testipv6.de
-test-ipv6.epic.network
-test-ipv6.fratec.net
-test-ipv6.freerangecloud.com
-test-ipv6.go6.si
-test-ipv6.hu
-test-ipv6.is
-test-ipv6.iu13.net
-test-ipv6.ke.liquidtelecom.net
-test-ipv6.noroutetohost.net
-test-ipv6.roedu.net
-test-ipv6.se
-test-ipv6.sin.vr.org
-test-ipv6.ttk.ru
 testonfox.com
 tetrika-school.ru
 tettediferro.it
@@ -23187,6 +23188,7 @@ theverge.com
 thevirtualsexreview.com
 thewaltdisneycompany.com
 theweek.in
+thewitcher.com
 thewonderful101.com
 theyxxx.com
 thieme-connect.com
@@ -25517,14 +25519,14 @@ xn--d4ty0ojsqzfd.com
 xn--e1adjldbbpv.xn--90ais
 xn--e1aigb.xn--p1ai
 xnertv.shop
-xn--fiqs8s1bxp3anr7a.hk
-xn--fiqs8s1bxp3anr7a.xn--j6w193g
-xn--fiqs8s1byzqyvl.hk
-xn--fiqs8s1byzqyvl.xn--j6w193g
+xn--fiq80y3xbiwr.hk
+xn--fiq80y3xbiwrs0kiu9d.hk
+xn--fiq80y3xbiwrs0kiu9d.xn--j6w193g
+xn--fiq80y3xbiwr.xn--j6w193g
+xn--fiq80y.hk
+xn--fiq80y.xn--j6w193g
 xn--fiqs8sxootzz.xn--hxt814e
 xn--flw351e.com
-xn--gdt08a.hk
-xn--gdt08a.xn--j6w193g
 xn--ggle-55da.com
 xn--gmq348bujlxrb.com
 xn--gmq92kd2rm1kx34a.com
@@ -25541,21 +25543,15 @@ xn--hxtr4rozx.xn--czr694b
 xn--kput3imi374g.xn--hxt814e
 xn--mts47c3w9b1qr.net
 xn--mtswd61ejxq.com
-xn--mxtq18a.hk
-xn--mxtq18a.xn--j6w193g
 xnostars.com
 xn----otbzjdu.xn--p1ai
 xn--pearsonenespaol-brb.com
 xn--pssu7ci2j23mp9ny48b.hk
 xn--pssu7ci2j23mp9ny48b.xn--j6w193g
-xn--pssu7cv61af1tcs59bnvd.hk
-xn--pssu7cv61af1tcs59bnvd.xn--j6w193g
+xn--pssu7ci3q5oge0ai91q.xn--j6w193g
 xn--pssu7cv61af44b.hk
 xn--pssu7cv61af44b.xn--j6w193g
-xn--pssu7cv61ahw8aq79bztd.hk
-xn--pssu7cv61ahw8aq79bztd.xn--j6w193g
-xn--pssu7cv61ahwcb1p2yk.hk
-xn--pssu7cv61ahwcb1p2yk.xn--j6w193g
+xn--pssu7cz8nr8ibkx1e8a.xn--j6w193g
 xn--q41am8x.com
 xn--qoq462m.com
 xn--r8jwklh769h2mc880dk1o431a.com
@@ -25568,10 +25564,6 @@ xn--ubt498knmf.com
 xn--uis17aj9kmuf.com
 xn--uis44a.xn--j6w193g
 xn--urs05q.jp
-xn--wcv22d.hk
-xn--wcv22d.xn--j6w193g
-xn--wcvs22d1m.hk
-xn--wcvs22d1m.xn--j6w193g
 xn--wcvs22d.xn--j6w193g
 xn--x-qeu1ji09tzlg.biz
 xn--x-qeu1ji09tzlg.net
@@ -26743,6 +26735,9 @@ full:apple-tv-plus-press.apple.com
 full:apple.com.akadns.net
 full:appleworldwidedeveloper.hb-api.omtrdc.net
 full:appleworldwidedeveloper.sc.omtrdc.net
+full:appsgenaiserver-pa.clients.google.com
+full:appsgenaiserver-pa.clients6.google.com
+full:appsgenaiserver-pa.googleapis.com
 full:as-dash-uk-live.akamaized.net
 full:as-hls-uk-live.akamaized.net
 full:asahishimbun.sc.omtrdc.net
@@ -26849,6 +26844,8 @@ full:daily-cloudcode-pa.googleapis.com
 full:databank.worldbank.org
 full:database.asahi.com
 full:datarouter.apps.netherrealm.com
+full:dc.applicationinsights.azure.com
+full:dc.services.visualstudio.com
 full:dcb0z5ovq92mz.cloudfront.net
 full:ddacn6pr5v0tl.cloudfront.net
 full:ddpjwstwtpszg.cloudfront.net
@@ -26871,6 +26868,7 @@ full:docker-pinata-support.s3.amazonaws.com
 full:doy2mn9upadnk.cloudfront.net
 full:dqd0jw5gvbchn.cloudfront.net
 full:dqrpb9wgowsf5.cloudfront.net
+full:dropbox.zendesk.com
 full:ds-linear-abematv.akamaized.net
 full:ds-vod-abematv.akamaized.net
 full:ds0h3roq6wcgc.cloudfront.net
@@ -26976,6 +26974,7 @@ full:linear-abematv.akamaized.net
 full:link.theplatform.com
 full:linkedin.sc.omtrdc.net
 full:live-patreon-marketing.pantheonsite.io
+full:live.applicationinsights.azure.com
 full:lm.licenses.adobe.com
 full:lmlicenses.wip4.adobe.com
 full:location.microsoft.com
@@ -27000,7 +26999,6 @@ full:muse.jhu.edu
 full:mwf-service.akamaized.net
 full:na1r.services.adobe.com
 full:nbbb1bb7.pmhcjk.com
-full:netflix.com.edgesuite.net
 full:nix-community.github.io
 full:notary-submissions-prod.s3-accelerate.amazonaws.com
 full:notary-submissions-prod.s3.us-west-2.amazonaws.com
@@ -27118,6 +27116,7 @@ full:rsshub.rssforever.com
 full:rsshub.umzzz.com
 full:rsshub.woodland.cafe
 full:rsshub2.asailor.org
+full:rt.services.visualstudio.com
 full:rtm.tnt-ea.com
 full:sa78gs.wpc.edgecastcdn.net
 full:scc-hamivideo.cdn.hinet.net
@@ -27202,7 +27201,6 @@ full:sentry.ppy.sh
 full:servd-anthropic-website.b-cdn.net
 full:sni1dcb6gl.wpc.edgecastcdn.net
 full:spectator.ppy.sh
-full:spotify.com.edgesuite.net
 full:spotify.map.fastly.net
 full:spotify.map.fastlylb.net
 full:ssl-lvlt.cdn.ea.com
