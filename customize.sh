@@ -84,6 +84,7 @@ set_perm $MODPATH/scripts/clash.sh 0 0 0755
 set_perm $MODPATH/scripts/action.sh 0 0 0755
 set_perm $MODPATH/scripts/oiface.sh 0 0 0755
 set_perm $MODPATH/scripts/usb.sh 0 0 0755
+set_perm $MODPATH/scripts/updateSmartdnsRules.sh 0 0 0755
 
 set_perm $MODPATH/smartdnsData/smartdns 0 0 0755
 set_perm $MODPATH/smartdnsData/smartdns_ui.so 0 0 0755
