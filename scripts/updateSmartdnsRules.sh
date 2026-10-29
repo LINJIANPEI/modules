@@ -25,19 +25,14 @@ log_msg() {
 # ==========================================
 if [ "$1" != "update" ]; then
     mkdir -p "$cron_dir"
-
-    # 追加且去重
     if [ ! -f "$cron_file" ]; then
         echo "$update_cmd" > "$cron_file"
     elif ! grep -Fxq "$update_cmd" "$cron_file"; then
         echo "$update_cmd" >> "$cron_file"
     fi
-
-    # 确保 crond 运行（如果尚未运行）
     if ! pgrep -f "crond -c $cron_dir" >/dev/null 2>&1; then
         busybox crond -c "$cron_dir" -b
     fi
-
     exit 0
 fi
 
@@ -45,32 +40,60 @@ fi
 # 角色二：下载规则 + 重启 SmartDNS
 # ==========================================
 mkdir -p "$(dirname "$LOG_FILE")"
+calc_all_fd
 log_msg "=== SmartDNS 规则更新开始 ==="
 log_msg "重启时将使用 FD_SMARTDNS=${FD_SMARTDNS:-未定义}"
 
+# ---------- 确保 SmartDNS 在运行（保证 DNS 可用）----------
+if ! pgrep -f "${module_dir}/bin/smartdns" >/dev/null 2>&1; then
+    log_msg "SmartDNS 未运行，先启动以保证 DNS 可用"
+    (
+    ulimit -n "$FD_SMARTDNS"
+    cd "${module_dir}/smartdnsData"
+    nohup busybox setuidgid "${uid}:${gid}" \
+        "${module_dir}/bin/smartdns" \
+        -c "${module_dir}/conf/smartdns.conf" \
+        -f \
+        >"${log_dir}/smartdns.log" 2>&1 &
+    )
+    sleep 1
+fi
+
 # ---------- 下载并替换规则文件 ----------
+updated=0
 for rule_file in cn_domain.txt cdn_domain.txt nocn_domain.txt; do
     url="${BASE_URL}/${rule_file}"
     tmp_file="/data/local/tmp/${rule_file}.tmp"
+    rm -f "$tmp_file"
 
     log_msg "下载: ${rule_file}"
-    curl -sL --connect-timeout 15 --max-time 60 "$url" -o "$tmp_file"
+    code=$(timeout 50 curl -fsSL --connect-timeout 10 --max-time 45 \
+                -w '%{http_code}' -o "$tmp_file" "$url" 2>/dev/null)
+    rc=$?
 
-    if [ -s "$tmp_file" ]; then
+    if [ $rc -eq 0 ] && [ "$code" = "200" ] && [ -s "$tmp_file" ] \
+       && ! head -n1 "$tmp_file" | grep -qiE '<!DOCTYPE|<html'; then
         mv "$tmp_file" "${RULE_DIR}/${rule_file}"
         log_msg "已更新: ${rule_file} ($(wc -l < "${RULE_DIR}/${rule_file}") 行)"
+        updated=1
     else
-        log_msg "失败或为空，保留原文件: ${rule_file}"
+        log_msg "失败或为空，保留原文件: ${rule_file} (curl rc=$rc, http=${code:-无})"
         rm -f "$tmp_file"
     fi
 done
+
+# ---------- 无任何更新则跳过重启 ----------
+if [ $updated -eq 0 ]; then
+    log_msg "本次无文件更新，跳过 SmartDNS 重启"
+    log_msg "=== SmartDNS 规则更新结束 ==="
+    exit 0
+fi
 
 # ---------- 终止旧 SmartDNS 进程 ----------
 OLD_PID=$(pgrep -f "${module_dir}/bin/smartdns" | head -n 1)
 if [ -n "$OLD_PID" ]; then
     log_msg "终止旧 SmartDNS 进程 (PID: $OLD_PID)"
     kill "$OLD_PID" 2>/dev/null
-
     i=0
     while pgrep -f "${module_dir}/bin/smartdns" >/dev/null 2>&1 && [ $i -lt 10 ]; do
         sleep 0.5
@@ -80,11 +103,8 @@ else
     log_msg "未找到旧 SmartDNS 进程，直接启动"
 fi
 
-# ---------- 用 service.sh 的原始方式重新启动 ----------
+# ---------- 重新启动 SmartDNS ----------
 log_msg "重新启动 SmartDNS"
-
-calc_all_fd
-
 (
 ulimit -n "$FD_SMARTDNS"
 cd "${module_dir}/smartdnsData"
