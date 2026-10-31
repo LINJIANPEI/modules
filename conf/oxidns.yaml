@@ -182,13 +182,13 @@ plugins:
   # DNS 缓存
   # ==========================================
 
-  - tag: cache_main
-    type: cache
-    args:
-      size: 512
-      lazy_cache_ttl: 30
-      dump_file: "/data/adb/modules/Linlin/cache/oxidns.cache"
-      dump_interval: 3600
+#  - tag: cache_main
+#    type: cache
+#    args:
+#      size: 512
+#      lazy_cache_ttl: 30
+#      dump_file: "/data/adb/modules/Linlin/cache/oxidns.cache"
+#      dump_interval: 3600
 
 
   # ==========================================
