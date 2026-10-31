@@ -30,24 +30,6 @@ plugins:
       files:
         - "./rules/cdn_domain.txt"
 
-
-  # ==========================================
-  # IP 规则集（保留原注释，不启用）
-  # ==========================================
-
-#  - tag: cn_ips
-#    type: ip_set
-#    args:
-#      files:
-#        - "./rules/cn_ip.txt"
-
-#  - tag: nocn_ips
-#    type: ip_set
-#    args:
-#      files:
-#        - "./rules/nocn_ip.txt"
-
-
   # ==========================================
   # 国内、国外 SmartDNS 转发
   # ==========================================
@@ -177,20 +159,6 @@ plugins:
       cache: true
       cache_ttl: 3600
 
-
-  # ==========================================
-  # DNS 缓存
-  # ==========================================
-
-#  - tag: cache_main
-#    type: cache
-#    args:
-#      size: 512
-#      lazy_cache_ttl: 30
-#      dump_file: "/data/adb/modules/Linlin/cache/oxidns.cache"
-#      dump_interval: 3600
-
-
   # ==========================================
   # 中国域名处理链
   # ==========================================
@@ -271,42 +239,17 @@ plugins:
     type: sequence
     args:
 
-      #- exec: $cache_main
-
-      #- matches: has_resp
-      #  exec: accept
-
-      # ---------- ipv6处理 ----------
-      #- matches: "qtype 28"
-      #  exec: $forward_local
-
-      #- matches: has_resp
-      #  exec: accept
-
-
       # ---------- 中国域名 ----------
       - matches: "qname $cn_domains"
         exec: $seq_cn
-
-#      - matches: "resp_ip $cn_ips"
-#        exec: drop_resp
-
 
       # ---------- CDN ----------
       - matches: "qname $cdn_domains"
         exec: $seq_cdn
 
-#      - matches: "resp_ip $cn_ips"
-#        exec: drop_resp
-
-
       # ---------- 国外域名 ----------
       - matches: "qname $nocn_domains"
         exec: $seq_nocn
-
-#      - matches: "resp_ip $nocn_ips"
-#        exec: drop_resp
-
 
       # ---------- fallback ----------
       - exec: $seq_default
@@ -352,14 +295,6 @@ plugins:
           dir: "./rules"
           filename: "nocn_domain.txt"
 
-#        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_ip.txt"
-#          dir: "./rules"
-#          filename: "cn_ip.txt"
-
-#        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/nocn_ip.txt"
-#          dir: "./rules"
-#          filename: "nocn_ip.txt"
-
 
   # ==========================================
   # 规则热更新
@@ -371,10 +306,6 @@ plugins:
       - $cn_domains
       - $cdn_domains
       - $nocn_domains
-
-#      - $cn_ips
-#      - $nocn_ips
-
 
   # ==========================================
   # 定时更新
