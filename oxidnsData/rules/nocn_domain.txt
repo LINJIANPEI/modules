@@ -204,6 +204,7 @@ anobii.com
 anonfiles.com
 anonymouse.org
 anthonycalzadilla.com
+anthropic.auth0.com
 anthropic.com
 antiwave.net
 antpool.com
@@ -573,6 +574,7 @@ broadpressinc.com
 brookings.edu
 brutaltgp.com
 bsky.app
+bsky.chat
 bsky.network
 bsky.social
 bt4g.org
@@ -798,7 +800,10 @@ ck101.com
 clashyun.com
 classicalguitarblog.net
 claude.ai
+claude.app
 claude.com
+claudemcpcontent.com
+claudeusercontent.com
 cldr.unicode.org
 clearsurance.com
 clementine-player.org
@@ -4541,6 +4546,7 @@ zzcloud.me
 18comic-god.cc
 18comic-god.club
 18comic-god.xyz
+18comic.ink
 18commic.com
 18doujin.com
 18doujinshi.xyz
@@ -7669,6 +7675,7 @@ bing.net
 bingoporno.com
 bingparachute.com
 bingsandbox.com
+bingstatic.com
 bingvisualsearch.com
 bingworld.com
 bingx.com
@@ -9217,15 +9224,12 @@ classicnike.com
 classymomsex.com
 clau.de
 claudeacademy.com
-claude.app
 claude.dev
 claudemcpclient.com
-claudemcpcontent.com
 claude.new
 claudepages.dev
 claude.site
 claudestudio.com
-claudeusercontent.com
 clawhub.ai
 clck.ru
 clco.cc
@@ -12996,6 +13000,7 @@ github.career
 github.community
 github.dev
 githubhackathon.com
+githubhelp.com
 githubnext.com
 githubpreview.dev
 githubstatus.com
@@ -17862,6 +17867,7 @@ msft.info
 msftncsi.com
 msft.net
 msftnet.org
+msftstatic.com
 msgamesresearch.com
 msgamestudios.com
 mshome.net
@@ -23277,6 +23283,9 @@ tiktok-minis.com
 tiktokminis.us
 tiktokrow-cdn.com
 tiktok-row.net
+tiktokshop.com
+tiktokstaticb.com
+tiktokvapp.com
 tiktokv.eu
 tiktokw.eu
 tiktokw.us
