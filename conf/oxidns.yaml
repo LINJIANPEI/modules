@@ -1,3 +1,4 @@
+
 log:
   level: info
   file: "../log/oxidns.log"
@@ -29,6 +30,11 @@ plugins:
       files:
         - "./rules/cdn_domain.txt"
 
+
+  # ==========================================
+  # IP 规则集（保留原注释，不启用）
+  # ==========================================
+
 #  - tag: cn_ips
 #    type: ip_set
 #    args:
@@ -41,6 +47,10 @@ plugins:
 #      files:
 #        - "./rules/nocn_ip.txt"
 
+
+  # ==========================================
+  # 国内、国外 SmartDNS 转发
+  # ==========================================
 
   - tag: forward_local
     type: forward
@@ -60,46 +70,118 @@ plugins:
           bootstrap: "127.0.0.1:5555"
           idle_timeout: 120
 
+
+  # ==========================================
+  # ECS 处理
+  # ==========================================
+
   # ---------- ECS 保留插件（国内用） ----------
   - tag: ecs_keep
     type: ecs_handler
     args:
-      forward: true    # 转发客户端传来的 ECS
-      send: false      # 不主动生成 ECS
+      forward: true
+      send: false
 
   # ---------- ECS 剥离插件（国外用） ----------
   - tag: ecs_strip
     type: ecs_handler
     args:
-      forward: false   # 不转发客户端传来的 ECS
-      send: false      # 也不主动生成 ECS
+      forward: false
+      send: false
+
+
+  # ==========================================
+  # 国内、国外专用子链
+  # ==========================================
 
   # ---------- 国内专用子链（保留 ECS） ----------
+  # 注意：这里不使用 accept，让 fallback 接管响应判断
   - tag: seq_local_keep
     type: sequence
     args:
-      - exec: $ecs_keep           # 保留 ECS
-      - exec: $forward_local      # 转发到 home 组
-      - matches: has_resp
-        exec: accept
+      - exec: $ecs_keep
+      - exec: $forward_local
 
   # ---------- 国外专用子链（剥离 ECS） ----------
+  # 注意：这里不使用 accept，让 fallback 接管响应判断
   - tag: seq_remote_strip
     type: sequence
     args:
-      - exec: $ecs_strip          # 剥离 ECS
-      - exec: $forward_remote     # 转发到 office 组
-      - matches: has_resp
-        exec: accept
+      - exec: $ecs_strip
+      - exec: $forward_remote
 
+
+  # ==========================================
+  # fallback 主备线路
+  # ==========================================
+
+  # ---------- 国内优先，国外备用 ----------
+  - tag: fallback_local
+    type: fallback
+    args:
+      primary: seq_local_keep
+      secondary: seq_remote_strip
+      threshold: 200
+
+  # ---------- 国外优先，国内备用 ----------
   - tag: fallback_main
     type: fallback
     args:
-      primary: seq_remote_strip   # 主路径：剥离 ECS 后走国外
-      secondary: seq_local_keep   # 备路径：保留 ECS 走国内
-      threshold: 50
-      always_standby: true
-   
+      primary: seq_remote_strip
+      secondary: seq_local_keep
+      threshold: 200
+
+
+  # ==========================================
+  # IPv4 探测专用执行器
+  # ==========================================
+
+  # ---------- 国内 A 记录探测 ----------
+  # 使用 home 组查询 A 记录
+  - tag: probe_home
+    type: sequence
+    args:
+      - exec: $ecs_keep
+      - exec: $forward_local
+      - matches: has_resp
+        exec: accept
+
+  # ---------- 国外 A 记录探测 ----------
+  # 使用 office 组查询 A 记录
+  - tag: probe_office
+    type: sequence
+    args:
+      - exec: $ecs_strip
+      - exec: $forward_remote
+      - matches: has_resp
+        exec: accept
+
+
+  # ==========================================
+  # IPv4 优先插件
+  # ==========================================
+
+  # ---------- 国内域名 IPv4 优先 ----------
+  - tag: prefer_v4_home
+    type: prefer_ipv4
+    args:
+      probe_executor: probe_home
+      cache: true
+      cache_ttl: 3600
+
+  # ---------- 国外域名 IPv4 优先 ----------
+  - tag: prefer_v4_office
+    type: prefer_ipv4
+    args:
+      probe_executor: probe_office
+      cache: true
+      cache_ttl: 3600
+
+
+  # ==========================================
+  # DNS 缓存
+  # ==========================================
+
   - tag: cache_main
     type: cache
     args:
@@ -109,64 +191,130 @@ plugins:
       dump_interval: 3600
 
 
+  # ==========================================
+  # 中国域名处理链
+  # ==========================================
+
+  - tag: seq_cn
+    type: sequence
+    args:
+      - exec: $fallback_local
+
+      # 国内 IPv4 优先，探测走 home
+      - exec: $prefer_v4_home
+
+      - matches: has_resp
+        exec: accept
+
+      - exec: reject SERVFAIL
+
+
+  # ==========================================
+  # CDN 域名处理链
+  # ==========================================
+
+  - tag: seq_cdn
+    type: sequence
+    args:
+      - exec: $fallback_local
+
+      # CDN IPv4 优先，探测走 home
+      - exec: $prefer_v4_home
+
+      - matches: has_resp
+        exec: accept
+
+      - exec: reject SERVFAIL
+
+
+  # ==========================================
+  # 国外域名处理链
+  # ==========================================
+
+  - tag: seq_nocn
+    type: sequence
+    args:
+      - exec: $fallback_main
+
+      # 国外 IPv4 优先，探测走 office
+      - exec: $prefer_v4_office
+
+      - matches: has_resp
+        exec: accept
+
+      - exec: reject SERVFAIL
+
+
+  # ==========================================
+  # 未匹配域名处理链
+  # ==========================================
+
+  - tag: seq_default
+    type: sequence
+    args:
+      - exec: $fallback_main
+
+      # 未匹配域名按国外优先处理
+      - exec: $prefer_v4_office
+
+      - matches: has_resp
+        exec: accept
+
+      - exec: reject SERVFAIL
+
+
+  # ==========================================
+  # 主分流入口
+  # ==========================================
+
   - tag: main_sequence
     type: sequence
     args:
-    
+
       #- exec: $cache_main
-      
+
       #- matches: has_resp
       #  exec: accept
-      
+
       # ---------- ipv6处理 ----------
       #- matches: "qtype 28"
       #  exec: $forward_local
-        
+
       #- matches: has_resp
       #  exec: accept
 
+
       # ---------- 中国域名 ----------
       - matches: "qname $cn_domains"
-        exec: $seq_local_keep
-        
+        exec: $seq_cn
+
 #      - matches: "resp_ip $cn_ips"
 #        exec: drop_resp
 
-      - exec: prefer_ipv4
-      - matches: has_resp
-        exec: accept
 
       # ---------- CDN ----------
       - matches: "qname $cdn_domains"
-        exec: $seq_local_keep
-        
+        exec: $seq_cdn
+
 #      - matches: "resp_ip $cn_ips"
 #        exec: drop_resp
 
-      - exec: prefer_ipv4
-      - matches: has_resp
-        exec: accept
 
       # ---------- 国外域名 ----------
       - matches: "qname $nocn_domains"
-        exec: $seq_remote_strip
-        
+        exec: $seq_nocn
+
 #      - matches: "resp_ip $nocn_ips"
 #        exec: drop_resp
 
-      - exec: prefer_ipv4
-      - matches: has_resp
-        exec: accept
 
       # ---------- fallback ----------
-      - exec: $fallback_main
+      - exec: $seq_default
 
-      - exec: prefer_ipv4
-      - matches: has_resp
-        exec: accept
 
-      # 兜底：fallback 也失败时返回 SERVFAIL 并终止
-      - exec: reject SERVFAIL
+  # ==========================================
+  # TCP / UDP 监听
+  # ==========================================
 
   - tag: tcp_in
     type: tcp_server
@@ -174,7 +322,7 @@ plugins:
       entry: main_sequence
       listen: "127.0.0.1:5335"
       idle_timeout: 120
-  
+
   - tag: udp_in
     type: udp_server
     args:
@@ -182,6 +330,9 @@ plugins:
       listen: "127.0.0.1:5335"
 
 
+  # ==========================================
+  # 订阅规则下载
+  # ==========================================
 
   - tag: subscription_download
     type: download
@@ -192,19 +343,27 @@ plugins:
         - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_domain.txt"
           dir: "./rules"
           filename: "cn_domain.txt"
+
         - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cdn_domain.txt"
           dir: "./rules"
           filename: "cdn_domain.txt"
+
         - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/nocn_domain.txt"
           dir: "./rules"
           filename: "nocn_domain.txt"
+
 #        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_ip.txt"
 #          dir: "./rules"
 #          filename: "cn_ip.txt"
+
 #        - url: "https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/nocn_ip.txt"
 #          dir: "./rules"
 #          filename: "nocn_ip.txt"
 
+
+  # ==========================================
+  # 规则热更新
+  # ==========================================
 
   - tag: reload_rules
     type: reload_provider
@@ -212,8 +371,15 @@ plugins:
       - $cn_domains
       - $cdn_domains
       - $nocn_domains
+
 #      - $cn_ips
 #      - $nocn_ips
+
+
+  # ==========================================
+  # 定时更新
+  # ==========================================
+
   - tag: subscription_cron
     type: cron
     args:
