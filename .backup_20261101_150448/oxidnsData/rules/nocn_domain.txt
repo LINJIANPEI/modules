@@ -204,6 +204,7 @@ anobii.com
 anonfiles.com
 anonymouse.org
 anthonycalzadilla.com
+anthropic.auth0.com
 anthropic.com
 antiwave.net
 antpool.com
@@ -573,6 +574,7 @@ broadpressinc.com
 brookings.edu
 brutaltgp.com
 bsky.app
+bsky.chat
 bsky.network
 bsky.social
 bt4g.org
@@ -798,7 +800,10 @@ ck101.com
 clashyun.com
 classicalguitarblog.net
 claude.ai
+claude.app
 claude.com
+claudemcpcontent.com
+claudeusercontent.com
 cldr.unicode.org
 clearsurance.com
 clementine-player.org
@@ -4541,6 +4546,7 @@ zzcloud.me
 18comic-god.cc
 18comic-god.club
 18comic-god.xyz
+18comic.ink
 18commic.com
 18doujin.com
 18doujinshi.xyz
@@ -6063,6 +6069,7 @@ apina.biz
 api.news
 apiok.ru
 apisof.net
+api.themoviedb.org
 apkbank.ru
 apkpures.xyz
 aple.com
@@ -6452,6 +6459,7 @@ artcampro.com
 arteldoc.com
 arteldoc.tv
 artel.watch
+artificialanalysis.ai
 artixlinux.org
 artnudegalleries.com
 artoferotica.info
@@ -7668,6 +7676,7 @@ bing.net
 bingoporno.com
 bingparachute.com
 bingsandbox.com
+bingstatic.com
 bingvisualsearch.com
 bingworld.com
 bingx.com
@@ -9216,15 +9225,12 @@ classicnike.com
 classymomsex.com
 clau.de
 claudeacademy.com
-claude.app
 claude.dev
 claudemcpclient.com
-claudemcpcontent.com
 claude.new
 claudepages.dev
 claude.site
 claudestudio.com
-claudeusercontent.com
 clawhub.ai
 clck.ru
 clco.cc
@@ -9237,6 +9243,7 @@ clickserve.cc-dt.com
 clickserver.googleads.com
 click-url.com
 climate-server.com
+cline.bot
 clinicalkey.com
 clinical-videos.com
 clip16.com
@@ -9434,6 +9441,7 @@ comicunivers.com
 comicuniverse.org
 comixzilla.com
 commandandconquer.com
+commandcode.ai
 commerceos.com
 commerzbank.ru
 comm-verse.com
@@ -9480,6 +9488,7 @@ containersonaws.com
 contechacademy.com
 contentful.com
 contest.com
+context7.com
 convrgencegame.com
 cookiebot.com
 cookiechoices.org
@@ -12992,6 +13001,7 @@ github.career
 github.community
 github.dev
 githubhackathon.com
+githubhelp.com
 githubnext.com
 githubpreview.dev
 githubstatus.com
@@ -15336,6 +15346,7 @@ iutunes.com
 ivicdn.tv
 ivintageporn.com
 ivi.ru
+ivi.tv
 iwank.tv
 iwantavnow.com
 iwantgalleries.com
@@ -17023,6 +17034,7 @@ meshmixerforum.com
 messengerdevelopers.com
 messybrainz.org
 messytube.com
+metaaiusercontent.com
 metabora.io
 metabrainz.org
 metacloud.com
@@ -17856,6 +17868,7 @@ msft.info
 msftncsi.com
 msft.net
 msftnet.org
+msftstatic.com
 msgamesresearch.com
 msgamestudios.com
 mshome.net
@@ -18730,6 +18743,7 @@ notion.so
 notion-static.com
 notion-status.com
 notionusercontent.com
+nousresearch.com
 novelai.net
 noveltrove.com
 novids.com
@@ -23197,6 +23211,7 @@ thieme.de
 thinkboxsoftware.com
 thinkdifferent.us
 thinkofliving.com
+thinkorswim.com
 thinkquarterly.com
 thinkquarterly.co.uk
 thirdns.de
@@ -23269,6 +23284,9 @@ tiktok-minis.com
 tiktokminis.us
 tiktokrow-cdn.com
 tiktok-row.net
+tiktokshop.com
+tiktokstaticb.com
+tiktokvapp.com
 tiktokv.eu
 tiktokw.eu
 tiktokw.us
@@ -23414,6 +23432,7 @@ topyoungporn.com
 torcidadeouro.com
 toritonssl.com
 toroporno.com
+torrentleech.org
 torrindex.net
 tospo-keiba.jp
 tospotify.com
@@ -26374,6 +26393,7 @@ youtube.ua
 youtube.ug
 youtube.uy
 youtube.vn
+youversionapi.com
 youwuss.com
 youx.xxx
 youyu.services
