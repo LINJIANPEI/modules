@@ -9,12 +9,21 @@ api:
       root: ./webui
 
 plugins:
+  # ==========================================
+  # 规则集（国内 / CDN / 国外 分开）
+  # ==========================================
   - tag: cn_domains
     type: domain_set
     args:
       files:
         - "./custom_cn_domain.txt"
         - "./rules/cn_domain.txt"
+
+  - tag: cdn_domains
+    type: domain_set
+    args:
+      files:
+        - "./rules/cdn_domain.txt"
 
   - tag: nocn_domains
     type: domain_set
@@ -23,16 +32,9 @@ plugins:
         - "./custom_nocn_domain.txt"
         - "./rules/nocn_domain.txt"
 
-  - tag: cdn_domains
-    type: domain_set
-    args:
-      files:
-        - "./rules/cdn_domain.txt"
-
   # ==========================================
-  # 国内、国外 SmartDNS 转发
+  # 上游转发（国内 / 国外 SmartDNS）
   # ==========================================
-
   - tag: forward_local
     type: forward
     args:
@@ -51,154 +53,92 @@ plugins:
           bootstrap: "127.0.0.1:5555"
           idle_timeout: 120
 
-
   # ==========================================
   # ECS 处理
   # ==========================================
-
-  # ---------- ECS 保留插件（国内用） ----------
+  # 国内：保留客户端 ECS 并转发，不主动添加
   - tag: ecs_keep
     type: ecs_handler
     args:
       forward: true
       send: false
 
-  # ---------- ECS 剥离插件（国外用） ----------
+  # 国外：剥离 ECS
   - tag: ecs_strip
     type: ecs_handler
     args:
       forward: false
       send: false
 
-
   # ==========================================
-  # 国内、国外专用子链
+  # 两条原子链（ECS + 转发绑定）
   # ==========================================
-
-  # ---------- 国内专用子链（保留 ECS） ----------
-  - tag: seq_local_keep
+  - tag: seq_local
     type: sequence
     args:
       - exec: $ecs_keep
       - exec: $forward_local
 
-  # ---------- 国外专用子链（剥离 ECS） ----------
-  - tag: seq_remote_strip
+  - tag: seq_remote
     type: sequence
     args:
       - exec: $ecs_strip
       - exec: $forward_remote
 
-
   # ==========================================
-  # fallback 主备线路
+  # 两个 fallback（主备顺序不同，启用 short_circuit）
   # ==========================================
-
-  # ---------- 国内优先，国外备用 ----------
-  - tag: fallback_local
+  - tag: fallback_local_first
     type: fallback
     args:
-      primary: seq_local_keep
-      secondary: seq_remote_strip
+      primary: seq_local
+      secondary: seq_remote
       threshold: 500
+      short_circuit: true
 
-  # ---------- 国外优先，国内备用 ----------
-  - tag: fallback_main
+  - tag: fallback_remote_first
     type: fallback
     args:
-      primary: seq_remote_strip
-      secondary: seq_local_keep
+      primary: seq_remote
+      secondary: seq_local
       threshold: 500
-
-
-  # ==========================================
-  # 中国域名处理链
-  # ==========================================
-
-  - tag: seq_cn
-    type: sequence
-    args:
-      - exec: $fallback_local
-
-      - matches: has_resp
-        exec: accept
-
-      - exec: reject SERVFAIL
-
+      short_circuit: true
 
   # ==========================================
-  # CDN 域名处理链
+  # 主分流链（exec + has_resp 收口）
   # ==========================================
-
-  - tag: seq_cdn
-    type: sequence
-    args:
-      - exec: $fallback_local
-
-      - matches: has_resp
-        exec: accept
-
-      - exec: reject SERVFAIL
-
-
-  # ==========================================
-  # 国外域名处理链
-  # ==========================================
-
-  - tag: seq_nocn
-    type: sequence
-    args:
-      - exec: $fallback_main
-
-      - matches: has_resp
-        exec: accept
-
-      - exec: reject SERVFAIL
-
-
-  # ==========================================
-  # 未匹配域名处理链
-  # ==========================================
-
-  - tag: seq_default
-    type: sequence
-    args:
-      - exec: $fallback_main
-
-      - matches: has_resp
-        exec: accept
-
-      - exec: reject SERVFAIL
-
-
-  # ==========================================
-  # 主分流入口
-  # ==========================================
-
   - tag: main_sequence
     type: sequence
     args:
-
-      # ---------- 中国域名 ----------
+      # 1. 国内域名 → 国内优先
       - matches: "qname $cn_domains"
-        exec: $seq_cn
+        exec: $fallback_local_first
+      - matches: has_resp
+        exec: accept
 
-      # ---------- CDN ----------
+      # 2. CDN 域名 → 国内优先（独立匹配，策略同国内）
       - matches: "qname $cdn_domains"
-        exec: $seq_cdn
+        exec: $fallback_local_first
+      - matches: has_resp
+        exec: accept
 
-      # ---------- 国外域名 ----------
+      # 3. 国外域名 → 国外优先
       - matches: "qname $nocn_domains"
-        exec: $seq_nocn
+        exec: $fallback_remote_first
+      - matches: has_resp
+        exec: accept
 
-      # ---------- fallback ----------
-      - exec: $seq_default
+      # 4. 未匹配 → 国外优先
+      - exec: $fallback_remote_first
+      - matches: has_resp
+        exec: accept
 
+      # 5. 兜底：所有尝试均失败
+      - exec: reject SERVFAIL
 
   # ==========================================
   # TCP / UDP 监听
   # ==========================================
-
   - tag: tcp_in
     type: tcp_server
     args:
@@ -212,11 +152,9 @@ plugins:
       entry: main_sequence
       listen: "127.0.0.1:5335"
 
-
   # ==========================================
   # 订阅规则下载
   # ==========================================
-
   - tag: subscription_download
     type: download
     args:
@@ -235,11 +173,9 @@ plugins:
           dir: "./rules"
           filename: "nocn_domain.txt"
 
-
   # ==========================================
   # 规则热更新
   # ==========================================
-
   - tag: reload_rules
     type: reload_provider
     args:
@@ -248,9 +184,8 @@ plugins:
       - $nocn_domains
 
   # ==========================================
-  # 定时更新
+  # 定时更新（12 小时）
   # ==========================================
-
   - tag: subscription_cron
     type: cron
     args:
