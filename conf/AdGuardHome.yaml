@@ -58,9 +58,9 @@ dns:
   aaaa_disabled: false
   enable_dnssec: true
   edns_client_subnet:
-    custom_ip: 112.96.150.0
-    enabled: false
-    use_custom: false
+    custom_ip: 112.96.151.0
+    enabled: true
+    use_custom: true
   max_goroutines: 300
   handle_ddr: true
   ipset: []
@@ -95,7 +95,7 @@ tls:
 querylog:
   dir_path: ""
   ignored: []
-  interval: 2d
+  interval: 7d
   size_memory: 1000
   enabled: true
   ignored_enabled: false
@@ -103,17 +103,17 @@ querylog:
 statistics:
   dir_path: ""
   ignored: []
-  interval: 2d
+  interval: 7d
   enabled: true
   ignored_enabled: false
 filters:
   - enabled: true
-    url: https://github.com/LINJIANPEI/LinlinDNS/releases/download/latest/rules.txt
+    url: https://gh-proxy.com/https://github.com/LINJIANPEI/LinlinDNS/releases/download/latest/rules.txt
     name: 私人黑名单
     id: 1791218194
 whitelist_filters:
   - enabled: true
-    url: https://github.com/LINJIANPEI/LinlinDNS/releases/download/latest/allow.txt
+    url: https://gh-proxy.com/https://github.com/LINJIANPEI/LinlinDNS/releases/download/latest/allow.txt
     name: 私人白名单
     id: 1791218195
 user_rules:
