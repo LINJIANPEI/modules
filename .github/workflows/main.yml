@@ -283,7 +283,7 @@ jobs:
             fi
 
             echo "⬇️ 开始下载: $SELECTED_NAME"
-            wget -q -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
+            wget --tries=3 --waitretry=5 --timeout=30 -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
 
             DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
             if [ ! -f "$DOWNLOAD_FILE" ]; then
