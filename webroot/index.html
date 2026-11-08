@@ -1,11 +1,532 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=http://127.0.0.1:8889">
-<title>跳转中...</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Modules 控制台</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 16px; background: #f2f2f7; color: #1c1c1e; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .header h1 { font-size: 22px; margin: 0; font-weight: 600; }
+        .btn-refresh { background: #e5e5ea; color: #1c1c1e; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.3s, background 0.15s; flex-shrink: 0; }
+        .btn-refresh:active { background: #d1d1d6; transform: rotate(180deg); }
+        .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card-title { font-size: 13px; color: #8e8e93; margin-bottom: 8px; }
+        
+        .service-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+        .service-item:last-child { border-bottom: none; }
+        .service-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+        .service-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 120px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: #ccc; }
+        .dot.running { background: #34c759; }
+        .dot.stopped { background: #ff3b30; }
+        .service-name { font-weight: 500; font-size: 15px; word-break: break-all; }
+        .btn-group { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+        
+        .service-meta { margin-top: 8px; margin-left: 20px; font-size: 12px; color: #8e8e93; display: flex; flex-direction: column; gap: 3px; }
+        .meta-line { display: flex; gap: 6px; }
+        .meta-label { flex-shrink: 0; }
+        .meta-value { font-family: "SF Mono", Menlo, monospace; color: #1c1c1e; word-break: break-all; }
+        
+        /* mihomo 模式切换器 */
+        .mode-switch { display: none; margin-left: 20px; margin-top: 12px; gap: 6px; background: #f2f2f7; padding: 4px; border-radius: 8px; width: fit-content; }
+        .mode-switch.active { display: flex; }
+        .mode-btn { border: none; background: transparent; padding: 6px 12px; font-size: 12px; font-weight: 500; color: #8e8e93; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .mode-btn.active { background: #fff; color: #007aff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        button.btn-action { border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; cursor: pointer; min-width: 52px; transition: opacity 0.15s; }
+        button.btn-action:active { opacity: 0.7; }
+        .btn-start { background: #34c759; color: #fff; }
+        .btn-stop { background: #ff3b30; color: #fff; }
+        .btn-ui { background: #007aff; color: #fff; }
+        .btn-log { background: #e5e5ea; color: #1c1c1e; margin-right: 8px; margin-bottom: 8px; }
+        .btn-primary { background: #007aff; color: #fff; }
+        .btn-edit { background: #ffcc00; color: #1c1c1e; }
+        .btn-del { background: #ff3b30; color: #fff; }
+        .log-area { background: #1c1c1e; color: #30d158; border-radius: 8px; padding: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.5; height: 180px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 12px; }
+        .hint { font-size: 12px; color: #8e8e93; margin-top: 8px; }
+        
+        .sub-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; gap: 8px; }
+        .sub-item:last-child { border-bottom: none; }
+        .sub-info { flex: 1; min-width: 0; }
+        .sub-name { font-weight: 500; font-size: 14px; margin-bottom: 2px; }
+        .sub-url { font-size: 12px; color: #8e8e93; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sub-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .sub-actions button { padding: 6px 10px; font-size: 12px; min-width: auto; }
+        .form-row { margin-bottom: 10px; }
+        .form-row label { display: block; font-size: 13px; color: #8e8e93; margin-bottom: 4px; }
+        .form-row input { width: 100%; padding: 10px; border: 1px solid #d1d1d6; border-radius: 8px; font-size: 14px; outline: none; }
+        .form-row input:focus { border-color: #007aff; }
+        .form-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .form-actions button { flex: 1; padding: 10px; }
+        .empty-tip { text-align: center; color: #8e8e93; font-size: 13px; padding: 20px 0; }
+
+        /* 开关样式 */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 15px; font-weight: 500; }
+        .toggle-desc { font-size: 12px; color: #8e8e93; margin-top: 2px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #34c759; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* 端口修改框 */
+        .port-edit-row { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
+        .port-edit-row input { flex: 1; padding: 10px; border: 1px solid #d1d1d6; border-radius: 8px; font-size: 14px; outline: none; }
+        
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1c1c1e; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 100; max-width: 80%; text-align: center; }
+        .toast.show { opacity: 1; }
+    </style>
 </head>
 <body>
-<a href="http://127.0.0.1:8889">如果没有自动跳转，请点击这里</a>
+
+    <div class="header">
+        <h1>🧩 Modules 控制台</h1>
+        <button class="btn-refresh" onclick="refreshAll()">↻</button>
+    </div>
+
+    <!-- 1. 服务状态 -->
+    <div class="card">
+        <div class="card-title">服务状态</div>
+        <div class="service-item" data-svc="mihomo" data-pattern="mihomo">
+            <div class="service-header">
+                <div class="service-info"><span class="dot"></span><span class="service-name">mihomo</span></div>
+                <div class="btn-group">
+                    <button class="btn-action btn-start" onclick="controlService('mihomo','start')">启动</button>
+                    <button class="btn-action btn-stop" onclick="controlService('mihomo','stop')">停止</button>
+                    <button class="btn-action btn-ui" onclick="openUI('mihomo')">打开UI</button>
+                </div>
+            </div>
+            <div class="service-meta">
+                <div class="meta-line"><span class="meta-label">UI：</span><span class="meta-value ui-port">加载中...</span></div>
+                <div class="meta-line"><span class="meta-label">代理端口：</span><span class="meta-value proxy-port">加载中...</span></div>
+            </div>
+            <!-- mihomo 运行模式切换 -->
+            <div class="mode-switch" id="mihomoModeSwitch">
+                <button class="mode-btn" data-mode="rule" onclick="setMihomoMode('rule')">规则</button>
+                <button class="mode-btn" data-mode="global" onclick="setMihomoMode('global')">全局</button>
+                <button class="mode-btn" data-mode="direct" onclick="setMihomoMode('direct')">直连</button>
+            </div>
+        </div>
+        <div class="service-item" data-svc="adguardhome" data-pattern="AdGuardHome">
+            <div class="service-header">
+                <div class="service-info"><span class="dot"></span><span class="service-name">AdGuardHome</span></div>
+                <div class="btn-group">
+                    <button class="btn-action btn-start" onclick="controlService('adguardhome','start')">启动</button>
+                    <button class="btn-action btn-stop" onclick="controlService('adguardhome','stop')">停止</button>
+                    <button class="btn-action btn-ui" onclick="openUI('adguardhome')">打开UI</button>
+                </div>
+            </div>
+            <div class="service-meta">
+                <div class="meta-line"><span class="meta-label">UI：</span><span class="meta-value ui-port">加载中...</span></div>
+                <div class="meta-line"><span class="meta-label">DNS 端口：</span><span class="meta-value dns-port">加载中...</span></div>
+            </div>
+        </div>
+        <div class="service-item" data-svc="oxidns" data-pattern="oxidns">
+            <div class="service-header">
+                <div class="service-info"><span class="dot"></span><span class="service-name">oxidns</span></div>
+                <div class="btn-group">
+                    <button class="btn-action btn-start" onclick="controlService('oxidns','start')">启动</button>
+                    <button class="btn-action btn-stop" onclick="controlService('oxidns','stop')">停止</button>
+                    <button class="btn-action btn-ui" onclick="openUI('oxidns')">打开UI</button>
+                </div>
+            </div>
+            <div class="service-meta">
+                <div class="meta-line"><span class="meta-label">UI：</span><span class="meta-value ui-port">加载中...</span></div>
+                <div class="meta-line"><span class="meta-label">DNS 端口：</span><span class="meta-value dns-port">加载中...</span></div>
+            </div>
+        </div>
+        <div class="service-item" data-svc="smartdns" data-pattern="smartdns">
+            <div class="service-header">
+                <div class="service-info"><span class="dot"></span><span class="service-name">smartdns</span></div>
+                <div class="btn-group">
+                    <button class="btn-action btn-start" onclick="controlService('smartdns','start')">启动</button>
+                    <button class="btn-action btn-stop" onclick="controlService('smartdns','stop')">停止</button>
+                    <button class="btn-action btn-ui" onclick="openUI('smartdns')">打开UI</button>
+                </div>
+            </div>
+            <div class="service-meta">
+                <div class="meta-line"><span class="meta-label">UI：</span><span class="meta-value ui-port">加载中...</span></div>
+                <div class="meta-line"><span class="meta-label">DNS 端口：</span><span class="meta-value dns-port">加载中...</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 联动与重定向控制 -->
+    <div class="card">
+        <div class="card-title">联动与重定向控制</div>
+        <div class="toggle-row">
+            <div>
+                <div class="toggle-label">smartdns 走代理查询</div>
+                <div class="toggle-desc">开启后，mihomo 启停时将自动联动 smartdns 的代理状态。</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="smartdnsProxyToggle" onchange="toggleSmartdnsProxy(this.checked)">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="toggle-row">
+            <div>
+                <div class="toggle-label">DNS 重定向</div>
+                <div class="toggle-desc">控制 iptables 强制劫持 53 端口 DNS 请求。</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="dnsRedirToggle" onchange="toggleDnsRedir(this.checked)">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="port-edit-row">
+            <label style="font-size:14px;font-weight:500;flex-shrink:0;">重定向端口</label>
+            <input type="number" id="redirPortInput" placeholder="例如 53" min="1" max="65535">
+            <button class="btn-action btn-primary" onclick="saveRedirPort()">保存</button>
+        </div>
+        <div class="hint" style="margin-top:0;">修改端口后将自动重启 DNS 重定向规则。</div>
+    </div>
+
+    <!-- 3. mihomo 订阅管理 -->
+    <div class="card">
+        <div class="card-title">mihomo 订阅地址</div>
+        <div id="subList"></div>
+        <div class="empty-tip" id="emptyTip" style="display:none;">暂无订阅，请添加</div>
+        <div class="hint" id="errorTip" style="display:none; color: red; word-break: break-all; font-family: monospace;"></div>
+
+        <div id="subForm" style="margin-top:16px; padding-top:16px; border-top:1px solid #f0f0f0;">
+            <div class="card-title" id="formTitle">添加订阅</div>
+            <div class="form-row"><label>订阅名称</label><input type="text" id="subNameInput" placeholder="例如：机场A"></div>
+            <div class="form-row"><label>订阅地址（URL）</label><input type="url" id="subUrlInput" placeholder="https://..."></div>
+            <div class="form-actions">
+                <button class="btn-action btn-primary" id="saveSubBtn">保存</button>
+                <button class="btn-action btn-log" id="cancelSubBtn" style="display:none;">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 日志查看 -->
+    <div class="card">
+        <div class="card-title">日志查看</div>
+        <div>
+            <button class="btn-action btn-log" onclick="showLog('mihomo')">mihomo</button>
+            <button class="btn-action btn-log" onclick="showLog('adguardhome')">AdGuardHome</button>
+            <button class="btn-action btn-log" onclick="showLog('smartdns')">smartdns</button>
+            <button class="btn-action btn-log" onclick="showLog('oxidns')">oxidns</button>
+        </div>
+        <pre class="log-area" id="logArea">点击上方按钮加载日志…</pre>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+<script>
+    const MODULE_ID = 'Linlin';
+    const MODULE_DIR = `/data/adb/modules/${MODULE_ID}`;
+    const YAMLCI = `${MODULE_DIR}/bin/yamlcli`;
+
+    const LOG_FILES = {
+        mihomo:      `${MODULE_DIR}/log/mihomo.log`,
+        adguardhome: `${MODULE_DIR}/log/AdGuardHome.log`,
+        smartdns:    `${MODULE_DIR}/log/smartdns.log`,
+        oxidns:      `${MODULE_DIR}/log/oxidns.log`
+    };
+
+    function runCmd(cmd) {
+    return new Promise((resolve) => {
+        if (typeof ksu === 'undefined' || !ksu.exec) {
+            resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
+            return;
+        }
+        
+        // 【核心修改】拦截启动命令，使用双重括号 + setsid 强制脱壳
+        let finalCmd = cmd;
+        if (cmd.includes(" start") || cmd.includes(" enable") || cmd.includes(" restart")) {
+            // 使用 su -c 确保权限，setsid 建立新会话，双重括号强行托管给 init
+            finalCmd = `su -c "( ( setsid sh -c '${cmd}' >/dev/null 2>&1 < /dev/null & ) & )"`;
+        }
+
+        const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        window[callbackName] = (errno, stdout, stderr) => {
+            delete window[callbackName];
+            resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
+        };
+        try { 
+            ksu.exec(finalCmd, '{}', callbackName); 
+        } 
+        catch (e) { 
+            delete window[callbackName]; 
+            resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); 
+        }
+    });
+}
+
+    function showToast(msg) {
+        if (typeof ksu !== 'undefined' && ksu.toast) { ksu.toast(msg); } 
+        else { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2200); }
+    }
+
+    async function updatePortInfo() {
+        let m_ui = await runCmd(`${YAMLCI} -f ${MODULE_DIR}/conf/mihomo.yaml get external-controller`);
+        let m_proxy = await runCmd(`${YAMLCI} -f ${MODULE_DIR}/conf/mihomo.yaml get mixed-port`);
+        document.querySelector('[data-svc="mihomo"] .meta-value.ui-port').textContent = `http://${m_ui.stdout || '127.0.0.1:9090'}/ui`;
+        document.querySelector('[data-svc="mihomo"] .meta-value.proxy-port').textContent = m_proxy.stdout || '7890';
+
+        let a_ui = await runCmd(`${YAMLCI} -f ${MODULE_DIR}/conf/AdGuardHome.yaml get http.address`);
+        let a_dns = await runCmd(`${YAMLCI} -f ${MODULE_DIR}/conf/AdGuardHome.yaml get dns.port`);
+        document.querySelector('[data-svc="adguardhome"] .meta-value.ui-port').textContent = `http://${a_ui.stdout || '0.0.0.0:3000'}`;
+        document.querySelector('[data-svc="adguardhome"] .meta-value.dns-port').textContent = a_dns.stdout || '53';
+
+        let o_dns = await runCmd(`${YAMLCI} -f ${MODULE_DIR}/conf/oxidns.yaml get listen`);
+        let o_ui = await runCmd(`${YAMLCI} -f ${MODULE_DIR}/conf/oxidns.yaml get http`);
+        let o_dns_port = o_dns.stdout || '5335';
+        if (o_dns_port.includes(':')) o_dns_port = o_dns_port.split(':').pop();
+        document.querySelector('[data-svc="oxidns"] .meta-value.dns-port').textContent = o_dns_port;
+        let o_ui_port = o_ui.stdout || '9199';
+        if (o_ui_port.includes(':')) o_ui_port = o_ui_port.split(':').pop();
+        document.querySelector('[data-svc="oxidns"] .meta-value.ui-port').textContent = `http://127.0.0.1:${o_ui_port}/`;
+
+        let s_dns = await runCmd(`grep -E '^bind.*\\]:(\\d+)' ${MODULE_DIR}/conf/smartdns.conf | awk -F: '{print $NF}' | tr '\\n' '/' | sed 's/\\/$//'`);
+        document.querySelector('[data-svc="smartdns"] .meta-value.dns-port').textContent = s_dns.stdout || '5445 / 5555';
+        document.querySelector('[data-svc="smartdns"] .meta-value.ui-port').textContent = `http://127.0.0.1:6080`;
+    }
+
+    window.openUI = async function(key) {
+        const item = document.querySelector(`.service-item[data-svc="${key}"]`);
+        let uiAddr = item?.querySelector('.meta-value.ui-port')?.textContent;
+        if (uiAddr && uiAddr.startsWith('http')) {
+            if (uiAddr.includes('0.0.0.0')) uiAddr = uiAddr.replace('0.0.0.0', '127.0.0.1');
+            await runCmd(`am start -a android.intent.action.VIEW -d "${uiAddr}"`);
+        } else { showToast('未找到有效的 UI 地址'); }
+    };
+
+    async function refreshStatus() {
+        const SERVICES = { mihomo: 'mihomo', adguardhome: 'AdGuardHome', oxidns: 'oxidns', smartdns: 'smartdns' };
+        for (const [key, pattern] of Object.entries(SERVICES)) {
+            const item = document.querySelector(`.service-item[data-svc="${key}"]`);
+            if (!item) continue;
+            const dot = item.querySelector('.dot');
+            const { errno } = await runCmd(`pgrep -f ${pattern} >/dev/null 2>&1`);
+            dot.classList.toggle('running', errno === 0);
+            dot.classList.toggle('stopped', errno !== 0);
+            
+            // mihomo 运行则显示模式切换
+            if (key === 'mihomo') {
+                const modeSwitch = document.getElementById('mihomoModeSwitch');
+                if (errno === 0) {
+                    modeSwitch.classList.add('active');
+                    // 获取当前模式
+                    const modeRes = await runCmd(`${MODULE_DIR}/scripts/control.sh mihomo-mode check`);
+                    const curMode = modeRes.stdout.trim();
+                    document.querySelectorAll('.mode-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.mode === curMode);
+                    });
+                } else {
+                    modeSwitch.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    window.setMihomoMode = async function(mode) {
+        showToast(`正在切换 mihomo 模式为 ${mode}…`);
+        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh mihomo-mode ${mode}`);
+        if (errno === 0) {
+            showToast(`已切换为 ${mode}`);
+            refreshStatus();
+        } else {
+            showToast(`切换失败：${stderr || '未知错误'}`);
+        }
+    };
+
+    window.controlService = async function(key, action) {
+        showToast(`${action === 'start' ? '启动' : '停止'} ${key}…`);
+        const { errno, stderr, stdout } = await runCmd(`${MODULE_DIR}/scripts/control.sh ${key} ${action}`);
+        if (errno === 0) showToast(`${key} 操作已执行`);
+        else showToast(`失败：${stderr || stdout || '未知错误'}`);
+        
+        setTimeout(() => {
+            refreshStatus();
+            updateToggleStatus();
+        }, 1200);
+    };
+
+    // ======== smartdns 代理联动控制 ========
+    async function updateToggleStatus() {
+        const proxy = await runCmd(`${MODULE_DIR}/scripts/control.sh smartdns-proxy check`);
+        document.getElementById('smartdnsProxyToggle').checked = (proxy.stdout.trim() === 'on');
+        
+        // 获取 DNS 重定向状态
+        const redir = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir check`);
+        document.getElementById('dnsRedirToggle').checked = (redir.stdout.trim() === 'on');
+    }
+
+    window.toggleSmartdnsProxy = async function(isChecked) {
+        showToast(`正在${isChecked ? '开启' : '关闭'} smartdns 代理…`);
+        const action = isChecked ? 'on' : 'off';
+        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh smartdns-proxy ${action}`);
+        if (errno === 0) {
+            showToast(`smartdns 代理已${isChecked ? '开启' : '关闭'}`);
+        } else {
+            showToast(`操作失败：${stderr || '未知错误'}`);
+            document.getElementById('smartdnsProxyToggle').checked = !isChecked;
+        }
+    };
+
+    // ======== DNS 重定向控制 ========
+    window.toggleDnsRedir = async function(isChecked) {
+        showToast(`正在${isChecked ? '开启' : '关闭'} DNS 重定向…`);
+        const action = isChecked ? 'on' : 'off';
+        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir ${action}`);
+        if (errno === 0) {
+            showToast(`DNS 重定向已${isChecked ? '开启' : '关闭'}`);
+        } else {
+            showToast(`操作失败：${stderr || '未知错误'}`);
+            document.getElementById('dnsRedirToggle').checked = !isChecked;
+        }
+    };
+
+    // ======== 修改重定向端口 ========
+    async function loadRedirPort() {
+        const { stdout } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir getport`);
+        document.getElementById('redirPortInput').value = stdout.trim() || '53';
+    }
+
+    window.saveRedirPort = async function() {
+        const port = document.getElementById('redirPortInput').value.trim();
+        if (!port || isNaN(port) || port < 1 || port > 65535) {
+            showToast('请输入有效的端口号 (1-65535)');
+            return;
+        }
+        showToast(`正在修改重定向端口为 ${port}…`);
+        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir setport ${port}`);
+        if (errno === 0) {
+            showToast(`端口已修改为 ${port}，并已重启重定向`);
+        } else {
+            showToast(`修改失败：${stderr || '未知错误'}`);
+        }
+    };
+
+    // ======== 订阅管理 ========
+    let editingIndex = -1;
+    let currentSubs = [];
+
+    async function loadSubscriptions() {
+        const listEl = document.getElementById('subList');
+        const emptyEl = document.getElementById('emptyTip');
+        const errEl = document.getElementById('errorTip');
+
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'none';
+        errEl.style.display = 'none';
+
+        const { errno, stdout, stderr } = await runCmd(`${MODULE_DIR}/scripts/sub.sh list`);
+        const rawOutput = (stdout + '\n' + stderr).trim();
+        
+        if (errno !== 0) {
+            errEl.style.display = 'block';
+            errEl.textContent = `获取订阅失败:\n${rawOutput}`;
+            return;
+        }
+
+        const lines = rawOutput.split('\n').map(s => s.trim()).filter(Boolean);
+        if (lines.length === 0) {
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+        currentSubs = [];
+        lines.forEach((line) => {
+            const parts = line.split('|');
+            if(parts.length >= 2) {
+                currentSubs.push({ name: parts[0], url: parts[1] });
+            }
+        });
+
+        currentSubs.forEach((sub, idx) => {
+            const div = document.createElement('div');
+            div.className = 'sub-item';
+            div.innerHTML = `<div class="sub-info"><div class="sub-name"></div><div class="sub-url"></div></div><div class="sub-actions"><button class="btn-action btn-edit">编辑</button><button class="btn-action btn-del">删除</button></div>`;
+            div.querySelector('.sub-name').textContent = sub.name;
+            div.querySelector('.sub-url').textContent = sub.url;
+            
+            div.querySelector('.btn-edit').onclick = () => {
+                document.getElementById('subNameInput').value = sub.name;
+                document.getElementById('subUrlInput').value = sub.url;
+                document.getElementById('formTitle').textContent = '编辑订阅';
+                document.getElementById('cancelSubBtn').style.display = '';
+                editingIndex = idx;
+                document.getElementById('subForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            
+            div.querySelector('.btn-del').onclick = async () => {
+                if (!confirm(`删除订阅「${sub.name}」？`)) return;
+                const r = await runCmd(`${MODULE_DIR}/scripts/sub.sh del ${idx}`);
+                if (r.errno === 0) { showToast('已删除'); loadSubscriptions(); }
+                else showToast(`删除失败：${r.stderr || '未知错误'}`);
+            };
+            listEl.appendChild(div);
+        });
+    }
+
+    document.getElementById('saveSubBtn').addEventListener('click', async () => {
+        const name = document.getElementById('subNameInput').value.trim();
+        const url = document.getElementById('subUrlInput').value.trim();
+        if (!name || !url) { showToast('请填写名称和地址'); return; }
+        
+        let cmd;
+        if (editingIndex >= 0) {
+            const oldName = currentSubs[editingIndex].name;
+            cmd = `${MODULE_DIR}/scripts/sub.sh edit "${oldName}" "${name}" "${url}"`;
+        } else {
+            cmd = `${MODULE_DIR}/scripts/sub.sh add "${name}" "${url}"`;
+        }
+        
+        const { errno, stderr } = await runCmd(cmd);
+        if (errno === 0) {
+            showToast(editingIndex >= 0 ? '已更新订阅' : '已添加订阅');
+            resetSubForm();
+            loadSubscriptions();
+        } else { showToast(`保存失败：${stderr || '未知错误'}`); }
+    });
+
+    function resetSubForm() {
+        editingIndex = -1;
+        document.getElementById('subNameInput').value = '';
+        document.getElementById('subUrlInput').value = '';
+        document.getElementById('formTitle').textContent = '添加订阅';
+        document.getElementById('cancelSubBtn').style.display = 'none';
+    }
+    document.getElementById('cancelSubBtn').addEventListener('click', resetSubForm);
+
+    // ======== 日志 ========
+    window.showLog = async function(key) {
+        const area = document.getElementById('logArea');
+        area.textContent = '加载中…';
+        const path = LOG_FILES[key];
+        const { errno, stdout, stderr } = await runCmd(`tail -n 100 "${path}" 2>/dev/null`);
+        if (errno === 0 && stdout.trim()) { area.textContent = stdout; area.scrollTop = area.scrollHeight; } 
+        else { area.textContent = `无法读取日志：${path}\n${stderr || ''}`; }
+    };
+
+    window.refreshAll = async function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast('正在刷新状态…');
+        await refreshStatus();
+        await updatePortInfo();
+        await updateToggleStatus();
+        await loadRedirPort();
+        await loadSubscriptions();
+        showToast('刷新完成');
+    };
+
+    // 初始化
+    refreshStatus();
+    updatePortInfo();
+    updateToggleStatus();
+    loadRedirPort();
+    loadSubscriptions();
+    setInterval(refreshStatus, 10000);
+</script>
 </body>
 </html>
