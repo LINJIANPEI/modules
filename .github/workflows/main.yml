@@ -77,7 +77,7 @@ jobs:
       - name: 安装依赖工具
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq unzip wget rsync gzip tar
+          sudo apt-get install -y jq unzip wget rsync gzip tar curl
           echo "✅ 依赖工具安装完成"
 
       - name: 设置时区
@@ -209,9 +209,7 @@ jobs:
               echo "获取指定版本: $SPECIFIC_TAG"
             fi
 
-            # ================================================================
-            # 【改动1】获取 Release 信息：加 token + 重试 + JSON 校验
-            # ================================================================
+            # 带 token + 重试 + JSON 校验，避免限流或非 JSON 响应导致 jq 崩溃
             RELEASE_DATA=$(curl -sS --retry 3 --retry-delay 5 \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -269,7 +267,6 @@ jobs:
             if [ -z "$SELECTED_URL" ] || [ "$SELECTED_URL" = "null" ]; then
               PATTERNS=$(jq -r ".upstreams[$i].asset_patterns // [] | join(\" \")" sync-mapping-config.json)
               for pattern in $PATTERNS; do
-                # 转义正则：先转义反斜杠，再转义点号，再处理通配符
                 regex=$(printf '%s' "$pattern" | sed 's/\\/\\\\/g; s/\./\\\\./g; s/\*/.*/g; s/?/./g')
                 SELECTED_URL=$(echo "$RELEASE_DATA" | jq -r --arg re "^${regex}$" '.assets[] | select(.name | test($re)) | .browser_download_url' 2>/dev/null | head -1)
                 if [ -n "$SELECTED_URL" ] && [ "$SELECTED_URL" != "null" ]; then
@@ -299,10 +296,30 @@ jobs:
             fi
 
             # ================================================================
-            # 【改动2】下载资产：加重试参数
+            # 下载：先直连，失败再走 GitHub 代理
             # ================================================================
             echo "⬇️ 开始下载: $SELECTED_NAME"
-            wget --tries=3 --waitretry=5 --timeout=30 -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
+
+            PROXY_PREFIX="https://ghproxy.net/"
+            DOWNLOAD_OK=false
+
+            for url in "$SELECTED_URL" "${PROXY_PREFIX}${SELECTED_URL}"; do
+              echo "尝试下载: $url"
+              if curl -fL --retry 3 --retry-delay 5 \
+                   --connect-timeout 30 --max-time 300 \
+                   --ipv4 \
+                   -o "temp_downloads/${SELECTED_NAME}" "$url"; then
+                DOWNLOAD_OK=true
+                break
+              fi
+              echo "⚠️ 下载失败，切换下一个地址..."
+            done
+
+            if [ "$DOWNLOAD_OK" != "true" ]; then
+              echo "❌ 下载失败（直连和代理均失败）"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              continue
+            fi
 
             DOWNLOAD_FILE="temp_downloads/${SELECTED_NAME}"
             if [ ! -f "$DOWNLOAD_FILE" ]; then
@@ -735,4 +752,30 @@ jobs:
           ### 版本信息
           - **版本号**: ${{ steps.version.outputs.version }}
           - **版本代码**: ${{ steps.version.outputs.versionCode }}
-          - **
+          - **发布时间**: ${{ steps.version.outputs.release_datetime }}
+
+          ### 更新内容
+          ${CHANGELOG_INPUT:-同步上游 Releases 更新}
+
+          ### 本次更新统计
+          - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
+          - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
+          - 其中需要发布的组件: ${{ steps.sync.outputs.publishable_updates }} 个
+          EOF
+
+          if [ -f ".updated_components" ]; then
+            echo "" >> release_body.md
+            echo "### 更新的组件" >> release_body.md
+            while read -r comp; do
+              echo "- $comp" >> release_body.md
+            done < .updated_components
+          fi
+
+      - name: 创建 GitHub Release（使用 body_path）
+        if: steps.should_package.outputs.should_package == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.version.outputs.version }}.zip
+          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          body_path: release_body.md
