@@ -209,7 +209,23 @@ jobs:
               echo "获取指定版本: $SPECIFIC_TAG"
             fi
 
-            RELEASE_DATA=$(curl -s "$RELEASE_URL")
+            # ================================================================
+            # 【改动1】获取 Release 信息：加 token + 重试 + JSON 校验
+            # ================================================================
+            RELEASE_DATA=$(curl -sS --retry 3 --retry-delay 5 \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "$RELEASE_URL")
+
+            if ! echo "$RELEASE_DATA" | jq -e . > /dev/null 2>&1; then
+              echo "❌ 获取版本信息失败: 返回内容不是合法 JSON"
+              echo "----- 返回内容前 300 字符 -----"
+              echo "$RELEASE_DATA" | head -c 300
+              echo ""
+              echo "-------------------------------"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              continue
+            fi
 
             if echo "$RELEASE_DATA" | jq -e '.message' > /dev/null 2>&1; then
               ERROR_MSG=$(echo "$RELEASE_DATA" | jq -r '.message')
@@ -282,6 +298,9 @@ jobs:
               echo "  📄 使用默认第一个资产: $SELECTED_NAME"
             fi
 
+            # ================================================================
+            # 【改动2】下载资产：加重试参数
+            # ================================================================
             echo "⬇️ 开始下载: $SELECTED_NAME"
             wget --tries=3 --waitretry=5 --timeout=30 -O "temp_downloads/${SELECTED_NAME}" "$SELECTED_URL"
 
@@ -716,30 +735,4 @@ jobs:
           ### 版本信息
           - **版本号**: ${{ steps.version.outputs.version }}
           - **版本代码**: ${{ steps.version.outputs.versionCode }}
-          - **发布时间**: ${{ steps.version.outputs.release_datetime }}
-
-          ### 更新内容
-          ${CHANGELOG_INPUT:-同步上游 Releases 更新}
-
-          ### 本次更新统计
-          - 检测到版本更新的组件: ${{ steps.sync.outputs.updated_count }} 个
-          - 实际文件变化的组件: ${{ steps.sync.outputs.actual_updates }} 个
-          - 其中需要发布的组件: ${{ steps.sync.outputs.publishable_updates }} 个
-          EOF
-
-          if [ -f ".updated_components" ]; then
-            echo "" >> release_body.md
-            echo "### 更新的组件" >> release_body.md
-            while read -r comp; do
-              echo "- $comp" >> release_body.md
-            done < .updated_components
-          fi
-
-      - name: 创建 GitHub Release（使用 body_path）
-        if: steps.should_package.outputs.should_package == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.version.outputs.version }}.zip
-          name: ${{ steps.version.outputs.tag }}
-          tag_name: ${{ steps.version.outputs.tag }}
-          body_path: release_body.md
+          - **
