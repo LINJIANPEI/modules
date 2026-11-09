@@ -171,11 +171,11 @@
             </label>
         </div>
 
-        <!-- 封锁 IPv6 DNS 换到了上面 -->
+        <!-- 全局禁用 IPv6 -->
         <div class="toggle-row">
             <div>
-                <div class="toggle-label">封锁 IPv6 DNS</div>
-                <div class="toggle-desc">开启后将阻断 IPv6 的 53 端口查询，防止 DNS 泄露。</div>
+                <div class="toggle-label">全局禁用 IPv6</div>
+                <div class="toggle-desc">开启后将彻底关闭系统和 mihomo 的 IPv6 网络，防止任何 DNS 泄漏。</div>
             </div>
             <label class="switch">
                 <input type="checkbox" id="dnsIpv6Toggle" onchange="toggleDnsIpv6(this.checked)">
@@ -183,7 +183,6 @@
             </label>
         </div>
 
-        <!-- DNS 重定向 换到了下面 -->
         <div class="toggle-row">
             <div>
                 <div class="toggle-label">DNS 重定向</div>
@@ -312,7 +311,6 @@
             dot.classList.toggle('running', errno === 0);
             dot.classList.toggle('stopped', errno !== 0);
             
-            // mihomo 运行则显示模式切换
             if (key === 'mihomo') {
                 const modeSwitch = document.getElementById('mihomoModeSwitch');
                 if (errno === 0) {
@@ -362,8 +360,12 @@
     }
 
     async function loadIpv6Status() {
-        const { stdout } = await runCmd(`grep "^block_ipv6_dns=" ${MODULE_DIR}/config.conf | cut -d'=' -f2 | tr -d '"'`);
-        document.getElementById('dnsIpv6Toggle').checked = (stdout.trim() === 'true');
+        // 读取 config.conf 里的变量，同时读取内核实际状态
+        const confRes = await runCmd(`grep "^block_ipv6=" ${MODULE_DIR}/config.conf | cut -d'=' -f2 | tr -d '"'`);
+        const sysRes = await runCmd(`cat /proc/sys/net/ipv6/conf/all/disable_ipv6`);
+        
+        // 只要配置是 true，或者系统栈真的被禁用了，就亮起
+        document.getElementById('dnsIpv6Toggle').checked = (confRes.stdout.trim() === 'true' || sysRes.stdout.trim() === '1');
     }
 
     async function loadRedirPort() {
@@ -385,11 +387,11 @@
     };
 
     window.toggleDnsIpv6 = async function(isChecked) {
-        showToast(`正在${isChecked ? '开启' : '关闭'} IPv6 DNS 封锁…`);
+        showToast(`正在${isChecked ? '开启' : '关闭'} 全局 IPv6 禁用…`);
         const action = isChecked ? 'on' : 'off';
         const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir ipv6_${action}`);
         if (errno === 0) {
-            showToast(`IPv6 DNS 封锁已${isChecked ? '开启' : '关闭'}`);
+            showToast(`全局 IPv6 已${isChecked ? '禁用' : '恢复'}`);
         } else {
             showToast(`操作失败：${stderr || '未知错误'}`);
             document.getElementById('dnsIpv6Toggle').checked = !isChecked;
