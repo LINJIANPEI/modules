@@ -138,26 +138,35 @@ handle_dns_redir() {
             echo "block_ipv6=\"$val\"" >> "$FUN_CONF"
         fi
 
-        # 2. 联动 mihomo 的 ipv6 配置
-        yamlcli -f "$MIHOMO_CONF" set "ipv6" "$val" >/dev/null 2>&1
-        yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "$val" >/dev/null 2>&1
+        # 【核心修复】mihomo 的 ipv6 配置：
+        # block_ipv6 开启（true）时，mihomo 的 ipv6 必须设为 false（禁用）
+        # block_ipv6 关闭（false）时，mihomo 的 ipv6 必须设为 true（启用）
+        local mihomo_ipv6="true"
+        [ "$val" = "true" ] && mihomo_ipv6="false"
+
+        yamlcli -f "$MIHOMO_CONF" set "ipv6" "$mihomo_ipv6" >/dev/null 2>&1
+        yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "$mihomo_ipv6" >/dev/null 2>&1
 
         if [ "$val" = "true" ]; then
             echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
             echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
             sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
-            echo "IPv6 已彻底禁用"
+            echo "IPv6 已彻底禁用（含 mihomo）"
         else
             if command -v ip6tables >/dev/null 2>&1 && ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
                 echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
                 echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
-                echo "IPv6 已恢复（支持重定向）"
+                echo "IPv6 已恢复（含 mihomo）"
             else
+                # 不支持重定向，为了防止泄露，强制保持禁用
+                yamlcli -f "$MIHOMO_CONF" set "ipv6" "false" >/dev/null 2>&1
+                yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "false" >/dev/null 2>&1
+                
                 echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
                 echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
                 sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
-                echo "IPv6 尝试关闭失败，不支持重定向，为防止泄露，已保持禁用栈"
+                echo "不支持重定向，为防止泄露，保持禁用"
             fi
         fi
 
