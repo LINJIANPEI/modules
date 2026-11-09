@@ -23,16 +23,12 @@ restart_smartdns() {
 
     calc_all_fd
 
-    (
-    ulimit -n "$FD_SMARTDNS"
-    cd "${module_dir}/smartdnsData"
-    # 【关键修改】加入 setsid 彻底脱离终端
-    nohup busybox setuidgid "${uid}:${gid}" \
-        "${module_dir}/bin/smartdns" \
-        -c "$CONF_FILE" \
-        -f \
-       >"${log_dir}/smartdns.log" 2>&1 &
-    )
+    nohup sh -c "
+        ulimit -n $FD_SMARTDNS
+        cd ${module_dir}/smartdnsData
+        busybox setuidgid ${uid}:${gid} ${module_dir}/bin/smartdns -c $CONF_FILE -f
+    " > "${log_dir}/smartdns.log" 2>&1 < /dev/null &
+    
     sleep 1
     
     if pgrep -f "${module_dir}/bin/smartdns" >/dev/null 2>&1; then
@@ -64,11 +60,9 @@ handle_smartdns_proxy() {
         # 开启代理
         awk '
         {
-            # 1. 恢复 proxy-server（去掉行首的 #）
             if ($0 ~ /^[ \t]*#[ \t]*proxy-server/) {
                 sub(/^[ \t]*#[ \t]*/, "")
             }
-            # 2. 恢复节点行（去掉行尾或行内的 #）
             if ($0 ~ /-proxy[ \t]*socks5/ || $0 ~ /#[ \t]*-proxy[ \t]*socks5/) {
                 sub(/#[ \t]*-proxy[ \t]*socks5/, "")
                 if ($0 ~ /-proxy[ \t]*socks5/ || $0 ~ /server-.*office/) {
@@ -102,7 +96,6 @@ handle_smartdns_proxy() {
         echo "smartdns 代理已关闭"
     fi
 
-    # 强制重启使配置生效
     restart_smartdns
 }
 
@@ -127,6 +120,26 @@ handle_dns_redir() {
         else
             echo "off"
         fi
+        return 0
+    fi
+
+    # 处理 IPv6 开关
+    if [ "$ACTION" = "ipv6_on" ] || [ "$ACTION" = "ipv6_off" ]; then
+        local val="false"
+        [ "$ACTION" = "ipv6_on" ] && val="true"
+        
+        # 修改 config.conf 里的 block_ipv6_dns
+        if grep -q "^block_ipv6_dns=" "$CONFIG_CONF"; then
+            sed -i "s/^block_ipv6_dns=.*/block_ipv6_dns=\"$val\"/" "$CONFIG_CONF"
+        else
+            echo "block_ipv6_dns=\"$val\"" >> "$CONFIG_CONF"
+        fi
+        
+        # 重启重定向使配置生效
+        sh "${module_dir}/scripts/dns.sh" disable >/dev/null 2>&1
+        sleep 1
+        sh "${module_dir}/scripts/dns.sh" enable >/dev/null 2>&1
+        echo "IPv6 DNS 封锁已设置为 $val"
         return 0
     fi
 
@@ -160,7 +173,7 @@ handle_dns_redir() {
 }
 
 # ==========================================
-# 核心逻辑：mihomo 模式切换 (API 请求)
+# 核心逻辑：mihomo 模式切换
 # ==========================================
 handle_mihomo_mode() {
     ACTION="$1"
@@ -202,41 +215,37 @@ case "$ACTION" in
     start)
         case "$SVC" in
             mihomo)
-                "${module_dir}/scripts/clash.sh" "enable" &
+                nohup sh "${module_dir}/scripts/clash.sh" enable >/dev/null 2>&1 < /dev/null &
                 ;;
             adguardhome)
                 kill_by_name "AdGuardHome"
                 kill_by_name "AghReport"
-                (
-                ulimit -n "$FD_ADGUARD"
-                cd "${module_dir}/adguardHomeData"
-                # 【关键修改】加入 setsid
-                nohup busybox setuidgid "${uid}:${gid}" \
-                    "${module_dir}/bin/AdGuardHome" \
-                    -c "${module_dir}/conf/AdGuardHome.yaml" \
-                    -w "${module_dir}/adguardHomeData" \
-                    --no-check-update \
-                    >"${log_dir}/AdGuardHome.log" 2>&1 &
-                ) &
-                # 【关键修改】AghReport 也加入 setsid
-                nohup "${module_dir}/bin/AghReport" >/dev/null 2>&1 &
+                nohup sh -c "
+                    ulimit -n $FD_ADGUARD
+                    cd ${module_dir}/adguardHomeData
+                    busybox setuidgid ${uid}:${gid} ${module_dir}/bin/AdGuardHome \
+                        -c ${module_dir}/conf/AdGuardHome.yaml \
+                        -w ${module_dir}/adguardHomeData \
+                        --no-check-update
+                " > "${log_dir}/AdGuardHome.log" 2>&1 < /dev/null &
+                
+                nohup sh -c "
+                    busybox setuidgid ${uid}:${gid} ${module_dir}/bin/AghReport
+                " >/dev/null 2>&1 < /dev/null &
                 ;;
             smartdns)
                 handle_smartdns_proxy "on"
                 ;;
             oxidns)
                 kill_by_name "oxidns"
-                (
-                ulimit -n "$FD_OXIDNS"
-                cd "${module_dir}/oxidnsData"
-                # 【关键修改】加入 setsid
-                nohup busybox setuidgid "${uid}:${gid}" \
-                    "${module_dir}/bin/oxidns" \
-                    start \
-                    -d "${module_dir}/oxidnsData" \
-                    -c "${module_dir}/conf/oxidns.yaml" \
-                    >"${log_dir}/oxidns.log" 2>&1 &
-                ) &
+                nohup sh -c "
+                    ulimit -n $FD_OXIDNS
+                    cd ${module_dir}/oxidnsData
+                    busybox setuidgid ${uid}:${gid} ${module_dir}/bin/oxidns \
+                        start \
+                        -d ${module_dir}/oxidnsData \
+                        -c ${module_dir}/conf/oxidns.yaml
+                " > "${log_dir}/oxidns.log" 2>&1 < /dev/null &
                 ;;
             *)
                 echo "未知服务" >&2; exit 1 ;;
@@ -250,7 +259,7 @@ case "$ACTION" in
     stop)
         case "$SVC" in
             mihomo)
-                "${module_dir}/scripts/clash.sh" "disable" &
+                nohup sh "${module_dir}/scripts/clash.sh" disable >/dev/null 2>&1 < /dev/null &
                 ;;
             adguardhome)
                 kill_by_name "AdGuardHome"
