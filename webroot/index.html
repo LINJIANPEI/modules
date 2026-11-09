@@ -159,6 +159,7 @@
     <!-- 2. 联动与重定向控制 -->
     <div class="card">
         <div class="card-title">联动与重定向控制</div>
+        
         <div class="toggle-row">
             <div>
                 <div class="toggle-label">smartdns 走代理查询</div>
@@ -169,6 +170,20 @@
                 <span class="slider"></span>
             </label>
         </div>
+
+        <!-- 封锁 IPv6 DNS 换到了上面 -->
+        <div class="toggle-row">
+            <div>
+                <div class="toggle-label">封锁 IPv6 DNS</div>
+                <div class="toggle-desc">开启后将阻断 IPv6 的 53 端口查询，防止 DNS 泄露。</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="dnsIpv6Toggle" onchange="toggleDnsIpv6(this.checked)">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <!-- DNS 重定向 换到了下面 -->
         <div class="toggle-row">
             <div>
                 <div class="toggle-label">DNS 重定向</div>
@@ -179,6 +194,7 @@
                 <span class="slider"></span>
             </label>
         </div>
+
         <div class="port-edit-row">
             <label style="font-size:14px;font-weight:500;flex-shrink:0;">重定向端口</label>
             <input type="number" id="redirPortInput" placeholder="例如 53" min="1" max="65535">
@@ -232,33 +248,20 @@
     };
 
     function runCmd(cmd) {
-    return new Promise((resolve) => {
-        if (typeof ksu === 'undefined' || !ksu.exec) {
-            resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
-            return;
-        }
-        
-        // 【核心修改】拦截启动命令，使用双重括号 + setsid 强制脱壳
-        let finalCmd = cmd;
-        if (cmd.includes(" start") || cmd.includes(" enable") || cmd.includes(" restart")) {
-            // 使用 su -c 确保权限，setsid 建立新会话，双重括号强行托管给 init
-            finalCmd = `su -c "( ( setsid sh -c '${cmd}' >/dev/null 2>&1 < /dev/null & ) & )"`;
-        }
-
-        const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-        window[callbackName] = (errno, stdout, stderr) => {
-            delete window[callbackName];
-            resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
-        };
-        try { 
-            ksu.exec(finalCmd, '{}', callbackName); 
-        } 
-        catch (e) { 
-            delete window[callbackName]; 
-            resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); 
-        }
-    });
-}
+        return new Promise((resolve) => {
+            if (typeof ksu === 'undefined' || !ksu.exec) {
+                resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
+                return;
+            }
+            const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+            window[callbackName] = (errno, stdout, stderr) => {
+                delete window[callbackName];
+                resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
+            };
+            try { ksu.exec(cmd, '{}', callbackName); } 
+            catch (e) { delete window[callbackName]; resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); }
+        });
+    }
 
     function showToast(msg) {
         if (typeof ksu !== 'undefined' && ksu.toast) { ksu.toast(msg); } 
@@ -314,7 +317,6 @@
                 const modeSwitch = document.getElementById('mihomoModeSwitch');
                 if (errno === 0) {
                     modeSwitch.classList.add('active');
-                    // 获取当前模式
                     const modeRes = await runCmd(`${MODULE_DIR}/scripts/control.sh mihomo-mode check`);
                     const curMode = modeRes.stdout.trim();
                     document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -350,16 +352,26 @@
         }, 1200);
     };
 
-    // ======== smartdns 代理联动控制 ========
+    // ======== 开关状态读取 ========
     async function updateToggleStatus() {
         const proxy = await runCmd(`${MODULE_DIR}/scripts/control.sh smartdns-proxy check`);
         document.getElementById('smartdnsProxyToggle').checked = (proxy.stdout.trim() === 'on');
         
-        // 获取 DNS 重定向状态
         const redir = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir check`);
         document.getElementById('dnsRedirToggle').checked = (redir.stdout.trim() === 'on');
     }
 
+    async function loadIpv6Status() {
+        const { stdout } = await runCmd(`grep "^block_ipv6_dns=" ${MODULE_DIR}/config.conf | cut -d'=' -f2 | tr -d '"'`);
+        document.getElementById('dnsIpv6Toggle').checked = (stdout.trim() === 'true');
+    }
+
+    async function loadRedirPort() {
+        const { stdout } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir getport`);
+        document.getElementById('redirPortInput').value = stdout.trim() || '53';
+    }
+
+    // ======== 操作控制 ========
     window.toggleSmartdnsProxy = async function(isChecked) {
         showToast(`正在${isChecked ? '开启' : '关闭'} smartdns 代理…`);
         const action = isChecked ? 'on' : 'off';
@@ -372,7 +384,18 @@
         }
     };
 
-    // ======== DNS 重定向控制 ========
+    window.toggleDnsIpv6 = async function(isChecked) {
+        showToast(`正在${isChecked ? '开启' : '关闭'} IPv6 DNS 封锁…`);
+        const action = isChecked ? 'on' : 'off';
+        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir ipv6_${action}`);
+        if (errno === 0) {
+            showToast(`IPv6 DNS 封锁已${isChecked ? '开启' : '关闭'}`);
+        } else {
+            showToast(`操作失败：${stderr || '未知错误'}`);
+            document.getElementById('dnsIpv6Toggle').checked = !isChecked;
+        }
+    };
+
     window.toggleDnsRedir = async function(isChecked) {
         showToast(`正在${isChecked ? '开启' : '关闭'} DNS 重定向…`);
         const action = isChecked ? 'on' : 'off';
@@ -384,12 +407,6 @@
             document.getElementById('dnsRedirToggle').checked = !isChecked;
         }
     };
-
-    // ======== 修改重定向端口 ========
-    async function loadRedirPort() {
-        const { stdout } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir getport`);
-        document.getElementById('redirPortInput').value = stdout.trim() || '53';
-    }
 
     window.saveRedirPort = async function() {
         const port = document.getElementById('redirPortInput').value.trim();
@@ -515,6 +532,7 @@
         await refreshStatus();
         await updatePortInfo();
         await updateToggleStatus();
+        await loadIpv6Status();
         await loadRedirPort();
         await loadSubscriptions();
         showToast('刷新完成');
@@ -524,6 +542,7 @@
     refreshStatus();
     updatePortInfo();
     updateToggleStatus();
+    loadIpv6Status();
     loadRedirPort();
     loadSubscriptions();
     setInterval(refreshStatus, 10000);
