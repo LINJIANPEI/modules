@@ -126,7 +126,7 @@ handle_dns_redir() {
         local val="false"
         [ "$ACTION" = "ipv6_on" ] && val="true"
         
-        # 1. 写入 config.conf 的 block_ipv6 状态
+        # 1. 同步 config.conf 的 block_ipv6 状态
         if grep -q "^block_ipv6=" "$CONFIG_CONF"; then
             sed -i "s/^block_ipv6=.*/block_ipv6=\"$val\"/" "$CONFIG_CONF"
         else
@@ -138,38 +138,24 @@ handle_dns_redir() {
             echo "block_ipv6=\"$val\"" >> "$FUN_CONF"
         fi
 
-        # 【核心修复】mihomo 的 ipv6 配置：
-        # block_ipv6 开启（true）时，mihomo 的 ipv6 必须设为 false（禁用）
-        # block_ipv6 关闭（false）时，mihomo 的 ipv6 必须设为 true（启用）
+        # 2. 无脑同步 mihomo.yaml (底层 iptables.sh 会进行拦截兜底)
         local mihomo_ipv6="true"
         [ "$val" = "true" ] && mihomo_ipv6="false"
-
         yamlcli -f "$MIHOMO_CONF" set "ipv6" "$mihomo_ipv6" >/dev/null 2>&1
         yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "$mihomo_ipv6" >/dev/null 2>&1
 
+        # 3. 无脑同步系统栈 (dns.sh 会进行拦截兜底)
         if [ "$val" = "true" ]; then
             echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
             echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
             sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
-            echo "IPv6 已彻底禁用（含 mihomo）"
         else
-            if command -v ip6tables >/dev/null 2>&1 && ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
-                echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
-                echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
-                sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
-                echo "IPv6 已恢复（含 mihomo）"
-            else
-                # 不支持重定向，为了防止泄露，强制保持禁用
-                yamlcli -f "$MIHOMO_CONF" set "ipv6" "false" >/dev/null 2>&1
-                yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "false" >/dev/null 2>&1
-                
-                echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
-                echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
-                sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
-                echo "不支持重定向，为防止泄露，保持禁用"
-            fi
+            echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+            echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+            sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
         fi
 
+        # 4. 重启 dns.sh 和 mihomo
         sh "${module_dir}/scripts/dns.sh" disable >/dev/null 2>&1
         sleep 1
         sh "${module_dir}/scripts/dns.sh" enable >/dev/null 2>&1
@@ -213,7 +199,7 @@ handle_dns_redir() {
 }
 
 # ==========================================
-# 核心逻辑：mihomo 模式切换 (API 请求)
+# 核心逻辑：mihomo 模式切换
 # ==========================================
 handle_mihomo_mode() {
     ACTION="$1"
