@@ -126,7 +126,7 @@ handle_dns_redir() {
         local val="false"
         [ "$ACTION" = "ipv6_on" ] && val="true"
         
-        # 1. 只写入 config.conf
+        # 1. 写入 config.conf 的 block_ipv6 状态
         if grep -q "^block_ipv6=" "$CONFIG_CONF"; then
             sed -i "s/^block_ipv6=.*/block_ipv6=\"$val\"/" "$CONFIG_CONF"
         else
@@ -139,7 +139,7 @@ handle_dns_redir() {
         yamlcli -f "$MIHOMO_CONF" set "ipv6" "$mihomo_ipv6" >/dev/null 2>&1
         yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "$mihomo_ipv6" >/dev/null 2>&1
 
-        # 3. 无脑同步系统栈
+        # 3. 同步系统栈
         if [ "$val" = "true" ]; then
             echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
             echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
@@ -150,15 +150,41 @@ handle_dns_redir() {
             sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
         fi
 
-        # 4. 重启 dns.sh 和 mihomo
+        # 4. 重启 dns.sh (更新配置与规则)
         sh "${module_dir}/scripts/dns.sh" disable >/dev/null 2>&1
         sleep 1
         sh "${module_dir}/scripts/dns.sh" enable >/dev/null 2>&1
         
+        # 5. mihomo 热重载
         if pgrep -f "${module_dir}/bin/mihomo" >/dev/null 2>&1; then
-            nohup sh "${module_dir}/scripts/clash.sh" disable >/dev/null 2>&1 < /dev/null &
-            sleep 1
-            nohup sh "${module_dir}/scripts/clash.sh" enable >/dev/null 2>&1 < /dev/null &
+            PID=$(pgrep -f "${module_dir}/bin/mihomo")
+            if [ -n "$PID" ]; then
+                kill -SIGHUP "$PID" 2>/dev/null
+            fi
+        fi
+
+        # 6. 重启 AdGuardHome（加入回环口等待探测）
+        if pgrep -f "${module_dir}/bin/AdGuardHome" >/dev/null 2>&1; then
+            echo "重启 AdGuardHome 应用最新的监听配置"
+            sh "${module_dir}/scripts/control.sh" adguardhome stop >/dev/null 2>&1
+            
+            # 【核心修复】如果开启了 IPv6，等待系统回环口 (::1) 就绪
+            if [ "$val" = "false" ]; then
+                echo "等待系统 IPv6 回环口 (::1) 就绪..."
+                COUNT=0
+                while [ $COUNT -lt 20 ]; do
+                    if ip -6 addr show lo | grep -q "::1"; then
+                        echo "IPv6 回环口已就绪"
+                        break
+                    fi
+                    sleep 0.5
+                    COUNT=$((COUNT + 1))
+                done
+                # 额外增加 1 秒让系统网络栈彻底稳定
+                sleep 1
+            fi
+            
+            sh "${module_dir}/scripts/control.sh" adguardhome start >/dev/null 2>&1
         fi
         return 0
     fi
