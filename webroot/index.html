@@ -29,7 +29,6 @@
         .meta-label { flex-shrink: 0; }
         .meta-value { font-family: "SF Mono", Menlo, monospace; color: #1c1c1e; word-break: break-all; }
         
-        /* mihomo 模式切换器 */
         .mode-switch { display: none; margin-left: 20px; margin-top: 12px; gap: 6px; background: #f2f2f7; padding: 4px; border-radius: 8px; width: fit-content; }
         .mode-switch.active { display: flex; }
         .mode-btn { border: none; background: transparent; padding: 6px 12px; font-size: 12px; font-weight: 500; color: #8e8e93; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
@@ -62,7 +61,6 @@
         .form-actions button { flex: 1; padding: 10px; }
         .empty-tip { text-align: center; color: #8e8e93; font-size: 13px; padding: 20px 0; }
 
-        /* 开关样式 */
         .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
         .toggle-row:last-child { border-bottom: none; }
         .toggle-label { font-size: 15px; font-weight: 500; }
@@ -74,7 +72,6 @@
         input:checked + .slider { background-color: #34c759; }
         input:checked + .slider:before { transform: translateX(22px); }
 
-        /* 端口修改框 */
         .port-edit-row { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
         .port-edit-row input { flex: 1; padding: 10px; border: 1px solid #d1d1d6; border-radius: 8px; font-size: 14px; outline: none; }
         
@@ -105,7 +102,6 @@
                 <div class="meta-line"><span class="meta-label">UI：</span><span class="meta-value ui-port">加载中...</span></div>
                 <div class="meta-line"><span class="meta-label">代理端口：</span><span class="meta-value proxy-port">加载中...</span></div>
             </div>
-            <!-- mihomo 运行模式切换 -->
             <div class="mode-switch" id="mihomoModeSwitch">
                 <button class="mode-btn" data-mode="rule" onclick="setMihomoMode('rule')">规则</button>
                 <button class="mode-btn" data-mode="global" onclick="setMihomoMode('global')">全局</button>
@@ -171,7 +167,6 @@
             </label>
         </div>
 
-        <!-- 全局禁用 IPv6 -->
         <div class="toggle-row">
             <div>
                 <div class="toggle-label">全局禁用 IPv6</div>
@@ -246,36 +241,57 @@
         oxidns:      `${MODULE_DIR}/log/oxidns.log`
     };
 
+    // ==========================================
+    // 函数一：常规执行（阻塞式，等待结果）
+    // 适用：查状态、读配置、获取端口、获取订阅列表等
+    // ==========================================
     function runCmd(cmd) {
-    return new Promise((resolve) => {
-        if (typeof ksu === 'undefined' || !ksu.exec) {
-            resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
-            return;
-        }
-        
-        // 【核心修改】拦截所有启动指令，强制脱壳
-        let finalCmd = cmd;
-        if (cmd.includes(" start") || cmd.includes(" enable")) {
-            // 转义原命令中的双引号，防止破坏 sh -c 结构
-            const safeCmd = cmd.replace(/"/g, '\\"');
-            // 使用 su -c 提权，setsid 建立新会话，双重括号断绝父子关系
-            finalCmd = `su -c "( ( setsid sh -c '${safeCmd}' >/dev/null 2>&1 < /dev/null & ) & )"`;
-        }
+        return new Promise((resolve) => {
+            if (typeof ksu === 'undefined' || !ksu.exec) {
+                resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
+                return;
+            }
+            const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+            window[callbackName] = (errno, stdout, stderr) => {
+                delete window[callbackName];
+                resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
+            };
+            try { 
+                ksu.exec(cmd, '{}', callbackName); 
+            } catch (e) { 
+                delete window[callbackName]; 
+                resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); 
+            }
+        });
+    }
 
-        const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-        window[callbackName] = (errno, stdout, stderr) => {
-            delete window[callbackName];
-            resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
-        };
-        try { 
-            ksu.exec(finalCmd, '{}', callbackName); 
-        } 
-        catch (e) { 
-            delete window[callbackName]; 
-            resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); 
-        }
-    });
-}
+    // ==========================================
+    // 函数二：后台脱壳执行（非阻塞，绝对防杀）
+    // 适用：启动、停止、重启服务，切换 IPv6 开关等耗时操作
+    // ==========================================
+    function runCmdBg(cmd) {
+        return new Promise((resolve) => {
+            if (typeof ksu === 'undefined' || !ksu.exec) {
+                resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
+                return;
+            }
+            
+            const safeCmd = cmd.replace(/"/g, '\\"');
+            const finalCmd = `su -c "( ( setsid sh -c '${safeCmd}' >/dev/null 2>&1 < /dev/null & ) & )"`;
+
+            const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+            window[callbackName] = (errno, stdout, stderr) => {
+                delete window[callbackName];
+                resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
+            };
+            try { 
+                ksu.exec(finalCmd, '{}', callbackName); 
+            } catch (e) { 
+                delete window[callbackName]; 
+                resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); 
+            }
+        });
+    }
 
     function showToast(msg) {
         if (typeof ksu !== 'undefined' && ksu.toast) { ksu.toast(msg); } 
@@ -344,7 +360,7 @@
 
     window.setMihomoMode = async function(mode) {
         showToast(`正在切换 mihomo 模式为 ${mode}…`);
-        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh mihomo-mode ${mode}`);
+        const { errno, stderr } = await runCmdBg(`${MODULE_DIR}/scripts/control.sh mihomo-mode ${mode}`);
         if (errno === 0) {
             showToast(`已切换为 ${mode}`);
             refreshStatus();
@@ -355,14 +371,14 @@
 
     window.controlService = async function(key, action) {
         showToast(`${action === 'start' ? '启动' : '停止'} ${key}…`);
-        const { errno, stderr, stdout } = await runCmd(`${MODULE_DIR}/scripts/control.sh ${key} ${action}`);
-        if (errno === 0) showToast(`${key} 操作已执行`);
+        const { errno, stderr, stdout } = await runCmdBg(`${MODULE_DIR}/scripts/control.sh ${key} ${action}`);
+        if (errno === 0) showToast(`${key} 操作已发送`);
         else showToast(`失败：${stderr || stdout || '未知错误'}`);
         
         setTimeout(() => {
             refreshStatus();
             updateToggleStatus();
-        }, 1200);
+        }, 2000);
     };
 
     // ======== 开关状态读取 ========
@@ -375,11 +391,8 @@
     }
 
     async function loadIpv6Status() {
-        // 读取 config.conf 里的变量，同时读取内核实际状态
         const confRes = await runCmd(`grep "^block_ipv6=" ${MODULE_DIR}/config.conf | cut -d'=' -f2 | tr -d '"'`);
         const sysRes = await runCmd(`cat /proc/sys/net/ipv6/conf/all/disable_ipv6`);
-        
-        // 只要配置是 true，或者系统栈真的被禁用了，就亮起
         document.getElementById('dnsIpv6Toggle').checked = (confRes.stdout.trim() === 'true' || sysRes.stdout.trim() === '1');
     }
 
@@ -392,7 +405,7 @@
     window.toggleSmartdnsProxy = async function(isChecked) {
         showToast(`正在${isChecked ? '开启' : '关闭'} smartdns 代理…`);
         const action = isChecked ? 'on' : 'off';
-        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh smartdns-proxy ${action}`);
+        const { errno, stderr } = await runCmdBg(`${MODULE_DIR}/scripts/control.sh smartdns-proxy ${action}`);
         if (errno === 0) {
             showToast(`smartdns 代理已${isChecked ? '开启' : '关闭'}`);
         } else {
@@ -402,11 +415,11 @@
     };
 
     window.toggleDnsIpv6 = async function(isChecked) {
-        showToast(`正在${isChecked ? '开启' : '关闭'} 全局 IPv6 禁用…`);
+        showToast(`正在${isChecked ? '开启' : '关闭'} IPv6 屏蔽…`);
         const action = isChecked ? 'on' : 'off';
-        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir ipv6_${action}`);
+        const { errno, stderr } = await runCmdBg(`${MODULE_DIR}/scripts/control.sh dns-redir ipv6_${action}`);
         if (errno === 0) {
-            showToast(`全局 IPv6 已${isChecked ? '禁用' : '恢复'}`);
+            showToast(`IPv6 屏蔽已${isChecked ? '开启' : '关闭'}`);
         } else {
             showToast(`操作失败：${stderr || '未知错误'}`);
             document.getElementById('dnsIpv6Toggle').checked = !isChecked;
@@ -416,7 +429,7 @@
     window.toggleDnsRedir = async function(isChecked) {
         showToast(`正在${isChecked ? '开启' : '关闭'} DNS 重定向…`);
         const action = isChecked ? 'on' : 'off';
-        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir ${action}`);
+        const { errno, stderr } = await runCmdBg(`${MODULE_DIR}/scripts/control.sh dns-redir ${action}`);
         if (errno === 0) {
             showToast(`DNS 重定向已${isChecked ? '开启' : '关闭'}`);
         } else {
@@ -431,10 +444,10 @@
             showToast('请输入有效的端口号 (1-65535)');
             return;
         }
-        showToast(`正在修改重定向端口为 ${port}…`);
-        const { errno, stderr } = await runCmd(`${MODULE_DIR}/scripts/control.sh dns-redir setport ${port}`);
+        showToast(`正在修改端口为 ${port}…`);
+        const { errno, stderr } = await runCmdBg(`${MODULE_DIR}/scripts/control.sh dns-redir setport ${port}`);
         if (errno === 0) {
-            showToast(`端口已修改为 ${port}，并已重启重定向`);
+            showToast(`端口已修改为 ${port}`);
         } else {
             showToast(`修改失败：${stderr || '未知错误'}`);
         }
@@ -495,7 +508,7 @@
             
             div.querySelector('.btn-del').onclick = async () => {
                 if (!confirm(`删除订阅「${sub.name}」？`)) return;
-                const r = await runCmd(`${MODULE_DIR}/scripts/sub.sh del ${idx}`);
+                const r = await runCmdBg(`${MODULE_DIR}/scripts/sub.sh del ${idx}`);
                 if (r.errno === 0) { showToast('已删除'); loadSubscriptions(); }
                 else showToast(`删除失败：${r.stderr || '未知错误'}`);
             };
@@ -516,7 +529,7 @@
             cmd = `${MODULE_DIR}/scripts/sub.sh add "${name}" "${url}"`;
         }
         
-        const { errno, stderr } = await runCmd(cmd);
+        const { errno, stderr } = await runCmdBg(cmd);
         if (errno === 0) {
             showToast(editingIndex >= 0 ? '已更新订阅' : '已添加订阅');
             resetSubForm();
