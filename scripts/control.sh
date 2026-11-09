@@ -104,6 +104,30 @@ handle_dns_redir() {
     ACTION="$1"
     PORT="$2"
 
+    # 【防抖锁机制】 ---------------- 开始 ----------------
+    LOCK_DIR="/data/local/tmp/linlin_ipv6_lock"
+    
+    if [ "$ACTION" = "ipv6_on" ] || [ "$ACTION" = "ipv6_off" ]; then
+        # 如果已经有任务在跑
+        if [ -d "$LOCK_DIR" ]; then
+            CURRENT_OP=$(cat "$LOCK_DIR/current" 2>/dev/null)
+            if [ "$CURRENT_OP" = "$ACTION" ]; then
+                echo "正在执行相同的操作 ($ACTION)，忽略请求"
+                return 0
+            fi
+            # 记录最新的意图，等待当前任务结束后执行
+            echo "$ACTION" > "$LOCK_DIR/next"
+            echo "排队中：等待当前操作结束后执行 $ACTION"
+            return 0
+        fi
+
+        # 如果没有任务在跑，建立锁并开始执行
+        mkdir -p "$LOCK_DIR"
+        echo "$ACTION" > "$LOCK_DIR/current"
+        rm -f "$LOCK_DIR/next"
+    fi
+    # 【防抖锁机制】 ---------------- 结束 ----------------
+
     if [ "$ACTION" = "getport" ]; then
         source "$CONFIG_CONF" 2>/dev/null
         source "$FUN_CONF" 2>/dev/null
@@ -150,9 +174,7 @@ handle_dns_redir() {
             sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
         fi
 
-        # 4. 重启 dns.sh (更新配置与规则)
-        sh "${module_dir}/scripts/dns.sh" disable >/dev/null 2>&1
-        sleep 1
+        # 4. 热重载 dns 规则
         sh "${module_dir}/scripts/dns.sh" enable >/dev/null 2>&1
         
         # 5. mihomo 热重载
@@ -168,7 +190,7 @@ handle_dns_redir() {
             echo "重启 AdGuardHome 应用最新的监听配置"
             sh "${module_dir}/scripts/control.sh" adguardhome stop >/dev/null 2>&1
             
-            # 【核心修复】如果开启了 IPv6，等待系统回环口 (::1) 就绪
+            # 如果开启了 IPv6，等待系统回环口 (::1) 就绪
             if [ "$val" = "false" ]; then
                 echo "等待系统 IPv6 回环口 (::1) 就绪..."
                 COUNT=0
@@ -180,12 +202,29 @@ handle_dns_redir() {
                     sleep 0.5
                     COUNT=$((COUNT + 1))
                 done
-                # 额外增加 1 秒让系统网络栈彻底稳定
                 sleep 1
             fi
             
             sh "${module_dir}/scripts/control.sh" adguardhome start >/dev/null 2>&1
         fi
+        
+        # 【防抖锁机制】检查是否有排队的新任务 ----------------
+        if [ -d "$LOCK_DIR" ]; then
+            if [ -f "$LOCK_DIR/next" ]; then
+                NEXT_ACTION=$(cat "$LOCK_DIR/next")
+                rm -f "$LOCK_DIR/next"
+                rm -rf "$LOCK_DIR"
+                echo "检测到中断，立即执行最新指令: $NEXT_ACTION"
+                # 递归调用自己，执行最新的请求
+                sh "$0" dns-redir "$NEXT_ACTION"
+                return 0
+            else
+                # 没有排队任务，正常释放锁
+                rm -rf "$LOCK_DIR"
+            fi
+        fi
+        # ----------------------------------------------------
+        
         return 0
     fi
 
