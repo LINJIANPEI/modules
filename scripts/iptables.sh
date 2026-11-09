@@ -84,6 +84,14 @@ _block_ipv6() {
 }
 
 init_ipv6() {
+    # 【核心修改】如果全局变量 block_ipv6 是 true，无论 mihomo.yaml 怎么设置，都强制阻断 IPv6
+    if [ "${block_ipv6}" = "true" ]; then
+        IPV6_STATUS=2
+        _block_ipv6
+        log Warn "全局 block_ipv6=true，强制阻断系统 IPv6 流量" "${log_dir}/iptables.log"
+        return 0
+    fi
+
     if [ "$MIHOMO_IPV6" = "true" ]; then
         if check_ipv6_support; then
             IPV6_STATUS=1
