@@ -247,20 +247,35 @@
     };
 
     function runCmd(cmd) {
-        return new Promise((resolve) => {
-            if (typeof ksu === 'undefined' || !ksu.exec) {
-                resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
-                return;
-            }
-            const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-            window[callbackName] = (errno, stdout, stderr) => {
-                delete window[callbackName];
-                resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
-            };
-            try { ksu.exec(cmd, '{}', callbackName); } 
-            catch (e) { delete window[callbackName]; resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); }
-        });
-    }
+    return new Promise((resolve) => {
+        if (typeof ksu === 'undefined' || !ksu.exec) {
+            resolve({ errno: 1, stdout: '', stderr: 'ksu not defined' });
+            return;
+        }
+        
+        // 【核心修改】拦截所有启动指令，强制脱壳
+        let finalCmd = cmd;
+        if (cmd.includes(" start") || cmd.includes(" enable")) {
+            // 转义原命令中的双引号，防止破坏 sh -c 结构
+            const safeCmd = cmd.replace(/"/g, '\\"');
+            // 使用 su -c 提权，setsid 建立新会话，双重括号断绝父子关系
+            finalCmd = `su -c "( ( setsid sh -c '${safeCmd}' >/dev/null 2>&1 < /dev/null & ) & )"`;
+        }
+
+        const callbackName = `_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        window[callbackName] = (errno, stdout, stderr) => {
+            delete window[callbackName];
+            resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
+        };
+        try { 
+            ksu.exec(finalCmd, '{}', callbackName); 
+        } 
+        catch (e) { 
+            delete window[callbackName]; 
+            resolve({ errno: 1, stdout: '', stderr: e.message || 'failed' }); 
+        }
+    });
+}
 
     function showToast(msg) {
         if (typeof ksu !== 'undefined' && ksu.toast) { ksu.toast(msg); } 
