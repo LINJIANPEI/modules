@@ -14,6 +14,7 @@ ARG3="$3"
 CONF_FILE="${module_dir}/conf/smartdns.conf"
 FUN_CONF="${module_dir}/fun.conf"
 CONFIG_CONF="${module_dir}/config.conf"
+MIHOMO_CONF="${module_dir}/conf/mihomo.yaml"
 
 # ==========================================
 # 核心功能：极其稳妥地重启 SmartDNS
@@ -44,7 +45,6 @@ restart_smartdns() {
 handle_smartdns_proxy() {
     IS_ON="$1"
     
-    # 状态判断：如果 proxy-server 被注释了，说明代理关闭
     if grep -qE "^[[:space:]]*#.*proxy-server" "$CONF_FILE"; then
         CURRENT_STATE="off"
     else
@@ -57,7 +57,6 @@ handle_smartdns_proxy() {
     fi
 
     if [ "$IS_ON" = "on" ]; then
-        # 开启代理
         awk '
         {
             if ($0 ~ /^[ \t]*#[ \t]*proxy-server/) {
@@ -76,7 +75,6 @@ handle_smartdns_proxy() {
         }' "$CONF_FILE" > "${CONF_FILE}.tmp" && mv "${CONF_FILE}.tmp" "$CONF_FILE"
         echo "smartdns 代理已开启"
     else
-        # 关闭代理
         awk '
         {
             if ($0 ~ /proxy-server/ && $0 !~ /^[ \t]*#/) {
@@ -100,7 +98,7 @@ handle_smartdns_proxy() {
 }
 
 # ==========================================
-# 核心逻辑：处理 DNS 重定向
+# 核心逻辑：处理 DNS 重定向与 IPv6 联动
 # ==========================================
 handle_dns_redir() {
     ACTION="$1"
@@ -123,26 +121,59 @@ handle_dns_redir() {
         return 0
     fi
 
-    # 处理 IPv6 开关
+    # 处理 IPv6 全局联动开关
     if [ "$ACTION" = "ipv6_on" ] || [ "$ACTION" = "ipv6_off" ]; then
         local val="false"
         [ "$ACTION" = "ipv6_on" ] && val="true"
         
-        # 修改 config.conf 里的 block_ipv6_dns
-        if grep -q "^block_ipv6_dns=" "$CONFIG_CONF"; then
-            sed -i "s/^block_ipv6_dns=.*/block_ipv6_dns=\"$val\"/" "$CONFIG_CONF"
+        # 1. 写入 config.conf 的 block_ipv6 状态
+        if grep -q "^block_ipv6=" "$CONFIG_CONF"; then
+            sed -i "s/^block_ipv6=.*/block_ipv6=\"$val\"/" "$CONFIG_CONF"
         else
-            echo "block_ipv6_dns=\"$val\"" >> "$CONFIG_CONF"
+            echo "block_ipv6=\"$val\"" >> "$CONFIG_CONF"
         fi
-        
-        # 重启重定向使配置生效
+        if grep -q "^block_ipv6=" "$FUN_CONF"; then
+            sed -i "s/^block_ipv6=.*/block_ipv6=\"$val\"/" "$FUN_CONF"
+        else
+            echo "block_ipv6=\"$val\"" >> "$FUN_CONF"
+        fi
+
+        # 2. 联动 mihomo 的 ipv6 配置
+        yamlcli -f "$MIHOMO_CONF" set "ipv6" "$val" >/dev/null 2>&1
+        yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "$val" >/dev/null 2>&1
+
+        if [ "$val" = "true" ]; then
+            echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+            echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+            sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+            echo "IPv6 已彻底禁用"
+        else
+            if command -v ip6tables >/dev/null 2>&1 && ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
+                echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+                echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+                sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
+                echo "IPv6 已恢复（支持重定向）"
+            else
+                echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+                echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+                sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+                echo "IPv6 尝试关闭失败，不支持重定向，为防止泄露，已保持禁用栈"
+            fi
+        fi
+
         sh "${module_dir}/scripts/dns.sh" disable >/dev/null 2>&1
         sleep 1
         sh "${module_dir}/scripts/dns.sh" enable >/dev/null 2>&1
-        echo "IPv6 DNS 封锁已设置为 $val"
+        
+        if pgrep -f "${module_dir}/bin/mihomo" >/dev/null 2>&1; then
+            nohup sh "${module_dir}/scripts/clash.sh" disable >/dev/null 2>&1 < /dev/null &
+            sleep 1
+            nohup sh "${module_dir}/scripts/clash.sh" enable >/dev/null 2>&1 < /dev/null &
+        fi
         return 0
     fi
 
+    # 普通 DNS 重定向开关
     if [ "$ACTION" = "on" ]; then
         if [ -n "$PORT" ]; then
             sh "${module_dir}/scripts/dns.sh" enable "$PORT" >/dev/null 2>&1
@@ -173,12 +204,12 @@ handle_dns_redir() {
 }
 
 # ==========================================
-# 核心逻辑：mihomo 模式切换
+# 核心逻辑：mihomo 模式切换 (API 请求)
 # ==========================================
 handle_mihomo_mode() {
     ACTION="$1"
-    API_PORT=$(yamlcli -f "${module_dir}/conf/mihomo.yaml" get 'external-controller' 2>/dev/null | sed 's/.*://')
-    API_SECRET=$(yamlcli -f "${module_dir}/conf/mihomo.yaml" get 'secret' 2>/dev/null | tr -d '"')
+    API_PORT=$(yamlcli -f "$MIHOMO_CONF" get 'external-controller' 2>/dev/null | sed 's/.*://')
+    API_SECRET=$(yamlcli -f "$MIHOMO_CONF" get 'secret' 2>/dev/null | tr -d '"')
     
     if [ "$ACTION" = "check" ]; then
         RES=$(curl -s -m 2 -H "Authorization: Bearer $API_SECRET" "http://127.0.0.1:${API_PORT:-9090}/configs")
