@@ -63,6 +63,48 @@ log_msg="${log_msg} Reserved:${RESERVED}"
 log Info "${log_msg}" ${log_dir}/run.log
 
 
+# ==========================================
+# 【新增】启动前预处理 IPv6 环境与配置
+# ==========================================
+# 1. 提前读取配置
+: "${block_ipv6:=false}"
+
+# 2. 提前处理系统网栈
+if [ "${block_ipv6}" = "true" ]; then
+    log Info "前置检测：block_ipv6=true，强制禁用系统 IPv6 网栈" ${log_dir}/run.log
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+    echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+    sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+else
+    log Info "前置检测：block_ipv6=false，保持系统 IPv6 网栈开启" ${log_dir}/run.log
+    echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+    echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+    sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
+fi
+
+# 3. 提前修改 AdGuardHome 配置文件
+AGH_CONF="${module_dir}/conf/AdGuardHome.yaml"
+YAMLCI_BIN="${module_dir}/bin/yamlcli"
+
+if [ -f "$AGH_CONF" ] && [ -x "$YAMLCI_BIN" ]; then
+    if [ "${block_ipv6}" = "true" ]; then
+        # 如果禁用 IPv6，就只留 127.0.0.1
+        CURRENT_BIND=$("$YAMLCI_BIN" -f "$AGH_CONF" get 'dns.bind_hosts' 2>/dev/null)
+        if echo "$CURRENT_BIND" | grep -q "::1"; then
+            log Info "前置检测：正在移除 AdGuardHome 的 IPv6 监听" ${log_dir}/run.log
+            "$YAMLCI_BIN" -f "$AGH_CONF" set 'dns.bind_hosts' '["127.0.0.1"]' >/dev/null 2>&1
+        fi
+    else
+        # 如果启用 IPv6，就恢复双栈（127.0.0.1 和 ::1）
+        CURRENT_BIND=$("$YAMLCI_BIN" -f "$AGH_CONF" get 'dns.bind_hosts' 2>/dev/null)
+        if ! echo "$CURRENT_BIND" | grep -q "::1"; then
+            log Info "前置检测：正在恢复 AdGuardHome 的 IPv6 监听" ${log_dir}/run.log
+            "$YAMLCI_BIN" -f "$AGH_CONF" set 'dns.bind_hosts' '["127.0.0.1", "::1"]' >/dev/null 2>&1
+        fi
+    fi
+fi
+# ==========================================
+
 # mihomo
 if [ "${enable_mihomo}" = "true" ]; then
     kill_by_name "mihomo"
