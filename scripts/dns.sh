@@ -13,7 +13,7 @@
 #
 # 状态管理（零新增文件）：
 #   守护端口、IPv6 栈禁用来源，以 dns_state_* 变量写入 fun.conf。
-#   - 脚本状态与用户配置变量名隔离，不覆盖 redir_port / block_ipv6_dns 等
+#   - 脚本状态与用户配置变量名隔离，不覆盖 redir_port / block_ipv6 等
 #   - 写入用 sed -i 原子替换 + 末尾换行检测，不产生重复行、不拼接最后一行
 #   - 模块更新覆盖 fun.conf 时：
 #       端口丢失 → 回落 redir_port，需重新 enable 指定
@@ -43,13 +43,15 @@ mkdir -p "${log_dir}" 2>/dev/null
 
 LOG_FILE="${log_dir}/dns.log"
 CONF_FILE="/data/adb/modules/Linlin/fun.conf"
+CONFIG_FILE="/data/adb/modules/Linlin/config.conf"
 exec 2>>"$LOG_FILE" 2>/dev/null || true
 
 # ---------- 变量兜底 ----------
 : "${uid:=root}"
 : "${gid:=net_raw}"
 : "${redir_port:=5591}"
-: "${block_ipv6_dns:=false}"
+: "${block_ipv6:=false}"
+block_ipv6_dns="$block_ipv6"
 : "${daemon_interval:=15}"
 : "${dns_state_port:=}"
 : "${dns_state_ipv6_blocked:=}"
@@ -539,7 +541,7 @@ _count_ignore4() {
 _count_ignore6() {
     _ci_n=0
     for _ci_s in ${ignore_dest_list} ${ignore_src_list}; do
-        case "$_ci_s" in *:*) _ci_n=$((_ci_n+1)) ;; esac
+        case "$_ci_s" in *:*) ;; *) _ci_n=$((_ci_n+1)) ;; esac
     done
     echo "$_ci_n"
 }
@@ -648,7 +650,8 @@ run_daemon() {
         if [ -f "$CONF_FILE" ]; then
             . "$CONF_FILE" 2>/dev/null
             : "${uid:=root}"; : "${gid:=net_raw}"; : "${redir_port:=5591}"
-            : "${block_ipv6_dns:=false}"
+            : "${block_ipv6:=false}"
+            block_ipv6_dns="$block_ipv6"
             : "${daemon_interval:=15}"
             case "$daemon_interval" in
                 ''|*[!0-9]*) daemon_interval=15 ;;
@@ -674,7 +677,7 @@ run_daemon() {
             _need_rebuild=true
         fi
         if [ "$block_ipv6_dns" != "$_prev_blk6" ]; then
-            log Info "block_ipv6_dns 变更 ($_prev_blk6 → $block_ipv6_dns)，强制重建" "$LOG_FILE"
+            log Info "block_ipv6 变更 ($_prev_blk6 → $block_ipv6_dns)，强制重建" "$LOG_FILE"
             _prev_blk6="$block_ipv6_dns"
             _need_rebuild=true
         fi
@@ -745,6 +748,34 @@ first_setup() {
         settings put global private_dns_mode off
     settings put global private_dns_specifier ""
     [ -d "/data/system/ifw" ] && rm -rf /data/system/ifw/*
+
+    # ==========================================
+    # 【新增】开机时的 IPv6 逻辑自愈（根据 config.conf）
+    # ==========================================
+    # 重新读取配置文件，确保获取最新值
+    source "$CONFIG_FILE" 2>/dev/null
+    : "${block_ipv6:=false}"
+    block_ipv6_dns="$block_ipv6"
+
+    if [ "$block_ipv6" = "true" ]; then
+        log Warn "block_ipv6=true，强制禁用系统 IPv6 栈" "$LOG_FILE"
+        echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+        echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+        sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+    else
+        log Info "block_ipv6=false，检查系统 IPv6 重定向支持" "$LOG_FILE"
+        if command -v ip6tables >/dev/null 2>&1 && ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
+            log Info "支持重定向，开启 IPv6 栈" "$LOG_FILE"
+            echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+            echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+            sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1
+        else
+            log Warn "不支持重定向，为防止泄露，保持禁用 IPv6 栈" "$LOG_FILE"
+            echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
+            echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
+            sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+        fi
+    fi
 
     # 记录端口状态，供 daemon 跟随
     conf_set dns_state_port "$DNS_PORT"
