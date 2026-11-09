@@ -1,40 +1,6 @@
 #!/system/bin/sh
 # ============================================================================
 # /data/adb/modules/Linlin/scripts/dns.sh
-#
-# DNS 劫持 + DoT/DoQ/DoH3 封锁（不常驻，无 SNI）+ 规则守护
-#
-# 用法:
-#   sh dns.sh {enable|disable|status} [DNS_PORT]
-#       enable  → 部署 + 后台启动守护
-#       disable → 停守护 + 清规则
-#       status  → 查看状态
-#   sh dns.sh daemon      # 前台运行守护（供 init service 或调试）
-#
-# 状态管理（零新增文件）：
-#   守护端口、IPv6 栈禁用来源，以 dns_state_* 变量写入 fun.conf。
-#   - 脚本状态与用户配置变量名隔离，不覆盖 redir_port / block_ipv6 等
-#   - 写入用 sed -i 原子替换 + 末尾换行检测，不产生重复行、不拼接最后一行
-#   - 模块更新覆盖 fun.conf 时：
-#       端口丢失 → 回落 redir_port，需重新 enable 指定
-#       栈状态丢失 → 保守恢复为启用(0)，不锁死网络
-#
-# 守护：
-#   每 daemon_interval 秒校验核心规则 -C + 链内规则数量（可发现"部分丢失"
-#   和"重复追加"），异常调 rebuild_all。rebuild_all 幂等、带 -C 校验、
-#   带 IPv6 栈自愈，绝不切飞行模式。连续失败退避 15→30→45→60s 封顶。
-#   单实例靠 pgrep（fallback /proc 遍历），零新文件。
-#
-# IPv6 DNS 53（语义严格分离，禁栈的唯一触发源）：
-#   block_ipv6=true  → 只走 filter DROP 阻断；filter 不可用或建立/校验
-#                          失败 → 直接禁栈兜底（不降级 REDIRECT）
-#   block_ipv6=false → 首选 nat REDIRECT 劫持；REDIRECT 不可用或失败 →
-#                          降级 filter DROP 阻断；再失败 → 禁栈兜底
-#   ip6tables 不存在     → 禁栈
-#
-# 853(tcp/udp) + udp443：无条件尝试封锁，首选 filter DROP，失败降级 REJECT。
-#   都失败时【只告警、永不禁栈】——853/443 封锁失败仅代表 DoT/DoQ/DoH3 可能
-#   经该协议绕过，不代表 DNS 泄漏，不应切断整个 IPv6 栈。
 # ============================================================================
 
 source /data/adb/modules/Linlin/fun.conf
@@ -61,10 +27,7 @@ block_ipv6_dns="$block_ipv6"
 conf_set() {
     _k="$1"; _v="$2"
     [ -f "$CONF_FILE" ] || return 1
-
-    # 末尾无换行则补一个，避免 >> 与最后一行拼接
     [ -n "$(tail -c 1 "$CONF_FILE" 2>/dev/null)" ] && echo "" >> "$CONF_FILE"
-
     sed -i "/^${_k}=/d" "$CONF_FILE" 2>/dev/null
     printf '%s=%s\n' "$_k" "$_v" >> "$CONF_FILE"
     return 0
@@ -129,8 +92,6 @@ block_ipv6_stack() {
         _cur=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
         if [ "$_cur" = "1" ]; then
             log Warn "IPv6 网络栈已禁用（disable_ipv6=1，校验通过）" "$LOG_FILE"
-            log Warn "所有 IPv6 流量中断：DNS/DoT/DoQ/网页；可能影响 VoLTE/VoWiFi" "$LOG_FILE"
-            log Warn "重启或 sh dns.sh disable 恢复" "$LOG_FILE"
         else
             log Warn "IPv6 网络栈写入后校验失败（当前=$_cur，期望=1）" "$LOG_FILE"
         fi
@@ -140,13 +101,11 @@ block_ipv6_stack() {
 }
 
 unblock_ipv6_stack() {
-    # 【最高优先级】如果配置了强制禁用，绝对不许恢复
     if [ "${block_ipv6:-false}" = "true" ]; then
         return 0
     fi
 
     _cur=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null)
-
     if [ "$_cur" != "1" ]; then
         return 0
     fi
@@ -197,7 +156,6 @@ detect_ipv6() {
     fi
 
     if [ "$block_ipv6_dns" = "true" ]; then
-        # true：只走 DROP；filter 不可用直接禁栈（不回退 REDIRECT）
         if [ "$IPV6_FILTER_OK" = "true" ]; then
             IPV6_MODE="drop"
             IPV6_CMD_OK=true
@@ -207,7 +165,6 @@ detect_ipv6() {
             return 1
         fi
     else
-        # false：首选 REDIRECT；nat 不可用降级 DROP；两者皆废禁栈
         if [ "$IPV6_NAT_OK" = "true" ]; then
             IPV6_MODE="redirect"
             IPV6_CMD_OK=true
@@ -615,6 +572,7 @@ run_daemon() {
         if [ -f "$CONF_FILE" ]; then
             . "$CONF_FILE" 2>/dev/null
             : "${uid:=root}"; : "${gid:=net_raw}"; : "${redir_port:=5591}"
+            : "${block_ipv6:=$(grep '^block_ipv6=' /data/adb/modules/Linlin/config.conf 2>/dev/null | cut -d'=' -f2 | tr -d '"')}"
             : "${block_ipv6:=false}"
             block_ipv6_dns="$block_ipv6"
             : "${daemon_interval:=15}"
@@ -715,7 +673,7 @@ first_setup() {
     [ -d "/data/system/ifw" ] && rm -rf /data/system/ifw/*
 
     # ==========================================
-    # 【新增】开机时的 IPv6 逻辑自愈（根据 config.conf）
+    # 开机时的 IPv6 逻辑自愈
     # ==========================================
     source "$CONFIG_FILE" 2>/dev/null
     : "${block_ipv6:=false}"
