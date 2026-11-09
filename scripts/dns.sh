@@ -1,40 +1,6 @@
 #!/system/bin/sh
 # ============================================================================
 # /data/adb/modules/Linlin/scripts/dns.sh
-#
-# DNS 劫持 + DoT/DoQ/DoH3 封锁（不常驻，无 SNI）+ 规则守护
-#
-# 用法:
-#   sh dns.sh {enable|disable|status} [DNS_PORT]
-#       enable  → 部署 + 后台启动守护
-#       disable → 停守护 + 清规则
-#       status  → 查看状态
-#   sh dns.sh daemon      # 前台运行守护（供 init service 或调试）
-#
-# 状态管理（零新增文件）：
-#   守护端口、IPv6 栈禁用来源，以 dns_state_* 变量写入 fun.conf。
-#   - 脚本状态与用户配置变量名隔离，不覆盖 redir_port / block_ipv6 等
-#   - 写入用 sed -i 原子替换 + 末尾换行检测，不产生重复行、不拼接最后一行
-#   - 模块更新覆盖 fun.conf 时：
-#       端口丢失 → 回落 redir_port，需重新 enable 指定
-#       栈状态丢失 → 保守恢复为启用(0)，不锁死网络
-#
-# 守护：
-#   每 daemon_interval 秒校验核心规则 -C + 链内规则数量（可发现"部分丢失"
-#   和"重复追加"），异常调 rebuild_all。rebuild_all 幂等、带 -C 校验、
-#   带 IPv6 栈自愈，绝不切飞行模式。连续失败退避 15→30→45→60s 封顶。
-#   单实例靠 pgrep（fallback /proc 遍历），零新文件。
-#
-# IPv6 DNS 53（语义严格分离，禁栈的唯一触发源）：
-#   block_ipv6=true  → 只走 filter DROP 阻断；filter 不可用或建立/校验
-#                          失败 → 直接禁栈兜底（不降级 REDIRECT）
-#   block_ipv6=false → 首选 nat REDIRECT 劫持；REDIRECT 不可用或失败 →
-#                          降级 filter DROP 阻断；再失败 → 禁栈兜底
-#   ip6tables 不存在     → 禁栈
-#
-# 853(tcp/udp) + udp443：无条件尝试封锁，首选 filter DROP，失败降级 REJECT。
-#   都失败时【只告警、永不禁栈】——853/443 封锁失败仅代表 DoT/DoQ/DoH3 可能
-#   经该协议绕过，不代表 DNS 泄漏，不应切断整个 IPv6 栈。
 # ============================================================================
 
 source /data/adb/modules/Linlin/fun.conf
@@ -49,7 +15,6 @@ exec 2>>"$LOG_FILE" 2>/dev/null || true
 : "${uid:=root}"
 : "${gid:=net_raw}"
 : "${redir_port:=5591}"
-# 强行从 config.conf 补充读取 block_ipv6
 : "${block_ipv6:=$(grep '^block_ipv6=' /data/adb/modules/Linlin/config.conf 2>/dev/null | cut -d'=' -f2 | tr -d '"')}"
 : "${block_ipv6:=false}"
 block_ipv6_dns="$block_ipv6"
@@ -63,9 +28,7 @@ block_ipv6_dns="$block_ipv6"
 conf_set() {
     _k="$1"; _v="$2"
     [ -f "$CONF_FILE" ] || return 1
-
     [ -n "$(tail -c 1 "$CONF_FILE" 2>/dev/null)" ] && echo "" >> "$CONF_FILE"
-
     sed -i "/^${_k}=/d" "$CONF_FILE" 2>/dev/null
     printf '%s=%s\n' "$_k" "$_v" >> "$CONF_FILE"
     return 0
@@ -139,7 +102,6 @@ block_ipv6_stack() {
 }
 
 unblock_ipv6_stack() {
-    # 如果配置了强制禁用，绝对不许恢复
     if [ "${block_ipv6:-false}" = "true" ]; then
         return 0
     fi
@@ -736,11 +698,10 @@ first_setup() {
     fi
 
     # ==========================================
-    # 【新增】自动同步 AdGuardHome 的 IPv6 监听状态 (使用 yamlcli)
+    # 自动同步 AdGuardHome 的 IPv6 监听状态
     # ==========================================
     AGH_CONF="/data/adb/modules/Linlin/conf/AdGuardHome.yaml"
     YAMLCI_BIN="/data/adb/modules/Linlin/bin/yamlcli"
-    AGH_MODIFIED=false
     
     if [ -f "$AGH_CONF" ] && [ -x "$YAMLCI_BIN" ]; then
         if [ "$block_ipv6" = "true" ]; then
@@ -748,53 +709,36 @@ first_setup() {
             if echo "$CURRENT_BIND" | grep -q "::1"; then
                 log Info "全局禁用 IPv6，正在移除 AdGuardHome 的 IPv6 监听" "$LOG_FILE"
                 "$YAMLCI_BIN" -f "$AGH_CONF" set 'dns.bind_hosts' '["127.0.0.1"]' >/dev/null 2>&1
-                AGH_MODIFIED=true
             fi
         else
             CURRENT_BIND=$("$YAMLCI_BIN" -f "$AGH_CONF" get 'dns.bind_hosts' 2>/dev/null)
             if ! echo "$CURRENT_BIND" | grep -q "::1"; then
                 log Info "系统支持 IPv6，正在恢复 AdGuardHome 的 IPv6 监听" "$LOG_FILE"
                 "$YAMLCI_BIN" -f "$AGH_CONF" set 'dns.bind_hosts' '["127.0.0.1", "::1"]' >/dev/null 2>&1
-                AGH_MODIFIED=true
             fi
         fi
-    fi
-
-    # ==========================================
-    # 如果 AdGuardHome 正在运行，且配置发生过修改，则自动重启它
-    # ==========================================
-    if [ "$AGH_MODIFIED" = "true" ] && pgrep -f "${module_dir}/bin/AdGuardHome" >/dev/null 2>&1; then
-        log Info "检测到 AdGuardHome 运行中，正在重启以应用最新配置..." "$LOG_FILE"
-        kill_by_name "AdGuardHome"
-        sleep 1
-        
-        nohup sh -c "
-            ulimit -n $FD_ADGUARD
-            cd ${module_dir}/adguardHomeData
-            busybox setuidgid ${uid}:${gid} ${module_dir}/bin/AdGuardHome \
-                -c ${module_dir}/conf/AdGuardHome.yaml \
-                -w ${module_dir}/adguardHomeData \
-                --no-check-update
-        " > "${log_dir}/AdGuardHome.log" 2>&1 < /dev/null &
     fi
 
     # 记录端口状态，供 daemon 跟随
     conf_set dns_state_port "$DNS_PORT"
     dns_state_port="$DNS_PORT"
 
-    # 链已存在 → 只是重建规则，无需重载网络
+    # ==========================================
+    # 严格判断：是否真的需要重载网络
+    # ==========================================
     _need_reload=false
     iptables -w 2 -t nat -S "$CHAIN4" >/dev/null 2>&1 || _need_reload=true
 
     rebuild_all
 
     if [ "$_need_reload" = "true" ]; then
+        log Info "首次部署规则，执行飞行模式重载以刷新底层网络" "$LOG_FILE"
         for s in 1 0; do
             settings put global airplane_mode_on $s
             am broadcast -a android.intent.action.AIRPLANE_MODE >/dev/null 2>&1
         done
     else
-        log Info "规则已存在，跳过飞行模式重载" "$LOG_FILE"
+        log Info "规则已存在（仅更新状态），跳过飞行模式，保持网络连续" "$LOG_FILE"
     fi
 
     log Info "部署完成" "$LOG_FILE"
