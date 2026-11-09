@@ -126,25 +126,20 @@ handle_dns_redir() {
         local val="false"
         [ "$ACTION" = "ipv6_on" ] && val="true"
         
-        # 1. 同步 config.conf 的 block_ipv6 状态
+        # 1. 只写入 config.conf
         if grep -q "^block_ipv6=" "$CONFIG_CONF"; then
             sed -i "s/^block_ipv6=.*/block_ipv6=\"$val\"/" "$CONFIG_CONF"
         else
             echo "block_ipv6=\"$val\"" >> "$CONFIG_CONF"
         fi
-        if grep -q "^block_ipv6=" "$FUN_CONF"; then
-            sed -i "s/^block_ipv6=.*/block_ipv6=\"$val\"/" "$FUN_CONF"
-        else
-            echo "block_ipv6=\"$val\"" >> "$FUN_CONF"
-        fi
 
-        # 2. 无脑同步 mihomo.yaml (底层 iptables.sh 会进行拦截兜底)
+        # 2. 同步 mihomo.yaml
         local mihomo_ipv6="true"
         [ "$val" = "true" ] && mihomo_ipv6="false"
         yamlcli -f "$MIHOMO_CONF" set "ipv6" "$mihomo_ipv6" >/dev/null 2>&1
         yamlcli -f "$MIHOMO_CONF" set "dns.ipv6" "$mihomo_ipv6" >/dev/null 2>&1
 
-        # 3. 无脑同步系统栈 (dns.sh 会进行拦截兜底)
+        # 3. 无脑同步系统栈
         if [ "$val" = "true" ]; then
             echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
             echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
