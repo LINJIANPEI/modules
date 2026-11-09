@@ -762,6 +762,10 @@ first_setup() {
         echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null
         echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6 2>/dev/null
         sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+        
+        # 【关键修复】记录状态，告诉底层“是我禁的”，防止被自动恢复
+        conf_set dns_state_ipv6_blocked 1
+        dns_state_ipv6_blocked=1
     else
         log Info "block_ipv6=false，检查系统 IPv6 重定向支持" "$LOG_FILE"
         if command -v ip6tables >/dev/null 2>&1 && ip6tables -w 2 -t nat -L >/dev/null 2>&1; then
