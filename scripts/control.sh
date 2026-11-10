@@ -258,35 +258,109 @@ handle_mihomo_mode() {
     ACTION="$1"
     API_PORT=$(yamlcli -f "$MIHOMO_CONF" get 'external-controller' 2>/dev/null | sed 's/.*://')
     API_SECRET=$(yamlcli -f "$MIHOMO_CONF" get 'secret' 2>/dev/null | tr -d '"')
-    
+    API_PORT="${API_PORT:-9090}"
+
+    # ==========================================
+    # 1. check —— 读 mihomo 运行时模式 (rule/global/direct)
+    # ==========================================
     if [ "$ACTION" = "check" ]; then
-        RES=$(curl -s -m 2 -H "Authorization: Bearer $API_SECRET" "http://127.0.0.1:${API_PORT:-9090}/configs")
+        if [ -n "$API_SECRET" ]; then
+            RES=$(curl -s -m 2 -H "Authorization: Bearer $API_SECRET" \
+                  "http://127.0.0.1:${API_PORT}/configs" 2>/dev/null)
+        else
+            RES=$(curl -s -m 2 "http://127.0.0.1:${API_PORT}/configs" 2>/dev/null)
+        fi
         MODE=$(echo "$RES" | grep -o '"mode":"[^"]*"' | cut -d'"' -f4)
         echo "${MODE:-unknown}"
-    elif [ "$ACTION" = "getfilter" ]; then
-        FILTER=$(grep "^mode=" "$CONFIG_CONF" | cut -d'=' -f2 | tr -d '"')
+        return 0
+    fi
+
+    # ==========================================
+    # 2. getfilter —— 读 config.conf 持久化过滤模式
+    # ==========================================
+    if [ "$ACTION" = "getfilter" ]; then
+        FILTER=$(grep "^mode=" "$CONFIG_CONF" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
         echo "${FILTER:-global}"
-    else
-        if [ "$ACTION" = "rule" ] || [ "$ACTION" = "global" ] || [ "$ACTION" = "direct" ]; then
-            curl -s -X PATCH -m 2 -H "Authorization: Bearer $API_SECRET" -d "{\"mode\":\"$ACTION\"}" "http://127.0.0.1:${API_PORT:-9090}/configs" >/dev/null 2>&1
+        return 0
+    fi
+
+    # ==========================================
+    # 3. 代理模式:rule / global / direct —— API 热切换,不落盘
+    # ==========================================
+    if [ "$ACTION" = "rule" ] || [ "$ACTION" = "global" ] || [ "$ACTION" = "direct" ]; then
+        if [ -n "$API_SECRET" ]; then
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 2 \
+                -X PATCH \
+                -H "Authorization: Bearer $API_SECRET" \
+                -H "Content-Type: application/json" \
+                -d "{\"mode\":\"$ACTION\"}" \
+                "http://127.0.0.1:${API_PORT}/configs" 2>/dev/null)
+        else
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 2 \
+                -X PATCH \
+                -H "Content-Type: application/json" \
+                -d "{\"mode\":\"$ACTION\"}" \
+                "http://127.0.0.1:${API_PORT}/configs" 2>/dev/null)
+        fi
+
+        if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
             echo "代理模式已切换为 $ACTION"
-        elif [ "$ACTION" = "blacklist" ] || [ "$ACTION" = "whitelist" ] || [ "$ACTION" = "filter_global" ]; then
-            local filter_val="${ACTION#filter_}"
-            if grep -q "^mode=" "$CONFIG_CONF"; then
+            return 0
+        else
+            echo "切换失败: HTTP ${HTTP_CODE:-000} (mihomo 可能未运行或密钥错误)" >&2
+            return 1
+        fi
+    fi
+
+    # ==========================================
+    # 4. 过滤模式:filter_blacklist / filter_whitelist / filter_global
+    #    —— 落盘 config.conf + 硬重启 mihomo
+    # ==========================================
+    case "$ACTION" in
+        filter_blacklist|filter_whitelist|filter_global)
+            filter_val="${ACTION#filter_}"
+
+            # 4.1 落盘 mode
+            if grep -q "^mode=" "$CONFIG_CONF" 2>/dev/null; then
                 sed -i "s/^mode=.*/mode=\"$filter_val\"/" "$CONFIG_CONF"
             else
                 echo "mode=\"$filter_val\"" >> "$CONFIG_CONF"
             fi
-            echo "过滤模式已修改为 $filter_val，准备重启 mihomo..."
-            if pgrep -f "${module_dir}/bin/mihomo" >/dev/null 2>&1; then
-                nohup sh -c "
-                    nohup sh '${module_dir}/scripts/clash.sh' disable >/dev/null 2>&1 < /dev/null
-                    sleep 1
-                    nohup sh '${module_dir}/scripts/clash.sh' enable >/dev/null 2>&1 < /dev/null
-                " &
+            echo "过滤模式已修改为 $filter_val"
+
+            # 4.2 是否需要重启
+            if ! pgrep -f "${module_dir}/bin/mihomo" >/dev/null 2>&1; then
+                echo "mihomo 未运行，配置已保存，将于下次启动生效"
+                return 0
             fi
-        fi
-    fi
+
+            echo "正在重启 mihomo 以应用新过滤模式..."
+            nohup sh -c "
+                # 停止
+                nohup sh '${module_dir}/scripts/clash.sh' disable >/dev/null 2>&1 < /dev/null
+                # 轮询等待旧进程退出，最多 10 秒
+                i=0
+                while [ \$i -lt 10 ] && pgrep -f '${module_dir}/bin/mihomo' >/dev/null 2>&1; do
+                    sleep 1
+                    i=\$((i+1))
+                done
+                # 启动
+                nohup sh '${module_dir}/scripts/clash.sh' enable >/dev/null 2>&1 < /dev/null
+            " >/dev/null 2>&1 < /dev/null &
+
+            echo "重启任务已在后台执行"
+            return 0
+            ;;
+
+        # ==========================================
+        # 5. 未知动作
+        # ==========================================
+        *)
+            echo "未知 mihomo-mode 动作: $ACTION" >&2
+            echo "支持: check | getfilter | rule | global | direct | filter_blacklist | filter_whitelist | filter_global" >&2
+            return 1
+            ;;
+    esac
 }
 
 # ==========================================
