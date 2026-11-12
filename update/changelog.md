@@ -1,3 +1,23 @@
+## [2026.11.12.314] - 2026-11-12
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 4 个组件到最新版本
+
+
+### 更新的组件
+
+- mihomo
+- oxidns
+- mosdnsRules
+- smartdnsRules
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.11.12.314/2026.11.12.314.zip)
+
+---
+
 ## [2026.11.10.313] - 2026-11-10
 
 ### 上游同步更新
