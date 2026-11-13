@@ -119,7 +119,7 @@ plugins:
       secondary: seq_remote
       threshold: 500
       short_circuit: false
-      always_standby: true
+      always_standby: false
 
   - tag: fallback_remote_first
     type: fallback
@@ -128,7 +128,7 @@ plugins:
       secondary: seq_local
       threshold: 500
       short_circuit: false
-      always_standby: true
+      always_standby: false
 
   # ==========================================
   # 主分流链（exec + has_resp 收口）
@@ -136,40 +136,31 @@ plugins:
   - tag: main_sequence
     type: sequence
     args:
-      # 1. 国内域名 → 国内优先
+      # 1. 国内域名
       - matches: "qname $cn_domains"
-        exec: $fallback_local_first
+        exec: $seq_local
       - matches: has_resp
         exec: accept
-      # 国内线路全部失败
-      - matches: "qname $cn_domains"
-        exec: reject SERVFAIL
 
-      # 2. CDN 域名 → 国内优先（独立匹配，策略同国内）
+      # 2. CDN 域名
       - matches: "qname $cdn_domains"
-        exec: $fallback_local_first
+        exec: $seq_local
       - matches: has_resp
         exec: accept
-      # CDN 线路全部失败
-      - matches: "qname $cdn_domains"
-        exec: reject SERVFAIL
 
-      # 3. 国外域名 → 国外优先
+      # 3. 国外域名
       - matches: "qname $nocn_domains"
-        exec: $fallback_remote_first
+        exec: $seq_remote
       - matches: has_resp
         exec: accept
-      # 国外线路全部失败
-      - matches: "qname $nocn_domains"
-        exec: reject SERVFAIL
 
-      # 4. 未匹配 → 国外优先
+      # 4. 兜底
       - exec: $fallback_remote_first
       - matches: has_resp
         exec: accept
 
 
-      # 5. 兜底：所有尝试均失败
+      # 5. 所有尝试均失败
       - exec: reject SERVFAIL
 
   # ==========================================
