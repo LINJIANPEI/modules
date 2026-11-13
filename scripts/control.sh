@@ -386,6 +386,7 @@ fi
 # ==========================================
 case "$ACTION" in
     start)
+        calc_all_fd
         case "$SVC" in
             mihomo)
                 nohup sh "${module_dir}/scripts/clash.sh" enable >/dev/null 2>&1 < /dev/null &
