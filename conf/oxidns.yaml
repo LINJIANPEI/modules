@@ -1,3 +1,4 @@
+
 log:
   level: info
   file: "../log/oxidns.log"
@@ -9,9 +10,11 @@ api:
       root: ./webui
 
 plugins:
+
   # ==========================================
-  # 规则集（国内 / CDN / 国外 分开）
+  # 1. 规则集
   # ==========================================
+
   - tag: cn_domains
     type: domain_set
     args:
@@ -32,140 +35,217 @@ plugins:
         - "./custom_nocn_domain.txt"
         - "./rules/nocn_domain.txt"
 
+
   # ==========================================
-  # 上游转发（国内 / 国外 SmartDNS）
+  # 2. 上游 DNS
   # ==========================================
+
+  # 国内 SmartDNS
   - tag: forward_local
     type: forward
     args:
-      concurrent: 2
+      concurrent: 1
       upstreams:
         - addr: "tcp://127.0.0.1:5445"
-          bootstrap: "127.0.0.1:5445"
           idle_timeout: 120
+          timeout: 3s
 
+  # 国外 SmartDNS
   - tag: forward_remote
     type: forward
     args:
-      concurrent: 2
+      concurrent: 1
       upstreams:
         - addr: "tcp://127.0.0.1:5555"
-          bootstrap: "127.0.0.1:5555"
           idle_timeout: 120
+          timeout: 3s
+
 
   # ==========================================
-  # ECS 处理
+  # 3. ECS 处理
   # ==========================================
-  # 国内：保留客户端 ECS 并转发，不主动添加
+
+  # 国内：保留客户端 ECS，不主动添加
   - tag: ecs_keep
     type: ecs_handler
     args:
       forward: true
       send: false
 
-  # 国外：剥离 ECS
+  # 国外：剥离客户端 ECS
   - tag: ecs_strip
     type: ecs_handler
     args:
       forward: false
       send: false
 
+
   # ==========================================
-  # 两条原子链（ECS + 转发绑定）
+  # 4. 主线路查询链
+  #    无有效答案时清除响应，交给备用线路
   # ==========================================
+
+  # 国内主线路
   - tag: seq_local
     type: sequence
     args:
       - exec: "$ecs_keep"
       - exec: "$forward_local"
-      # SERVFAIL：切换备用线路
-      - matches: "rcode SERVFAIL"
+
+      # SERVFAIL / REFUSED
+      - matches: "rcode SERVFAIL,REFUSED"
         exec: drop_resp
-      # REFUSED：切换备用线路
-      - matches: "rcode REFUSED"
+
+      # NXDOMAIN：交给备用线路重新查询
+      - matches: "rcode NXDOMAIN"
         exec: drop_resp
-      # CNAME 不完整：切换备用线路
+
+      # NOERROR 但没有当前查询类型的有效答案
+      # 包括 NODATA 和不完整 CNAME
       - matches:
           - "rcode NOERROR"
-          - "has_cname"
           - "!has_wanted_ans"
         exec: drop_resp
 
+
+  # 国外主线路
   - tag: seq_remote
     type: sequence
     args:
       - exec: "$ecs_strip"
       - exec: "$forward_remote"
-      # SERVFAIL
-      - matches: "rcode SERVFAIL"
+
+      # SERVFAIL / REFUSED
+      - matches: "rcode SERVFAIL,REFUSED"
         exec: drop_resp
-      # REFUSED
-      - matches: "rcode REFUSED"
+
+      # NXDOMAIN：交给备用线路重新查询
+      - matches: "rcode NXDOMAIN"
         exec: drop_resp
-      # CNAME 不完整
+
+      # NOERROR 但没有当前查询类型的有效答案
       - matches:
           - "rcode NOERROR"
-          - "has_cname"
           - "!has_wanted_ans"
         exec: drop_resp
 
-  # ==========================================
-  # 两个 fallback（主备顺序不同，启用 short_circuit）
-  # ==========================================
-  - tag: fallback_local_first
-    type: fallback
-    args:
-      primary: seq_local
-      secondary: seq_remote
-      threshold: 500
-      short_circuit: false
-      always_standby: false
-
-  - tag: fallback_remote_first
-    type: fallback
-    args:
-      primary: seq_remote
-      secondary: seq_local
-      threshold: 500
-      short_circuit: false
-      always_standby: false
 
   # ==========================================
-  # 主分流链（exec + has_resp 收口）
+  # 5. 备用线路查询链
+  #    保留备用 DNS 的正常否定结果
   # ==========================================
+
+  # 国内备用
+  - tag: seq_local_backup
+    type: sequence
+    args:
+      - exec: "$ecs_keep"
+      - exec: "$forward_local"
+
+      # 备用线路也出现服务器错误时清除响应
+      - matches: "rcode SERVFAIL,REFUSED"
+        exec: drop_resp
+
+
+  # 国外备用
+  - tag: seq_remote_backup
+    type: sequence
+    args:
+      - exec: "$ecs_strip"
+      - exec: "$forward_remote"
+
+      # 备用线路也出现服务器错误时清除响应
+      - matches: "rcode SERVFAIL,REFUSED"
+        exec: drop_resp
+
+
+  # ==========================================
+  # 6. 主分流链
+  # ==========================================
+
   - tag: main_sequence
     type: sequence
     args:
-      # 1. 国内域名
+
+      # ----------------------------------------
+      # 国内域名：国内主用，国外备用
+      # ----------------------------------------
+
       - matches: "qname $cn_domains"
-        exec: $seq_local
+        exec: "$seq_local"
+
+      # 国内查询成功，直接返回
       - matches: has_resp
         exec: accept
 
-      # 2. CDN 域名
+      # 国内没有有效答案，切换国外
+      - matches: "qname $cn_domains"
+        exec: "$seq_remote_backup"
+
+      - matches: has_resp
+        exec: accept
+
+
+      # ----------------------------------------
+      # CDN 域名：国内主用，国外备用
+      # ----------------------------------------
+
       - matches: "qname $cdn_domains"
-        exec: $seq_local
+        exec: "$seq_local"
+
       - matches: has_resp
         exec: accept
 
-      # 3. 国外域名
+      - matches: "qname $cdn_domains"
+        exec: "$seq_remote_backup"
+
+      - matches: has_resp
+        exec: accept
+
+
+      # ----------------------------------------
+      # 国外域名：国外主用，国内备用
+      # ----------------------------------------
+
       - matches: "qname $nocn_domains"
-        exec: $seq_remote
+        exec: "$seq_remote"
+
       - matches: has_resp
         exec: accept
 
-      # 4. 兜底
-      - exec: $fallback_remote_first
+      - matches: "qname $nocn_domains"
+        exec: "$seq_local_backup"
+
       - matches: has_resp
         exec: accept
 
 
-      # 5. 所有尝试均失败
+      # ----------------------------------------
+      # 未分类域名：国外主用，国内备用
+      # ----------------------------------------
+
+      - exec: "$seq_remote"
+
+      - matches: has_resp
+        exec: accept
+
+      - exec: "$seq_local_backup"
+
+      - matches: has_resp
+        exec: accept
+
+
+      # ----------------------------------------
+      # 所有线路均失败
+      # ----------------------------------------
+
       - exec: reject SERVFAIL
 
+
   # ==========================================
-  # TCP / UDP 监听
+  # 7. TCP / UDP 监听
   # ==========================================
+
   - tag: tcp_in
     type: tcp_server
     args:
@@ -179,15 +259,18 @@ plugins:
       entry: main_sequence
       listen: "127.0.0.1:5335"
 
+
   # ==========================================
-  # 订阅规则下载
+  # 8. 订阅规则下载
   # ==========================================
+
   - tag: subscription_download
     type: download
     args:
       timeout: 60s
       startup_if_missing: true
       downloads:
+
         - url: "https://gh-proxy.com/https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_domain.txt"
           dir: "./rules"
           filename: "cn_domain.txt"
@@ -200,9 +283,11 @@ plugins:
           dir: "./rules"
           filename: "nocn_domain.txt"
 
+
   # ==========================================
-  # 规则热更新
+  # 9. 规则热更新
   # ==========================================
+
   - tag: reload_rules
     type: reload_provider
     args:
@@ -210,9 +295,11 @@ plugins:
       - $cdn_domains
       - $nocn_domains
 
+
   # ==========================================
-  # 定时更新（12 小时）
+  # 10. 定时更新（12 小时）
   # ==========================================
+
   - tag: subscription_cron
     type: cron
     args:
