@@ -76,14 +76,38 @@ plugins:
   - tag: seq_local
     type: sequence
     args:
-      - exec: $ecs_keep
-      - exec: $forward_local
+      - exec: "$ecs_keep"
+      - exec: "$forward_local"
+      # SERVFAIL：切换备用线路
+      - matches: "rcode SERVFAIL"
+        exec: drop_resp
+      # REFUSED：切换备用线路
+      - matches: "rcode REFUSED"
+        exec: drop_resp
+      # CNAME 不完整：切换备用线路
+      - matches:
+          - "rcode NOERROR"
+          - "has_cname"
+          - "!has_wanted_ans"
+        exec: drop_resp
 
   - tag: seq_remote
     type: sequence
     args:
-      - exec: $ecs_strip
-      - exec: $forward_remote
+      - exec: "$ecs_strip"
+      - exec: "$forward_remote"
+      # SERVFAIL
+      - matches: "rcode SERVFAIL"
+        exec: drop_resp
+      # REFUSED
+      - matches: "rcode REFUSED"
+        exec: drop_resp
+      # CNAME 不完整
+      - matches:
+          - "rcode NOERROR"
+          - "has_cname"
+          - "!has_wanted_ans"
+        exec: drop_resp
 
   # ==========================================
   # 两个 fallback（主备顺序不同，启用 short_circuit）
@@ -94,7 +118,8 @@ plugins:
       primary: seq_local
       secondary: seq_remote
       threshold: 500
-      short_circuit: true
+      short_circuit: false
+      always_standby: true
 
   - tag: fallback_remote_first
     type: fallback
@@ -102,7 +127,8 @@ plugins:
       primary: seq_remote
       secondary: seq_local
       threshold: 500
-      short_circuit: true
+      short_circuit: false
+      always_standby: true
 
   # ==========================================
   # 主分流链（exec + has_resp 收口）
@@ -115,23 +141,33 @@ plugins:
         exec: $fallback_local_first
       - matches: has_resp
         exec: accept
+      # 国内线路全部失败
+      - matches: "qname $cn_domains"
+        exec: reject SERVFAIL
 
       # 2. CDN 域名 → 国内优先（独立匹配，策略同国内）
       - matches: "qname $cdn_domains"
         exec: $fallback_local_first
       - matches: has_resp
         exec: accept
+      # CDN 线路全部失败
+      - matches: "qname $cdn_domains"
+        exec: reject SERVFAIL
 
       # 3. 国外域名 → 国外优先
       - matches: "qname $nocn_domains"
         exec: $fallback_remote_first
       - matches: has_resp
         exec: accept
+      # 国外线路全部失败
+      - matches: "qname $nocn_domains"
+        exec: reject SERVFAIL
 
       # 4. 未匹配 → 国外优先
       - exec: $fallback_remote_first
       - matches: has_resp
         exec: accept
+
 
       # 5. 兜底：所有尝试均失败
       - exec: reject SERVFAIL
