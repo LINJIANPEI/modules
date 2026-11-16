@@ -9860,6 +9860,7 @@ dealtree.org
 deasians.com
 debank.com
 debian.org
+debot.ai
 debugproject.com
 decentr.net
 dechamora.com
@@ -20955,6 +20956,7 @@ reg.ru
 reiporno.com
 relateiq.com
 remirepo.net
+remna.dev
 remna.st
 rencapbank.ru
 renchead.com
