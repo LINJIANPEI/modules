@@ -9725,6 +9725,7 @@ cybertrust.co.jp
 cybertrust.ne.jp
 cyberx.com
 cygames.co.jp
+cygames.com
 cygames.jp
 cygwin.com
 cylink0122.icu
@@ -26133,6 +26134,7 @@ yavtube.com
 yaya.cyou
 yayadizhi.xyz
 yazhouse8.com
+yb-payment.ru
 yccdn.ru
 yclients.com
 ycombinator.com
@@ -26808,6 +26810,7 @@ full:bnetcmsus-a.akamaihd.net
 full:bnetproduct-a.akamaihd.net
 full:bnetshopus.akamaized.net
 full:brightcove.imgix.net
+full:builds.dotnet.microsoft.com
 full:bybit-exchange.github.io
 full:bybit.ada.support
 full:c.ppy.sh
@@ -26909,6 +26912,7 @@ full:dlmobilegarena-a.akamaihd.net
 full:dmqdd6hw24ucf.cloudfront.net
 full:docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com
 full:docker-pinata-support.s3.amazonaws.com
+full:dotnetcli.trafficmanager.net
 full:doy2mn9upadnk.cloudfront.net
 full:dqd0jw5gvbchn.cloudfront.net
 full:dqrpb9wgowsf5.cloudfront.net
@@ -27275,6 +27279,7 @@ full:steamusercontent-a.akamaihd.net
 full:steamuserimages-a.akamaihd.net
 full:steamvideo-a.akamaihd.net
 full:straitsx-826709081262441084-b790f87a2ae6fd417434295.freshchat.com
+full:sundry-star-net-geo.trafficmanager.net
 full:supercell.helpshift.com
 full:supercell.zendesk.com
 full:t.ssp.hinet.net
