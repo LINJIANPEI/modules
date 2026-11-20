@@ -173,7 +173,6 @@ if [ "${enable_smartdns}" = "true" ]; then
         -f \
        >"${log_dir}/smartdns.log" 2>&1 &
     ) 
-    #"${module_dir}/scripts/updateSmartdnsRules.sh" &
 fi
 
 # -------------------- 其他脚本 --------------------
