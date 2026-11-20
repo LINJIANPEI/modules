@@ -1,3 +1,27 @@
+## [2026.11.20.318] - 2026-11-20
+
+### 上游同步更新
+  - 同步了上游最新 Releases
+  - 更新了 8 个组件到最新版本
+
+
+### 更新的组件
+
+- mihomo
+- AdGuardHome
+- AghReport
+- oxidns
+- smartdns
+- geoip
+- geosite
+- AppOpt
+
+### 下载
+
+- [ZIP 下载链接](https://github.com/LINJIANPEI/modules/releases/download/v2026.11.20.318/2026.11.20.318.zip)
+
+---
+
 ## [2026.11.20.317] - 2026-11-20
 
 ### 上游同步更新
