@@ -212,134 +212,27 @@ proxy-groups:
     - {name: 英国自动选择, !!merge <<: *autotest, hidden: false, filter: "(?i)(\U0001F1EC\U0001F1E7|英国|uk|英国|England|UK)"}
     - {name: 新加坡自动选择, !!merge <<: *autotest, hidden: false, filter: "(?i)(\U0001F1F8\U0001F1EC|新加坡|sg|singapore|SG)"}
     - {name: ♻️ 自动选择, !!merge <<: *autotest, hidden: false, filter: "^((?!(直连)).)*$"}
-rule-providers:
-    private_ip:
-        type: http
-        behavior: ipcidr
-        path: "./rule_provider/private_ip.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.yaml
-        interval: 86400
-    private_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/private_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.yaml
-        interval: 86400
-    bilibili_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/bilibili_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/bilibili.yaml
-        interval: 86400
-    cn_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/cn_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.yaml
-        interval: 86400
-    github_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/github_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.yaml
-        interval: 86400
-    google_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/google_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.yaml
-        interval: 86400
-    youtube_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/youtube_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.yaml
-        interval: 86400
-    tiktok_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/tiktok_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.yaml
-        interval: 86400
-    netflix_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/netflix_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/netflix.yaml
-        interval: 86400
-    telegram_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/telegram_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.yaml
-        interval: 86400
-    nocn_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/nocn_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.yaml
-        interval: 86400
-    gfw_domain:
-        type: http
-        behavior: domain
-        path: "./rule_provider/gfw_domain.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/gfw.yaml
-        interval: 86400
-    cn_ip:
-        type: http
-        behavior: ipcidr
-        path: "./rule_provider/cn_ip.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.yaml
-        interval: 86400
-    google_ip:
-        type: http
-        behavior: ipcidr
-        path: "./rule_provider/google_ip.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.yaml
-        interval: 86400
-    netflix_ip:
-        type: http
-        behavior: ipcidr
-        path: "./rule_provider/netflix_ip.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/netflix.yaml
-        interval: 86400
-    telegram_ip:
-        type: http
-        behavior: ipcidr
-        path: "./rule_provider/telegram_ip.yaml"
-        format: yaml
-        url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.yaml
-        interval: 86400
+# ==========================================
+# GEO 数据库
+# ==========================================
+# 使用 DAT 格式
+geodata-mode: true
+# GeoSite 匹配器
+geosite-matcher: succinct
+# 内存优化加载
+geodata-loader: memconservative
+# 自动更新
+geo-auto-update: true
+# 每 24 小时更新一次
+geo-update-interval: 24
+# 自定义 GEO 数据库下载地址
+geox-url:
+    geosite: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geosite.dat"
+    geoip: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geoip.dat"
 rules:
-    - "RULE-SET,private_ip,\U0001F3AF 国内代理"
-    - "RULE-SET,private_domain,\U0001F3AF 国内代理"
-    - "RULE-SET,bilibili_domain,\U0001F3AF 国内代理"
-    - "RULE-SET,cn_domain,\U0001F3AF 国内代理"
-    - "RULE-SET,cn_ip,\U0001F3AF 国内代理"
-    - "RULE-SET,github_domain,\U0001F680 国外代理"
-    - "RULE-SET,google_domain,\U0001F680 国外代理"
-    - "RULE-SET,youtube_domain,\U0001F680 国外代理"
-    - "RULE-SET,tiktok_domain,\U0001F680 国外代理"
-    - "RULE-SET,netflix_domain,\U0001F680 国外代理"
-    - "RULE-SET,telegram_domain,\U0001F680 国外代理"
-    - "RULE-SET,gfw_domain,\U0001F680 国外代理"
-    - "RULE-SET,nocn_domain,\U0001F680 国外代理"
-    - "RULE-SET,google_ip,\U0001F680 国外代理"
-    - "RULE-SET,netflix_ip,\U0001F680 国外代理"
-    - "RULE-SET,telegram_ip,\U0001F680 国外代理"
+    - "GEOSITE,cn,\U0001F3AF 国内代理"
+    - "GEOIP,cn,\U0001F3AF 国内代理"
+    - "GEOSITE,cdn,\U0001F3AF 国内代理"
+    - "GEOSITE,nocn,\U0001F680 国外代理"
+    - "GEOIP,nocn,\U0001F680 国外代理"
     - "MATCH,\U0001F41F 漏网之鱼"
