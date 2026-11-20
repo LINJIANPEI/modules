@@ -135,22 +135,38 @@
       ]
     },
     {
-      "name": "mosdnsRules",
+      "name": "geoip",
       "repo": "LINJIANPEI/mosdnsRules",
       "use_latest": true,
-      "publish_on_update": false,
       "asset_patterns": [
-        "*.zip"
+        "geoip"
       ],
-      "asset_priority": [
-        "rule"
-      ],
+      "asset_priority": [],
       "mappings": [
         {
-          "source": "./",
+          "source": "geoip.dat",
           "target": "oxidnsData/rules",
-          "type": "folder",
-          "overwrite": true
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        }
+      ]
+    },
+    {
+      "name": "geosite",
+      "repo": "LINJIANPEI/mosdnsRules",
+      "use_latest": true,
+      "asset_patterns": [
+        "geosite"
+      ],
+      "asset_priority": [],
+      "mappings": [
+        {
+          "source": "geoip.dat",
+          "target": "oxidnsData/rules",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
         }
       ]
     },
