@@ -11,33 +11,60 @@ api:
 
 plugins:
 
+  - tag: geosite_cn
+    type: geosite
+    args:
+      file: "./rules/geosite.dat"
+      selectors:
+        - "cn"
+
+  - tag: geosite_nocn
+    type: geosite
+    args:
+      file: "./rules/geosite.dat"
+      selectors:
+        - "nocn"
+
+  - tag: geosite_cdn
+    type: geosite
+    args:
+      file: "./rules/geosite.dat"
+      selectors:
+        - "cdn"
+
+
   # ==========================================
-  # 1. 规则集
+  # 2. 域名规则集合
   # ==========================================
 
+  # 国内域名
   - tag: cn_domains
     type: domain_set
     args:
       files:
         - "./custom_cn_domain.txt"
-        - "./rules/cn_domain.txt"
+      sets:
+        - "geosite_cn"
 
+  # CDN 域名
   - tag: cdn_domains
     type: domain_set
     args:
-      files:
-        - "./rules/cdn_domain.txt"
+      sets:
+        - "geosite_cdn"
 
+  # 国外域名
   - tag: nocn_domains
     type: domain_set
     args:
       files:
         - "./custom_nocn_domain.txt"
-        - "./rules/nocn_domain.txt"
+      sets:
+        - "geosite_nocn"
 
 
   # ==========================================
-  # 2. 上游 DNS
+  # 3. 上游 DNS
   # ==========================================
 
   # 国内 SmartDNS
@@ -62,7 +89,7 @@ plugins:
 
 
   # ==========================================
-  # 3. ECS 处理
+  # 4. ECS 处理
   # ==========================================
 
   # 国内：保留客户端 ECS，不主动添加
@@ -81,7 +108,7 @@ plugins:
 
 
   # ==========================================
-  # 4. 主线路查询链
+  # 5. 主线路查询链
   #    无有效答案时清除响应，交给备用线路
   # ==========================================
 
@@ -96,12 +123,11 @@ plugins:
       - matches: "rcode SERVFAIL,REFUSED"
         exec: drop_resp
 
-      # NXDOMAIN：交给备用线路重新查询
+      # NXDOMAIN：交给备用线路
       - matches: "rcode NXDOMAIN"
         exec: drop_resp
 
       # NOERROR 但没有当前查询类型的有效答案
-      # 包括 NODATA 和不完整 CNAME
       - matches:
           - "rcode NOERROR"
           - "!has_wanted_ans"
@@ -119,7 +145,7 @@ plugins:
       - matches: "rcode SERVFAIL,REFUSED"
         exec: drop_resp
 
-      # NXDOMAIN：交给备用线路重新查询
+      # NXDOMAIN：交给备用线路
       - matches: "rcode NXDOMAIN"
         exec: drop_resp
 
@@ -131,7 +157,7 @@ plugins:
 
 
   # ==========================================
-  # 5. 备用线路查询链
+  # 6. 备用线路查询链
   #    保留备用 DNS 的正常否定结果
   # ==========================================
 
@@ -142,7 +168,6 @@ plugins:
       - exec: "$ecs_keep"
       - exec: "$forward_local"
 
-      # 备用线路也出现服务器错误时清除响应
       - matches: "rcode SERVFAIL,REFUSED"
         exec: drop_resp
 
@@ -154,13 +179,12 @@ plugins:
       - exec: "$ecs_strip"
       - exec: "$forward_remote"
 
-      # 备用线路也出现服务器错误时清除响应
       - matches: "rcode SERVFAIL,REFUSED"
         exec: drop_resp
 
 
   # ==========================================
-  # 6. 主分流链
+  # 7. 主分流链
   # ==========================================
 
   - tag: main_sequence
@@ -174,11 +198,9 @@ plugins:
       - matches: "qname $cn_domains"
         exec: "$seq_local"
 
-      # 国内查询成功，直接返回
       - matches: has_resp
         exec: accept
 
-      # 国内没有有效答案，切换国外
       - matches: "qname $cn_domains"
         exec: "$seq_remote_backup"
 
@@ -243,7 +265,7 @@ plugins:
 
 
   # ==========================================
-  # 7. TCP / UDP 监听
+  # 8. TCP / UDP 监听
   # ==========================================
 
   - tag: tcp_in
@@ -261,43 +283,46 @@ plugins:
 
 
   # ==========================================
-  # 8. 订阅规则下载
+  # 9. 订阅规则下载
+  #    TXT + GitHub 最新 Release DAT
   # ==========================================
 
   - tag: subscription_download
     type: download
     args:
-      timeout: 60s
+      timeout: 120s
       startup_if_missing: true
+
       downloads:
 
-        - url: "https://gh-proxy.com/https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cn_domain.txt"
+        # geosite.dat
+        - url: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geosite.dat"
           dir: "./rules"
-          filename: "cn_domain.txt"
+          filename: "geosite.dat"
 
-        - url: "https://gh-proxy.com/https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/cdn_domain.txt"
+        # geoip.dat
+        - url: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geoip.dat"
           dir: "./rules"
-          filename: "cdn_domain.txt"
-
-        - url: "https://gh-proxy.com/https://raw.githubusercontent.com/LINJIANPEI/mosdnsRules/main/rule/nocn_domain.txt"
-          dir: "./rules"
-          filename: "nocn_domain.txt"
+          filename: "geoip.dat"
 
 
   # ==========================================
-  # 9. 规则热更新
+  # 10. 规则热更新
   # ==========================================
 
   - tag: reload_rules
     type: reload_provider
     args:
-      - $cn_domains
-      - $cdn_domains
-      - $nocn_domains
+      - "$geosite_cn"
+      - "$geosite_nocn"
+      - "$geosite_cdn"
+      - "$cn_domains"
+      - "$cdn_domains"
+      - "$nocn_domains"
 
 
   # ==========================================
-  # 10. 定时更新（12 小时）
+  # 11. 定时更新（12 小时）
   # ==========================================
 
   - tag: subscription_cron
@@ -307,5 +332,5 @@ plugins:
         - name: refresh_rules
           interval: 12h
           executors:
-            - $subscription_download
-            - $reload_rules
+            - "$subscription_download"
+            - "$reload_rules"
