@@ -135,7 +135,7 @@
         },
         {
           "source": "geoip.dat",
-          "target": "mihomoData",
+          "target": "mihomoData/GeoIP.dat",
           "type": "file",
           "overwrite": true,
           "make_executable": true
@@ -161,7 +161,7 @@
         },
         {
           "source": "geosite.dat",
-          "target": "mihomoData",
+          "target": "mihomoData/GeoSite.dat",
           "type": "file",
           "overwrite": true,
           "make_executable": true
