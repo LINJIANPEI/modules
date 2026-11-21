@@ -146,7 +146,7 @@
       "asset_priority": [],
       "mappings": [
         {
-          "source": "geoip.dat",
+          "source": "geosite.dat",
           "target": "oxidnsData/rules",
           "type": "file",
           "overwrite": true,
