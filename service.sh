@@ -131,7 +131,6 @@ fi
 # AdGuardHome
 if [ "${enable_adguardhome}" = "true" ]; then
     kill_by_name "AdGuardHome"
-    kill_by_name "AghReport"
     (
     ulimit -n "$FD_ADGUARD"
     cd ${module_dir}/adguardHomeData
@@ -142,7 +141,6 @@ if [ "${enable_adguardhome}" = "true" ]; then
         --no-check-update \
         >"${log_dir}/AdGuardHome.log" 2>&1 &
     ) &
-    nohup "${module_dir}/bin/AghReport" &
 fi
 
 
