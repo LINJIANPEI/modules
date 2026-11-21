@@ -132,6 +132,13 @@
           "type": "file",
           "overwrite": true,
           "make_executable": true
+        },
+        {
+          "source": "geoip.dat",
+          "target": "mihomoData",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
         }
       ]
     },
@@ -148,6 +155,13 @@
         {
           "source": "geosite.dat",
           "target": "oxidnsData/rules",
+          "type": "file",
+          "overwrite": true,
+          "make_executable": true
+        },
+        {
+          "source": "geosite.dat",
+          "target": "mihomoData",
           "type": "file",
           "overwrite": true,
           "make_executable": true
