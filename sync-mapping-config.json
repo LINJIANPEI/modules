@@ -46,24 +46,6 @@
       ]
     },
     {
-      "name": "AghReport",
-      "repo": "LINJIANPEI/AdguardHomeReport",
-      "use_latest": true,
-      "asset_patterns": [
-        "AghReport"
-      ],
-      "asset_priority": [],
-      "mappings": [
-        {
-          "source": "AghReport",
-          "target": "bin/AghReport",
-          "type": "file",
-          "overwrite": true,
-          "make_executable": true
-        }
-      ]
-    },
-    {
       "name": "oxidns",
       "repo": "svenshi/oxidns",
       "use_latest": true,
