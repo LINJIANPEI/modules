@@ -393,7 +393,6 @@ case "$ACTION" in
                 ;;
             adguardhome)
                 kill_by_name "AdGuardHome"
-                kill_by_name "AghReport"
                 nohup sh -c "
                     ulimit -n $FD_ADGUARD
                     cd ${module_dir}/adguardHomeData
