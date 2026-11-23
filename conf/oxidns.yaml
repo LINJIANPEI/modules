@@ -107,6 +107,7 @@ plugins:
       concurrent: 1
       upstreams:
         - addr: "tcp://127.0.0.1:5445"
+          dial_addr: "127.0.0.1:5445"
           idle_timeout: 120
           timeout: 3s
 
@@ -117,6 +118,7 @@ plugins:
       concurrent: 1
       upstreams:
         - addr: "tcp://127.0.0.1:5555"
+          dial_addr: "127.0.0.1:5555"
           idle_timeout: 120
           timeout: 3s
 
@@ -169,7 +171,7 @@ plugins:
     args:
 
       - matches: "qname $cn_domains"
-        exec: "$seq_local"
+        exec: "$seq_remote"
         
       - matches: "!resp_ip $cn_ip"
         exec: drop_resp
@@ -192,7 +194,7 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - exec: "$forward_fallback"
+      - exec: "$seq_remote"
 
       - matches: has_resp
         exec: accept
