@@ -18,10 +18,24 @@ plugins:
       selectors:
         - "cn"
 
+  - tag: geoip_cn
+    type: geoip
+    args:
+      file: "./rules/geoip.dat"
+      selectors:
+        - "cn"
+
   - tag: geosite_nocn
     type: geosite
     args:
       file: "./rules/geosite.dat"
+      selectors:
+        - "nocn"
+ 
+  - tag: geoip_nocn
+    type: geoip
+    args:
+      file: "./rules/geoip.dat"
       selectors:
         - "nocn"
 
@@ -32,10 +46,12 @@ plugins:
       selectors:
         - "cdn"
 
-
-  # ==========================================
-  # 2. 域名规则集合
-  # ==========================================
+  - tag: geoip_private
+    type: geoip
+    args:
+      file: "./rules/geoip.dat"
+      selectors:
+        - "private"
 
   # 国内域名
   - tag: cn_domains
@@ -45,6 +61,13 @@ plugins:
         - "./custom_cn_domain.txt"
       sets:
         - "geosite_cn"
+        
+  # 国内IP
+  - tag: cn_ip
+    type: ip_set
+    args:
+      sets:
+        - "geoip_cn"
 
   # CDN 域名
   - tag: cdn_domains
@@ -52,6 +75,13 @@ plugins:
     args:
       sets:
         - "geosite_cdn"
+        
+  # 私有IP
+  - tag: private_ip
+    type: ip_set
+    args:
+      sets:
+        - "geoip_private"
 
   # 国外域名
   - tag: nocn_domains
@@ -61,13 +91,16 @@ plugins:
         - "./custom_nocn_domain.txt"
       sets:
         - "geosite_nocn"
+        
+  # 国外IP
+  - tag: nocn_ip
+    type: ip_set
+    args:
+      sets:
+        - "geoip_nocn"
 
 
-  # ==========================================
-  # 3. 上游 DNS
-  # ==========================================
-
-  # 国内 SmartDNS
+  # 国内 DNS
   - tag: forward_local
     type: forward
     args:
@@ -77,7 +110,7 @@ plugins:
           idle_timeout: 120
           timeout: 3s
 
-  # 国外 SmartDNS
+  # 国外 DNS
   - tag: forward_remote
     type: forward
     args:
@@ -87,10 +120,6 @@ plugins:
           idle_timeout: 120
           timeout: 3s
 
-
-  # ==========================================
-  # 4. ECS 处理
-  # ==========================================
 
   # 国内：保留客户端 ECS，不主动添加
   - tag: ecs_keep
@@ -106,32 +135,12 @@ plugins:
       forward: false
       send: false
 
-
-  # ==========================================
-  # 5. 主线路查询链
-  #    无有效答案时清除响应，交给备用线路
-  # ==========================================
-
   # 国内主线路
   - tag: seq_local
     type: sequence
     args:
       - exec: "$ecs_keep"
       - exec: "$forward_local"
-
-      # SERVFAIL / REFUSED
-      - matches: "rcode SERVFAIL,REFUSED"
-        exec: drop_resp
-
-      # NXDOMAIN：交给备用线路
-      - matches: "rcode NXDOMAIN"
-        exec: drop_resp
-
-      # NOERROR 但没有当前查询类型的有效答案
-      - matches:
-          - "rcode NOERROR"
-          - "!has_wanted_ans"
-        exec: drop_resp
 
 
   # 国外主线路
@@ -141,132 +150,53 @@ plugins:
       - exec: "$ecs_strip"
       - exec: "$forward_remote"
 
-      # SERVFAIL / REFUSED
-      - matches: "rcode SERVFAIL,REFUSED"
-        exec: drop_resp
-
-      # NXDOMAIN：交给备用线路
-      - matches: "rcode NXDOMAIN"
-        exec: drop_resp
-
-      # NOERROR 但没有当前查询类型的有效答案
-      - matches:
-          - "rcode NOERROR"
-          - "!has_wanted_ans"
-        exec: drop_resp
-
-
-  # ==========================================
-  # 6. 备用线路查询链
-  #    保留备用 DNS 的正常否定结果
-  # ==========================================
-
-  # 国内备用
-  - tag: seq_local_backup
-    type: sequence
+  # 国内 SmartDNS
+  - tag: forward_fallback
+    type: fallback
     args:
-      - exec: "$ecs_keep"
-      - exec: "$forward_local"
+      # 首选路径
+      primary: "seq_remote"
+      # 兜底路径
+      secondary: "seq_local"
+      # 主路径超过 600ms 后允许备用路径接管
+      threshold: 600
+      # 让备用路径始终并行待命，换取更低尾延迟
+      always_standby: false
 
-      - matches: "rcode SERVFAIL,REFUSED"
-        exec: drop_resp
-
-
-  # 国外备用
-  - tag: seq_remote_backup
-    type: sequence
-    args:
-      - exec: "$ecs_strip"
-      - exec: "$forward_remote"
-
-      - matches: "rcode SERVFAIL,REFUSED"
-        exec: drop_resp
-
-
-  # ==========================================
-  # 7. 主分流链
-  # ==========================================
 
   - tag: main_sequence
     type: sequence
     args:
 
-      # ----------------------------------------
-      # 国内域名：国内主用，国外备用
-      # ----------------------------------------
-
       - matches: "qname $cn_domains"
         exec: "$seq_local"
+        
+      - matches: "!resp_ip $cn_ip"
+        exec: drop_resp
 
       - matches: has_resp
         exec: accept
-
-      #- matches: "qname $cn_domains"
-      #  exec: "$seq_remote_backup"
-
-      #- matches: has_resp
-      #  exec: accept
-
-
-      # ----------------------------------------
-      # CDN 域名：国内主用，国外备用
-      # ----------------------------------------
 
       - matches: "qname $cdn_domains"
-        exec: "$seq_local"
-
-      - matches: has_resp
-        exec: accept
-
-      #- matches: "qname $cdn_domains"
-      #  exec: "$seq_remote_backup"
-
-      #- matches: has_resp
-      #  exec: accept
-
-
-      # ----------------------------------------
-      # 国外域名：国外主用，国内备用
-      # ----------------------------------------
-
-      - matches: "qname $nocn_domains"
         exec: "$seq_remote"
 
       - matches: has_resp
         exec: accept
 
-      #- matches: "qname $nocn_domains"
-      #  exec: "$seq_local_backup"
-
-      #- matches: has_resp
-      #  exec: accept
-
-
-      # ----------------------------------------
-      # 未分类域名：国外主用，国内备用
-      # ----------------------------------------
-
-      - exec: "$seq_remote"
+      - matches: "qname $nocn_domains"
+        exec: "$seq_remote"
+        
+      - matches: "resp_ip $cn_ip"
+        exec: drop_resp
 
       - matches: has_resp
         exec: accept
 
-      #- exec: "$seq_local_backup"
+      - exec: "$forward_fallback"
 
-      #- matches: has_resp
-      #  exec: accept
+      - matches: has_resp
+        exec: accept
 
-
-      # ----------------------------------------
-      # 所有线路均失败
-      # ----------------------------------------
-
-      - exec: reject SERVFAIL
-
-
-  # ==========================================
-  # 8. TCP / UDP 监听
-  # ==========================================
 
   - tag: tcp_in
     type: tcp_server
@@ -280,12 +210,6 @@ plugins:
     args:
       entry: main_sequence
       listen: "127.0.0.1:5335"
-
-
-  # ==========================================
-  # 9. 订阅规则下载
-  #    TXT + GitHub 最新 Release DAT
-  # ==========================================
 
   - tag: subscription_download
     type: download
@@ -305,25 +229,22 @@ plugins:
           dir: "./rules"
           filename: "geoip.dat"
 
-
-  # ==========================================
-  # 10. 规则热更新
-  # ==========================================
-
   - tag: reload_rules
     type: reload_provider
     args:
       - "$geosite_cn"
       - "$geosite_nocn"
       - "$geosite_cdn"
+      - "$geoip_cn"
+      - "$geoip_nocn"
+      - "$geoip_private"
       - "$cn_domains"
       - "$cdn_domains"
       - "$nocn_domains"
+      - "$cn_ip"
+      - "$private_ip"
+      - "$nocn_ip"
 
-
-  # ==========================================
-  # 11. 定时更新（12 小时）
-  # ==========================================
 
   - tag: subscription_cron
     type: cron
