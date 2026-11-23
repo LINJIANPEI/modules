@@ -118,11 +118,11 @@
     },
     {
       "name": "geoip",
-      "repo": "LINJIANPEI/mosdnsRules",
+      "repo": "MetaCubeX/meta-rules-dat",
       "use_latest": true,
       "publish_on_update": false,
       "asset_patterns": [
-        "geoip*"
+        "geoip.dat"
       ],
       "asset_priority": [],
       "mappings": [
@@ -144,11 +144,11 @@
     },
     {
       "name": "geosite",
-      "repo": "LINJIANPEI/mosdnsRules",
+      "repo": "MetaCubeX/meta-rules-dat",
       "use_latest": true,
       "publish_on_update": false,
       "asset_patterns": [
-        "geosite*"
+        "geosite.dat"
       ],
       "asset_priority": [],
       "mappings": [
