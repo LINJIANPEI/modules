@@ -18,17 +18,28 @@ find-process-mode: strict # 进程查找模式
 global-client-fingerprint: chrome # 全局客户端指纹模拟为 Chrome 浏览器
 # 域名嗅探 https://wiki.metacubex.one/config/sniff/#_1
 sniffer:
-    enable: false
+    enable: true
+    force-dns-mapping: true
+    parse-pure-ip: true
+    override-destination: false
     sniff:
         HTTP:
             ports: [80, 8080-8880]
-            override-destination: true
+            override-destination: false
         TLS:
             ports: [443, 8443]
         QUIC:
             ports: [443, 8443]
+    force-domain:
+        - "+.netflix.com"
+        - "+.nflxvideo.net"
+        - "+.amazonaws.com"
+        - "+.media.dssott.com"
     skip-domain:
         - Mijia Cloud
+        - dlg.io.mi.com
+        - "+.oray.com"
+        - "+.sunlogin.net"
         - "+.push.apple.com"
 # 缓存
 profile:
