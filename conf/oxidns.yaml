@@ -30,28 +30,8 @@ plugins:
     args:
       file: "./rules/geosite.dat"
       selectors:
-        - "nocn"
+        - "geolocation-!cn"
  
-  - tag: geoip_nocn
-    type: geoip
-    args:
-      file: "./rules/geoip.dat"
-      selectors:
-        - "nocn"
-
-  - tag: geosite_cdn
-    type: geosite
-    args:
-      file: "./rules/geosite.dat"
-      selectors:
-        - "cdn"
-
-  - tag: geoip_private
-    type: geoip
-    args:
-      file: "./rules/geoip.dat"
-      selectors:
-        - "private"
 
   # 国内域名
   - tag: cn_domains
@@ -69,19 +49,6 @@ plugins:
       sets:
         - "geoip_cn"
 
-  # CDN 域名
-  - tag: cdn_domains
-    type: domain_set
-    args:
-      sets:
-        - "geosite_cdn"
-        
-  # 私有IP
-  - tag: private_ip
-    type: ip_set
-    args:
-      sets:
-        - "geoip_private"
 
   # 国外域名
   - tag: nocn_domains
@@ -90,14 +57,7 @@ plugins:
       files:
         - "./custom_nocn_domain.txt"
       sets:
-        - "geosite_nocn"
-        
-  # 国外IP
-  - tag: nocn_ip
-    type: ip_set
-    args:
-      sets:
-        - "geoip_nocn"
+        - "geosite_nocn"        
 
 
   # 国内 DNS
@@ -179,12 +139,6 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - matches: "qname $cdn_domains"
-        exec: "$seq_remote"
-
-      - matches: has_resp
-        exec: accept
-
       - matches: "qname $nocn_domains"
         exec: "$seq_remote"
         
@@ -222,12 +176,12 @@ plugins:
       downloads:
 
         # geosite.dat
-        - url: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geosite.dat"
+        - url: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
           dir: "./rules"
           filename: "geosite.dat"
 
         # geoip.dat
-        - url: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geoip.dat"
+        - url: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
           dir: "./rules"
           filename: "geoip.dat"
 
@@ -236,16 +190,10 @@ plugins:
     args:
       - "$geosite_cn"
       - "$geosite_nocn"
-      - "$geosite_cdn"
       - "$geoip_cn"
-      - "$geoip_nocn"
-      - "$geoip_private"
       - "$cn_domains"
-      - "$cdn_domains"
       - "$nocn_domains"
       - "$cn_ip"
-      - "$private_ip"
-      - "$nocn_ip"
 
 
   - tag: subscription_cron
