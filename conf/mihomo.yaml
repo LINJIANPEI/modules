@@ -238,14 +238,12 @@ geo-auto-update: true
 geo-update-interval: 24
 # 自定义 GEO 数据库下载地址
 geox-url:
-    geosite: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geosite.dat"
-    geoip: "https://github.com/LINJIANPEI/mosdnsRules/releases/latest/download/geoip.dat"
+    geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+    geoip: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
 rules:
     - "GEOSITE,private,\U0001F3AF 国内代理"
     - "GEOIP,private,\U0001F3AF 国内代理"
     - "GEOSITE,cn,\U0001F3AF 国内代理"
     - "GEOIP,cn,\U0001F3AF 国内代理"
-    - "GEOSITE,cdn,\U0001F680 国外代理"
-    - "GEOSITE,nocn,\U0001F680 国外代理"
-    - "GEOIP,nocn,\U0001F680 国外代理"
+    - "GEOSITE,geolocation-!cn,\U0001F680 国外代理"
     - "MATCH,\U0001F41F 漏网之鱼"
