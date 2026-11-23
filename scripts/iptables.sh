@@ -193,7 +193,7 @@ setup_redirect() {
     iptables_w -t nat -N KERNEL_OUT
     iptables_w -t nat -F KERNEL_OUT
 
-    iptables_w -t nat -A KERNEL_OUT -m owner --uid-owner ${uid} --gid-owner ${gid} -j RETURN
+    iptables_w -t nat -A KERNEL_OUT -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -j RETURN
 
     if [ "${mode}" = "blacklist" ] ; then
         apps=$(get_uids_from_file ${BLACK_LIST_FILE})
@@ -223,8 +223,8 @@ setup_redirect() {
 
     iptables_w -t nat -A OUTPUT -j KERNEL_OUT
     
-    iptables_w -A OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
-    iptables_w -A OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
+    iptables_w -A OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
+    iptables_w -A OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
 
 }
 
@@ -239,8 +239,8 @@ cleanup_redirect() {
     iptables_w -t nat -F KERNEL_OUT
     iptables_w -t nat -X KERNEL_OUT
 
-    iptables_w -D OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
-    iptables_w -D OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
+    iptables_w -D OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
+    iptables_w -D OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_REDIR_PORT} -j REJECT
 }
 
 # ======================== TPROXY ========================
@@ -281,7 +281,7 @@ setup_tproxy() {
     iptables_w -t mangle -N KERNEL_OUT
     iptables_w -t mangle -F KERNEL_OUT
 
-    iptables_w -t mangle -A KERNEL_OUT -m owner --uid-owner ${uid} --gid-owner ${gid} -j RETURN
+    iptables_w -t mangle -A KERNEL_OUT -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -j RETURN
 
     for ip in ${reserved_ip} ; do
         iptables_w -t mangle -A KERNEL_OUT -d "${ip}" -j RETURN
@@ -322,8 +322,8 @@ setup_tproxy() {
 
     iptables_w -t mangle -A OUTPUT -j KERNEL_OUT
 
-    iptables_w -A OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
-    iptables_w -A OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
+    iptables_w -A OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
+    iptables_w -A OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
 
 }
 
@@ -346,9 +346,9 @@ cleanup_tproxy() {
     iptables_w -t mangle -F KERNEL_OUT
     iptables_w -t mangle -X KERNEL_OUT
 
-    iptables_w -D OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
+    iptables_w -D OUTPUT -d 127.0.0.1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
 
-    iptables_w -D OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${gid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
+    iptables_w -D OUTPUT -d ::1 -p tcp -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -m tcp --dport ${MIHOMO_TPROXY_PORT} -j REJECT
 
 }
 
@@ -390,7 +390,7 @@ setup_tuns() {
     iptables_w -t mangle -A KERNEL_PRE -j MARK --set-xmark ${mark_id}
     iptables_w -t mangle -A PREROUTING -j KERNEL_PRE
     iptables_w -t mangle -N KERNEL_OUT
-    iptables_w -t mangle -A KERNEL_OUT -m owner --uid-owner ${uid} --gid-owner ${gid} -j RETURN
+    iptables_w -t mangle -A KERNEL_OUT -m owner --uid-owner ${uid} --gid-owner ${mihomogid} -j RETURN
 
     if [ "${mode}" = "blacklist" ] ; then
         apps=$(get_uids_from_file ${BLACK_LIST_FILE})
