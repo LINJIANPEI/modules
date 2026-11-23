@@ -402,10 +402,6 @@ case "$ACTION" in
                         -w ${module_dir}/adguardHomeData \
                         --no-check-update
                 " > "${log_dir}/AdGuardHome.log" 2>&1 < /dev/null &
-                
-                nohup sh -c "
-                    busybox setuidgid ${uid}:${gid} ${module_dir}/bin/AghReport
-                " >/dev/null 2>&1 < /dev/null &
                 ;;
             smartdns)
                 handle_smartdns_proxy "on"
@@ -437,7 +433,6 @@ case "$ACTION" in
                 ;;
             adguardhome)
                 kill_by_name "AdGuardHome"
-                kill_by_name "AghReport"
                 ;;
             smartdns)
                 kill_by_name "smartdns"
