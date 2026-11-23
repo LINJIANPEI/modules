@@ -273,8 +273,8 @@ start_service() {
         log Error "busybox 不支持 setuidgid" "${log_dir}/mihomo.log"
         return 1
     fi
-    if [ -z "${uid}" ] || [ -z "${gid}" ]; then
-        log Error "uid 或 gid 未设置" "${log_dir}/mihomo.log"
+    if [ -z "${uid}" ] || [ -z "${mihomogid}" ]; then
+        log Error "uid 或 mihomogid 未设置" "${log_dir}/mihomo.log"
         return 1
     fi
 
@@ -283,7 +283,7 @@ start_service() {
     (
     # 设置 FD 限制
     ulimit -n "$FD_MIHOMO"
-    nohup busybox setuidgid "${uid}:${gid}" "${module_dir}/bin/mihomo" \
+    nohup busybox setuidgid "${uid}:${mihomogid}" "${module_dir}/bin/mihomo" \
         -d "${module_dir}/mihomoData" \
         -f "$YAML_FILE" \
         >> "${log_dir}/mihomoRun.log" 2>&1 &
