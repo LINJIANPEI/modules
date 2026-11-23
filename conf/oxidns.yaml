@@ -201,11 +201,11 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - matches: "qname $cn_domains"
-        exec: "$seq_remote_backup"
+      #- matches: "qname $cn_domains"
+      #  exec: "$seq_remote_backup"
 
-      - matches: has_resp
-        exec: accept
+      #- matches: has_resp
+      #  exec: accept
 
 
       # ----------------------------------------
@@ -218,11 +218,11 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - matches: "qname $cdn_domains"
-        exec: "$seq_remote_backup"
+      #- matches: "qname $cdn_domains"
+      #  exec: "$seq_remote_backup"
 
-      - matches: has_resp
-        exec: accept
+      #- matches: has_resp
+      #  exec: accept
 
 
       # ----------------------------------------
@@ -235,11 +235,11 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - matches: "qname $nocn_domains"
-        exec: "$seq_local_backup"
+      #- matches: "qname $nocn_domains"
+      #  exec: "$seq_local_backup"
 
-      - matches: has_resp
-        exec: accept
+      #- matches: has_resp
+      #  exec: accept
 
 
       # ----------------------------------------
@@ -251,10 +251,10 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - exec: "$seq_local_backup"
+      #- exec: "$seq_local_backup"
 
-      - matches: has_resp
-        exec: accept
+      #- matches: has_resp
+      #  exec: accept
 
 
       # ----------------------------------------
