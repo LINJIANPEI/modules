@@ -107,7 +107,7 @@ plugins:
       concurrent: 1
       upstreams:
         - addr: "tcp://127.0.0.1:5445"
-          dial_addr: "127.0.0.1:5445"
+          bootstrap: "127.0.0.1:5445"
           idle_timeout: 120
           timeout: 3s
 
@@ -118,7 +118,7 @@ plugins:
       concurrent: 1
       upstreams:
         - addr: "tcp://127.0.0.1:5555"
-          dial_addr: "127.0.0.1:5555"
+          bootstrap: "127.0.0.1:5555"
           idle_timeout: 120
           timeout: 3s
 
