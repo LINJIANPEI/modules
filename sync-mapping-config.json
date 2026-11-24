@@ -121,9 +121,7 @@
       "repo": "MetaCubeX/meta-rules-dat",
       "use_latest": true,
       "publish_on_update": false,
-      "asset_patterns": [
-        "geoip*"
-      ],
+      "asset_patterns": [],
       "asset_priority": [
         "geoip.dat"
       ],
@@ -149,9 +147,7 @@
       "repo": "MetaCubeX/meta-rules-dat",
       "use_latest": true,
       "publish_on_update": false,
-      "asset_patterns": [
-        "geosite*"
-      ],
+      "asset_patterns": [],
       "asset_priority": [
         "geosite.dat"
       ],
