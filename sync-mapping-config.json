@@ -122,9 +122,11 @@
       "use_latest": true,
       "publish_on_update": false,
       "asset_patterns": [
+        "geoip*"
+      ],
+      "asset_priority": [
         "geoip.dat"
       ],
-      "asset_priority": [],
       "mappings": [
         {
           "source": "geoip.dat",
@@ -148,9 +150,11 @@
       "use_latest": true,
       "publish_on_update": false,
       "asset_patterns": [
+        "geosite*"
+      ],
+      "asset_priority": [
         "geosite.dat"
       ],
-      "asset_priority": [],
       "mappings": [
         {
           "source": "geosite.dat",
