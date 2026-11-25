@@ -131,7 +131,7 @@ plugins:
     args:
 
       - matches: "qname $cn_domains"
-        exec: "$seq_remote"
+        exec: "$seq_local"
         
       - matches: "!resp_ip $cn_ip"
         exec: drop_resp
@@ -148,7 +148,7 @@ plugins:
       - matches: has_resp
         exec: accept
 
-      - exec: "$seq_remote"
+      - exec: "$forward_fallback"
 
       - matches: has_resp
         exec: accept
